@@ -1,6 +1,13 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { AuthState, User, SignInPayload, SignUpPayload } from "@/types";
+import axios from "axios";
+import type {
+  AuthState,
+  User,
+  SignInPayload,
+  SignUpPayload,
+  ApiErrorResponse,
+} from "@/types";
 import { AuthService } from "@/services/authService";
 import { REFRESH_TOKEN_STORAGE_KEY, USER_STORAGE_KEY } from "@/constants";
 
@@ -12,6 +19,24 @@ interface AuthStore extends AuthState {
   setUser: (user: User) => void;
   setAccessToken: (token: string) => void;
 }
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as ApiErrorResponse | undefined;
+    if (data?.message) {
+      return data.message;
+    }
+    if (data?.error) {
+      return data.error;
+    }
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+};
 
 export const useAuthStore = create<AuthStore>()(
   persist(
@@ -37,10 +62,9 @@ export const useAuthStore = create<AuthStore>()(
             isLoading: false,
           });
         } catch (error) {
-          const message =
-            error instanceof Error ? error.message : "Sign in failed";
+          const message = getErrorMessage(error, "Sign in failed");
           set({ error: message, isLoading: false });
-          throw error;
+          throw new Error(message);
         }
       },
 
@@ -60,10 +84,9 @@ export const useAuthStore = create<AuthStore>()(
             isLoading: false,
           });
         } catch (error) {
-          const message =
-            error instanceof Error ? error.message : "Sign up failed";
+          const message = getErrorMessage(error, "Sign up failed");
           set({ error: message, isLoading: false });
-          throw error;
+          throw new Error(message);
         }
       },
 

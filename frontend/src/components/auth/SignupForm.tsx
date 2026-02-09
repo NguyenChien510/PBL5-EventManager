@@ -2,8 +2,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Loader } from "@/components/ui/loader";
 
 const signUpSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
@@ -17,7 +17,6 @@ type SignUpFormData = z.infer<typeof signUpSchema>;
 export const SignupForm = () => {
   const { signUp, isLoading, error } = useAuthStore();
   const navigate = useNavigate();
-  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const {
     register,
@@ -29,13 +28,10 @@ export const SignupForm = () => {
 
   const onSubmit = async (data: SignUpFormData) => {
     try {
-      setSubmitError(null);
       await signUp(data);
       navigate("/");
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Sign up failed";
-      setSubmitError(errorMessage);
+      console.error(err);
     }
   };
 
@@ -50,9 +46,9 @@ export const SignupForm = () => {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {(error || submitError) && (
+          {error && (
             <div className="rounded bg-red-50 p-3 text-sm text-red-600">
-              {error || submitError}
+              {error}
             </div>
           )}
 
@@ -143,17 +139,18 @@ export const SignupForm = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full rounded bg-blue-600 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="w-full rounded bg-blue-600 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
           >
+            {isLoading && <Loader className="h-4 w-4 text-white" />}
             {isLoading ? "Đang tạo tài khoản..." : "Tạo tài khoản"}
           </button>
         </form>
 
         <div className="mt-4 text-center text-sm text-gray-600">
           Đã có tài khoản?{" "}
-          <a href="/signin" className="text-blue-600 hover:underline">
+          <Link to="/signin" className="text-blue-600 hover:underline">
             Đăng nhập
-          </a>
+          </Link>
         </div>
       </div>
     </div>

@@ -5,7 +5,7 @@ import org.springframework.http.HttpStatus;
 public class InvalidCredentialsException extends BaseException {
     
     public InvalidCredentialsException() {
-        super("Invalid username or password", HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS");
+        super("Sai tên đăng nhập hoặc mật khẩu", HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS");
     }
 
     public InvalidCredentialsException(String message) {
