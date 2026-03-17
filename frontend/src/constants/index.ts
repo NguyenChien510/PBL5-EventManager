@@ -12,8 +12,6 @@ export const ROUTES = {
   SIGNIN: "/signin",
   SIGNUP: "/signup",
   HOME: "/",
-  EVENTS: "/events",
-  EVENT_DETAIL: "/events/:id",
   PROFILE: "/profile",
 } as const;
 
@@ -23,12 +21,5 @@ export const API_ENDPOINTS = {
     SIGNUP: "/auth/signup",
     REFRESH: "/auth/refresh",
     LOGOUT: "/auth/logout",
-  },
-  EVENTS: {
-    LIST: "/events",
-    CREATE: "/events",
-    DETAIL: "/events/:id",
-    UPDATE: "/events/:id",
-    DELETE: "/events/:id",
   },
 } as const;
