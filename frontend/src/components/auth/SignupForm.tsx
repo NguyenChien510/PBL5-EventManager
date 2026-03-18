@@ -40,13 +40,11 @@ export const SignupForm = () => {
       <div className="relative flex min-h-[100svh] w-full flex-col overflow-hidden">
         {/* Navigation */}
         <header className="flex items-center justify-between whitespace-nowrap border-b border-primary/10 px-6 py-4 md:px-12 bg-white/50 dark:bg-slate-950/50 backdrop-blur-md z-20">
-          <Link to="/" className="flex items-center gap-2 text-slate-900 dark:text-white hover:opacity-80 transition-opacity">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-electric flex items-center justify-center shadow-lg shadow-primary/20">
-              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
+          <Link to="/" className="flex items-center gap-2 text-slate-900 dark:text-white hover:opacity-80 transition-opacity group">
+            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
+              <span className="material-symbols-outlined text-white text-lg">confirmation_number</span>
             </div>
-            <h2 className="text-xl font-bold tracking-tight">MeetCraft</h2>
+            <h2 className="text-xl font-bold tracking-tight">Event<span className="text-primary">Platform</span></h2>
           </Link>
           <div className="flex gap-4 items-center">
             <span className="hidden md:inline-block text-sm font-medium text-slate-500 dark:text-slate-400">Already have an account?</span>

@@ -1,14 +1,8 @@
 import { Icon, Avatar } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
+import { organizerSidebarConfig } from '../config/organizerSidebarConfig'
 
-const sidebarConfig = {
-  brandName: 'Vibrant', brandSub: 'Organizer Hub', brandIcon: 'event_available',
-  sections: [{ links: [
-    { to: '/organizer/dashboard', label: 'Tổng quan', icon: 'dashboard' },
-    { to: '/organizer/feedback', label: 'Phản hồi', icon: 'rate_review' },
-  ]}],
-  user: { name: 'Hoàng Nguyễn', role: 'Event Director' },
-}
+const sidebarConfig = organizerSidebarConfig
 
 const reviews = [
   { name: 'Nguyễn Minh Khoa', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDQ3oNjRKUaraU_NODDJZvWtFAnbxhbWeHMkDA_cxVKeoY2xkitK8HmVPJqJefRYJEUXVuUPKPirEu0CaQYryBLCMUPPIUvnpRY-ZFYoC0at1PYDINVMaFtFGy1JyHVP7UV-43-zQZgRiXxVrUGaaweX3Y2to3siTHMmPS5waguUn2GbjKQdKvpr5EuKriYBIOpFporWMh3Ww-F_1KeFTUcvFFR_LRoohxwitl4-RtT8IECfeZwFEaC3wnAJMoPJjWU5H7EeNIQeoA', rating: 5, event: 'Concert Year End', date: '3 ngày trước', text: 'Sự kiện tuyệt vời! Âm thanh và ánh sáng đỉnh cao, MC dẫn chuyện hay. Sẽ quay lại lần sau!', reply: '' },

@@ -1,35 +1,9 @@
 import { Icon, Avatar, StatCard } from '../components/ui'
 import { TicketCard, TransactionItem } from '../components/domain'
 import { DashboardLayout } from '../components/layout'
+import { userSidebarConfig } from '../config/userSidebarConfig'
 
-const sidebarConfig = {
-  brandName: 'OCEANBLUE',
-  brandSub: 'Event Platform',
-  brandIcon: 'water_drop',
-  sections: [
-    {
-      title: 'Main Menu',
-      links: [
-        { to: '/profile', label: 'Tổng quan', icon: 'grid_view' },
-        { to: '#tickets', label: 'Vé của tôi', icon: 'confirmation_number' },
-        { to: '#wallet', label: 'Ví tiền', icon: 'account_balance_wallet' },
-        { to: '#history', label: 'Sự kiện đã đi', icon: 'event' },
-      ],
-    },
-    {
-      title: 'Tài khoản',
-      links: [
-        { to: '#profile', label: 'Hồ sơ cá nhân', icon: 'person' },
-        { to: '#settings', label: 'Cài đặt', icon: 'settings' },
-      ],
-    },
-  ],
-  user: {
-    name: 'Alex Nguyen',
-    role: 'Diamond Member',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuB2lolVoWnTMF_tJzHB0HICDxEffLk1IEbhad3WFx7IrGcwgMsZ1yjAwl5jAJTmED_lhI8GWcaOuYr1Q9lJYSTQb7uXe2S7aoqaZ7SxZxci4hQGumQrLHo1lzg-kvjUWO0sbbp-JaHsx9xZOedgTu4_crsKxXxz2_sq3uGBkPai-jxAZcDC4SG1iJsIB9uQYDamqJgqWa2ceI0XUnbQst2XT9JHKkVeI994PVmXE4pNAHMgMyHlXsVYezy9806RHYy9QN5yMIKF0Gg',
-  },
-}
+const sidebarConfig = userSidebarConfig
 
 const tickets = [
   {

@@ -1,15 +1,8 @@
 import { Icon, StatCard } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
+import { organizerSidebarConfig } from '../config/organizerSidebarConfig'
 
-const sidebarConfig = {
-  brandName: 'Vibrant', brandSub: 'Organizer Hub', brandIcon: 'event_available',
-  sections: [{ title: 'Quản lý', links: [
-    { to: '/organizer/dashboard', label: 'Tổng quan', icon: 'dashboard' },
-    { to: '/organizer/finance', label: 'Tài chính', icon: 'account_balance' },
-    { to: '/organizer/feedback', label: 'Phản hồi', icon: 'rate_review' },
-  ]}],
-  user: { name: 'Hoàng Nguyễn', role: 'Event Director' },
-}
+const sidebarConfig = organizerSidebarConfig
 
 const transactions = [
   { id: 'TX-001', event: 'Concert Year End', type: 'Vé bán', amount: '+2.400.000', date: '20/12/2024', status: 'Thành công', positive: true },

@@ -1,14 +1,8 @@
 import { Icon } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
+import { organizerSidebarConfig } from '../config/organizerSidebarConfig'
 
-const sidebarConfig = {
-  brandName: 'Vibrant', brandSub: 'Organizer Hub', brandIcon: 'event_available',
-  sections: [{ links: [
-    { to: '/organizer/dashboard', label: 'Tổng quan', icon: 'dashboard' },
-    { to: '/organizer/profile', label: 'Hồ sơ DN', icon: 'business' },
-  ]}],
-  user: { name: 'Hoàng Nguyễn', role: 'Event Director' },
-}
+const sidebarConfig = organizerSidebarConfig
 
 const OrganizerProfile = () => {
   return (

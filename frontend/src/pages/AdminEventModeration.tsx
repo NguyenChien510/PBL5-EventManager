@@ -1,27 +1,8 @@
 import { Icon, StatCard, SearchInput, Pagination, StatusBadge, Avatar } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
+import { adminSidebarConfig } from '../config/adminSidebarConfig'
 
-const sidebarConfig = {
-  brandName: 'VibrantEvents',
-  brandSub: 'Super Admin Panel',
-  brandIcon: 'event_available',
-  sections: [
-    {
-      links: [
-        { to: '/admin/moderation', label: 'Bảng điều khiển', icon: 'dashboard' },
-        { to: '/admin/moderation', label: 'Kiểm duyệt Sự kiện', icon: 'verified_user' },
-        { to: '/admin/users', label: 'Nhà tổ chức', icon: 'group' },
-        { to: '#', label: 'Báo cáo & Thống kê', icon: 'analytics' },
-      ],
-    },
-    {
-      links: [
-        { to: '/admin/finance', label: 'Cấu hình hệ thống', icon: 'settings' },
-      ],
-    },
-  ],
-  user: { name: 'Admin Nguyễn', role: 'Super Admin' },
-}
+const sidebarConfig = adminSidebarConfig
 
 const events = [
   {

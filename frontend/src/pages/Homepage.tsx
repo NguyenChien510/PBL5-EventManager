@@ -56,14 +56,14 @@ const Homepage = () => {
   return (
     <div className="min-h-screen bg-background-light font-display">
       {/* Navigation */}
-      <nav className="glass-nav sticky top-0 z-50 border-b border-slate-200/60">
+      <nav className="glass-nav sticky top-0 z-50 border-b border-slate-200/60 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-lg shadow-primary/20">
               <Icon name="confirmation_number" className="text-white text-lg" />
             </div>
             <h1 className="text-lg font-extrabold tracking-tight">
-              WOW<span className="text-primary">Premium</span>
+              Event<span className="text-sky-400">Platform</span>
             </h1>
           </div>
 
@@ -78,7 +78,7 @@ const Homepage = () => {
             <Link to="/profile" className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
               Đăng nhập
             </Link>
-            <Link to="/explore" className="px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-xl hover:bg-blue-600 transition-colors shadow-sm">
+            <Link to="/explore" className="px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-xl hover:bg-blue-600 transition-colors shadow-sm shadow-primary/20">
               Khám phá ngay
             </Link>
           </div>
@@ -86,42 +86,90 @@ const Homepage = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-primary/20 text-white">
-        <div className="absolute inset-0 bg-[url('https://lh3.googleusercontent.com/aida-public/AB6AXuApE_m_Gd_KRyYuWTES2LUgR5Rnhp5h2U15s-sNclVbmb8EHbXTWT9qG7sBCU0LqeQ_jvPWfy_oRFMgHFTHqf-Zr1izZqyCJYRv1EzbJv827rXQd0NBAxYshSBFqEHblTSZ9_DWvjvZbSBgqg9B2mU_oX_8F_f43SC4wi8AiFhElE68UcqOFFj4y3Crh93Ah7AEFud5lJ9StCF6htKxztl-Q4iDBjqh8m_PRYEBXYQUMe0P3XDAonsjZhRxfDYng6svCTMAKfXMFn8')] bg-cover bg-center opacity-20" />
-        <div className="relative max-w-7xl mx-auto px-6 py-24 md:py-32">
-          <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-bold text-white/80 mb-6">
-              <Icon name="auto_awesome" size="sm" />
-              Nền tảng bán vé #1 Việt Nam
-            </span>
-            <h2 className="text-4xl md:text-5xl font-extrabold leading-tight mb-6">
-              Khám phá & Trải nghiệm<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">Sự kiện Đẳng cấp</span>
-            </h2>
-            <p className="text-lg text-white/70 mb-8 leading-relaxed">
-              Từ concert đỉnh cao đến hội thảo công nghệ, tìm kiếm và đặt vé cho những trải nghiệm không thể quên.
-            </p>
-            <div className="flex flex-wrap gap-4">
-              <Link to="/explore" className="px-8 py-3.5 bg-primary text-white font-bold rounded-xl hover:bg-blue-600 transition-all shadow-lg shadow-primary/30 flex items-center gap-2">
-                <Icon name="explore" size="sm" />
-                Khám phá sự kiện
-              </Link>
-              <Link to="/organizer/dashboard" className="px-8 py-3.5 bg-white/10 backdrop-blur-md text-white font-bold rounded-xl hover:bg-white/20 transition-all border border-white/20">
-                Tôi là nhà tổ chức
-              </Link>
+      <section className="max-w-7xl mx-auto px-6 pt-6 md:pt-10">
+        <div className="relative overflow-hidden rounded-[28px] bg-[#061A3A] text-white shadow-[0_24px_70px_rgba(2,6,23,0.35)] ring-1 ring-white/10">
+          {/* background accents (lightweight) */}
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute -top-24 left-1/2 h-52 w-[520px] -translate-x-1/2 bg-sky-500/25 blur-3xl" />
+            <div className="absolute -top-12 -left-10 h-48 w-48 bg-fuchsia-500/25 blur-3xl" />
+            <div className="absolute -top-12 -right-10 h-48 w-48 bg-fuchsia-500/25 blur-3xl" />
+            <div className="absolute inset-x-0 bottom-0 h-40 opacity-40 [background:repeating-linear-gradient(90deg,rgba(148,163,184,0.18)_0,rgba(148,163,184,0.18)_2px,transparent_2px,transparent_10px)]" />
+            <div className="absolute inset-0 opacity-[0.10] [background:radial-gradient(circle_at_50%_35%,white,transparent_60%)]" />
+          </div>
+
+          <div className="relative px-6 py-14 md:px-12 md:py-16 lg:px-16 lg:py-20">
+            <div className="flex flex-col items-center text-center gap-6">
+              <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 rounded-full text-[11px] font-semibold tracking-wide ring-1 ring-white/10">
+                <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
+                HỆ SINH THÁI SỰ KIỆN BLUE PREMIUM
+              </span>
+              <div>
+                <h2 className="text-3xl md:text-5xl font-extrabold leading-tight tracking-tight">
+                  Kết Nối Trải Nghiệm
+                  <br />
+                  <span className="text-sky-400">Đẳng Cấp</span> Đại Dương
+                </h2>
+                <p className="mt-4 text-sm md:text-base text-white/70 max-w-2xl mx-auto">
+                  Nền tảng quản lý và bán vé sự kiện chuyên nghiệp, mang lại sự tin cậy
+                  <br className="hidden md:block" />
+                  và thanh lịch tuyệt đối.
+                </p>
+              </div>
+
+              {/* Search bar */}
+              <div className="mt-4 w-full max-w-3xl">
+                <div className="bg-white rounded-full shadow-[0_18px_44px_rgba(2,6,23,0.35)] px-2 py-2 ring-1 ring-slate-200">
+                  <div className="flex flex-col md:flex-row items-stretch gap-2 md:gap-0">
+                    <div className="flex-1 flex items-center gap-2 px-4 py-2 rounded-full bg-slate-50 border border-slate-200">
+                      <Icon name="search" className="text-slate-400" />
+                      <input
+                        placeholder="Tìm tên sự kiện, nghệ sĩ, hội thảo..."
+                        className="w-full bg-transparent text-[13px] md:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none border-none"
+                      />
+                    </div>
+                    <div className="hidden md:block h-10 w-px bg-slate-200 my-auto" />
+                    <button className="flex items-center justify-between gap-2 px-4 py-2 rounded-full bg-slate-50 border border-slate-200 text-[13px] md:text-sm text-slate-700 font-semibold">
+                      <Icon name="location_on" className="text-sky-500" />
+                      <span className="whitespace-nowrap">Chọn khu vực</span>
+                    </button>
+                    <div className="hidden md:block h-10 w-px bg-slate-200 my-auto" />
+                    <button className="flex items-center justify-between gap-2 px-4 py-2 rounded-full bg-slate-50 border border-slate-200 text-[13px] md:text-sm text-slate-700 font-semibold">
+                      <Icon name="event" className="text-sky-500" />
+                      <span className="whitespace-nowrap">Chọn ngày</span>
+                    </button>
+                    <Link
+                      to="/explore"
+                      className="mt-1 md:mt-0 md:ml-2 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-sky-500 hover:bg-sky-600 text-sm font-bold text-white whitespace-nowrap"
+                    >
+                      <Icon name="search" size="sm" />
+                      Tìm ngay
+                    </Link>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Categories */}
-      <section className="max-w-7xl mx-auto px-6 -mt-8 relative z-10">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <section className="max-w-7xl mx-auto px-6 mt-10 md:mt-12 relative z-10">
+        <div className="bg-white/70 backdrop-blur-xl border border-slate-200/70 rounded-3xl shadow-lg shadow-slate-900/5 p-4 md:p-6">
+          <div className="flex items-end justify-between gap-6 mb-4 md:mb-6">
+            <div>
+              <h3 className="text-lg md:text-xl font-extrabold text-slate-900">Chọn theo chủ đề</h3>
+              <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">Gợi ý nhanh để bạn tìm đúng gu</p>
+            </div>
+            <Link to="/explore" className="hidden md:inline-flex text-sm font-extrabold text-primary hover:underline items-center gap-1">
+              Xem thêm <Icon name="arrow_forward" size="sm" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {categories.map((cat) => (
             <Link
               key={cat.label}
               to="/explore"
-              className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col items-center gap-3 group"
+              className="rounded-2xl p-5 border border-slate-100 bg-gradient-to-b from-white to-slate-50/30 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col items-center gap-3 group"
             >
               <div className={`w-12 h-12 rounded-xl ${cat.color} flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform`}>
                 <Icon name={cat.icon} />
@@ -129,6 +177,7 @@ const Homepage = () => {
               <span className="text-sm font-bold text-slate-700">{cat.label}</span>
             </Link>
           ))}
+          </div>
         </div>
       </section>
 
@@ -147,6 +196,39 @@ const Homepage = () => {
           {featuredEvents.map((event, i) => (
             <EventCard key={i} {...event} />
           ))}
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="max-w-7xl mx-auto px-6 pb-4">
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 md:p-10 shadow-sm">
+          <div className="flex items-end justify-between gap-6 mb-8">
+            <div>
+              <h3 className="text-2xl font-extrabold text-slate-900">Đặt vé cực nhanh</h3>
+              <p className="text-slate-500 text-sm mt-1">3 bước để sẵn sàng lên đường</p>
+            </div>
+            <Link to="/explore" className="hidden md:inline-flex text-sm font-extrabold text-primary hover:underline items-center gap-1">
+              Bắt đầu <Icon name="arrow_forward" size="sm" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              { icon: 'search', title: 'Tìm sự kiện', desc: 'Lọc theo chủ đề, địa điểm, thời gian và ngân sách.' },
+              { icon: 'shopping_cart', title: 'Chọn vé', desc: 'Xem chi tiết, chỗ ngồi (nếu có) và số lượng vé còn lại.' },
+              { icon: 'qr_code_2', title: 'Nhận vé', desc: 'Nhận e-ticket nhanh chóng và check-in tiện lợi tại cổng.' },
+            ].map((step, idx) => (
+              <div key={step.title} className="rounded-2xl border border-slate-100 bg-slate-50/40 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
+                    <Icon name={step.icon} />
+                  </div>
+                  <span className="text-xs font-extrabold text-slate-400">0{idx + 1}</span>
+                </div>
+                <p className="text-base font-extrabold text-slate-900 mb-2">{step.title}</p>
+                <p className="text-sm text-slate-500 font-medium leading-relaxed">{step.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -195,7 +277,9 @@ const Homepage = () => {
         <div className="max-w-7xl mx-auto px-6 py-12">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div>
-              <h4 className="text-white font-bold mb-4">WOW Premium</h4>
+              <h4 className="text-white font-bold mb-4">
+                Event<span className="text-sky-400">Platform</span>
+              </h4>
               <p className="text-sm leading-relaxed">Nền tảng bán vé sự kiện cao cấp hàng đầu Việt Nam.</p>
             </div>
             <div>
@@ -224,7 +308,7 @@ const Homepage = () => {
             </div>
           </div>
           <div className="border-t border-white/10 mt-8 pt-8 text-center text-sm">
-            © 2024 WOW Premium. All rights reserved.
+            © 2024 EventPlatform. All rights reserved.
           </div>
         </div>
       </footer>

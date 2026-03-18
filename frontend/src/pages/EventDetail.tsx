@@ -7,11 +7,6 @@ const artists = [
   { name: 'Binz', role: 'Ca sĩ khách mời', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBrnq1Yzgsd28u9RCJh3At5GShj32DcYi9T_WN8ctWilvGZn9VmfNHcOXN0PJVpwKNobaOeiLmwLHEdWBHMa0-lffiM-Lwoaqt5KkCR09eDjWJ-SCeEHoTwndxp4Nre5iCAhg4T1qbg7h75lD0xQbdhUfxGLICenIk71wCsX_N9LaLNhSBdHcgwT-D_-lV4s-BSw1EUi9YzTDRA_WzoNc9T9dOkYFrwkftJ5xX9JXksilQMRTFko1lYzpfcj_je9bmv6z9ywUt6AXg' },
 ]
 
-const tickets = [
-  { name: 'Standard', price: '500.000 VNĐ', color: 'border-slate-300', features: ['Khu vực đứng', 'Cổng vào thường'] },
-  { name: 'Premium', price: '1.200.000 VNĐ', color: 'border-primary', highlight: true, features: ['Khu VIP ngồi', 'Quà tặng Premium', 'Backstage access'] },
-  { name: 'Diamond', price: '3.500.000 VNĐ', color: 'border-yellow-500', features: ['Hàng ghế đầu', 'Meet & Greet', 'Full VIP experience'] },
-]
 
 const timeline = [
   { time: '18:00', title: 'Mở cổng', icon: 'door_front', color: 'bg-slate-500' },
@@ -132,54 +127,83 @@ const EventDetail = () => {
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Ticket Selection */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm sticky top-24">
-              <h3 className="text-lg font-extrabold mb-4">Chọn loại vé</h3>
-              <div className="space-y-3 mb-6">
-                {tickets.map((ticket) => (
-                  <label key={ticket.name} className={`relative flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all hover:shadow-md ${
-                    ticket.highlight ? 'border-primary bg-primary/5' : 'border-slate-200 hover:border-primary/30'
-                  }`}>
-                    <input type="radio" name="ticket" className="mr-3 accent-primary" defaultChecked={ticket.highlight} />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <p className="font-bold text-sm">{ticket.name}</p>
-                        <p className="font-extrabold text-primary">{ticket.price}</p>
+          <aside className="w-full lg:w-[400px]">
+            <div className="sticky top-24">
+              <div className="glass-widget rounded-[32px] p-8 overflow-hidden relative">
+                <div className="mb-6">
+                  <h3 className="text-xl font-black mb-2">Thông tin đặt vé</h3>
+                  <p className="text-sm text-slate-500 font-medium tracking-tight italic">Giá vé chi tiết sẽ hiển thị sau khi chọn chỗ</p>
+                </div>
+
+                {/* Ticket Stats Grid */}
+                <div className="grid grid-cols-2 gap-4 mb-8">
+                  <div className="p-4 bg-white/40 backdrop-blur-sm rounded-2xl border border-white/50 shadow-sm">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tổng quy mô</p>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-xl font-black">5.000</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Chỗ</span>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-primary/10 backdrop-blur-sm rounded-2xl border border-primary/20 shadow-sm">
+                    <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Đã đặt</p>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-xl font-black text-primary">3.750</span>
+                      <span className="text-[10px] font-bold text-primary/60 uppercase">/ 75%</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Ticket Categories */}
+                <div className="space-y-3 mb-8">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Phân loại & Khoảng giá</p>
+                  {[
+                    { type: 'Standard', color: 'bg-slate-400', range: '500k - 1.2M', status: 'Còn vé' },
+                    { type: 'VIP', color: 'bg-primary', range: '2.5M - 4.5M', status: 'Còn vé' },
+                    { type: 'Diamond', color: 'bg-yellow-500', range: '8.0M - 15M', status: 'Sắp hết' },
+                  ].map((cat) => (
+                    <div key={cat.type} className="flex items-center justify-between p-3 bg-white/20 rounded-xl border border-white/30 hover:bg-white/40 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full ${cat.color} shadow-[0_0_8px_rgba(0,0,0,0.1)]`} />
+                        <span className="text-sm font-bold">{cat.type}</span>
                       </div>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {ticket.features.map((f) => (
-                          <span key={f} className="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500">{f}</span>
-                        ))}
+                      <div className="text-right">
+                        <p className="text-xs font-black text-slate-800">{cat.range}</p>
+                        <p className={`text-[9px] font-bold uppercase ${cat.status === 'Sắp hết' ? 'text-red-500' : 'text-green-500'}`}>{cat.status}</p>
                       </div>
                     </div>
-                    {ticket.highlight && (
-                      <span className="absolute -top-2 right-3 bg-primary text-white text-[9px] font-bold px-2 py-0.5 rounded-full">HOT</span>
-                    )}
-                  </label>
-                ))}
-              </div>
+                  ))}
+                </div>
 
-              <div className="flex items-center justify-between mb-4 p-3 bg-slate-50 rounded-lg">
-                <span className="text-sm text-slate-500">Số lượng</span>
-                <div className="flex items-center gap-3">
-                  <button className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center">−</button>
-                  <span className="font-bold">2</span>
-                  <button className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center">+</button>
+                <Link
+                  to="/seats"
+                  className="w-full flex items-center justify-center gap-3 bg-primary text-white py-5 rounded-[24px] font-black text-lg transition-all hover:shadow-2xl hover:shadow-primary/40 hover:-translate-y-1 active:scale-[0.97] group"
+                >
+                  <Icon name="event_seat" className="text-xl group-hover:scale-110 transition-transform" />
+                  <span>Chọn chỗ ngồi trên sơ đồ</span>
+                </Link>
+
+                <div className="mt-6 pt-6 border-t border-slate-300/30 flex items-center justify-center gap-2 text-slate-400">
+                  <Icon name="verified_user" size="sm" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest">Wow Ticket Protection • No hidden fees</span>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between py-3 border-t border-slate-100 mb-4">
-                <span className="text-sm font-medium text-slate-500">Tổng tiền</span>
-                <span className="text-xl font-extrabold text-primary">2.400.000 VNĐ</span>
+              {/* Support Widget */}
+              <div className="mt-8 p-6 bg-white rounded-3xl border border-slate-200/50 flex items-center gap-4 shadow-sm">
+                <div className="w-12 h-12 rounded-full bg-slate-900 flex items-center justify-center shrink-0">
+                  <Icon name="support_agent" className="text-white" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm">Hỗ trợ đặc quyền</h4>
+                  <div className="flex gap-3 mt-1">
+                    <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">Chat ngay</button>
+                    <span className="text-slate-300">•</span>
+                    <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">1900 1234</button>
+                  </div>
+                </div>
               </div>
-
-              <Link to="/seats" className="w-full py-3.5 bg-primary text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-blue-600 transition-all shadow-lg shadow-primary/20">
-                <Icon name="confirmation_number" size="sm" />
-                Chọn ghế & Thanh toán
-              </Link>
             </div>
-          </div>
+          </aside>
         </div>
       </div>
     </div>

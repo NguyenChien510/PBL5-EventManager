@@ -1,21 +1,8 @@
 import { Icon, Avatar } from '../components/ui'
 import { DashboardLayout } from '../components/layout'
+import { userSidebarConfig } from '../config/userSidebarConfig'
 
-const sidebarConfig = {
-  brandName: 'OCEANBLUE', brandSub: 'Event Platform', brandIcon: 'water_drop',
-  sections: [
-    { title: 'Menu', links: [
-      { to: '/profile', label: 'Tổng quan', icon: 'dashboard' },
-      { to: '/tickets', label: 'Vé của tôi', icon: 'confirmation_number' },
-      { to: '/vouchers', label: 'Ưu đãi & Quà tặng', icon: 'featured_seasonal_and_gifts' },
-      { to: '#', label: 'Ví tiền', icon: 'account_balance_wallet' },
-    ]},
-    { title: 'Cá nhân', links: [
-      { to: '/settings', label: 'Cài đặt', icon: 'settings' },
-    ]},
-  ],
-  user: { name: 'Alex Nguyen', role: 'Diamond Member' },
-}
+const sidebarConfig = userSidebarConfig
 
 const vouchers = [
   {

@@ -24,22 +24,26 @@ interface SidebarProps {
   children?: React.ReactNode
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ brandName, brandSub, brandIcon, sections, user, children }) => {
+const Sidebar: React.FC<SidebarProps> = ({ brandSub, sections, user, children }) => {
   const location = useLocation()
 
   return (
     <aside className="w-72 bg-white border-r border-slate-200 flex flex-col fixed h-full z-50">
       {/* Brand */}
-      <div className="p-6 flex items-center gap-3">
-        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-          <Icon name={brandIcon} className="text-white" />
-        </div>
-        <div>
-          <h1 className="text-lg font-extrabold tracking-tight text-slate-900">{brandName}</h1>
-          {brandSub && (
-            <p className="text-[10px] uppercase tracking-[0.15em] font-bold text-primary opacity-80">{brandSub}</p>
-          )}
-        </div>
+      <div className="p-6">
+        <Link to="/" className="flex items-center gap-3 group">
+          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform duration-300">
+            <Icon name="confirmation_number" className="text-white" />
+          </div>
+          <div className="overflow-hidden">
+            <h1 className="text-lg font-extrabold tracking-tight text-slate-900 leading-tight">
+              Event<span className="text-sky-500 font-black">Platform</span>
+            </h1>
+            {brandSub && (
+              <p className="text-[10px] uppercase tracking-[0.12em] font-bold text-slate-400 mt-0.5 truncate">{brandSub}</p>
+            )}
+          </div>
+        </Link>
       </div>
 
       {/* Navigation */}

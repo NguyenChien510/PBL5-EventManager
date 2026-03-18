@@ -1,15 +1,8 @@
 import { Icon, StatCard } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
+import { adminSidebarConfig } from '../config/adminSidebarConfig'
 
-const sidebarConfig = {
-  brandName: 'VibrantEvents', brandSub: 'Super Admin Panel', brandIcon: 'event_available',
-  sections: [{ links: [
-    { to: '/admin/moderation', label: 'Kiểm duyệt', icon: 'verified_user' },
-    { to: '/admin/users', label: 'Người dùng', icon: 'group' },
-    { to: '/admin/finance', label: 'Cấu hình Tài chính', icon: 'account_balance' },
-  ]}],
-  user: { name: 'Admin Nguyễn', role: 'Super Admin' },
-}
+const sidebarConfig = adminSidebarConfig
 
 const categories = [
   { name: 'Âm nhạc', commission: '10%', fee: '5.000đ', status: true },

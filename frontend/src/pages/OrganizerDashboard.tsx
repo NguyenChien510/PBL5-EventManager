@@ -1,33 +1,8 @@
 import { Icon, StatCard } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
+import { organizerSidebarConfig } from '../config/organizerSidebarConfig'
 
-const sidebarConfig = {
-  brandName: 'Vibrant',
-  brandSub: 'Organizer Hub',
-  brandIcon: 'event_available',
-  sections: [
-    {
-      title: 'Dashboard',
-      links: [
-        { to: '/organizer/dashboard', label: 'Tổng quan', icon: 'dashboard' },
-        { to: '/organizer/events', label: 'Sự kiện', icon: 'event' },
-        { to: '/organizer/create', label: 'Tạo sự kiện', icon: 'add_circle' },
-        { to: '/organizer/guests', label: 'Khách mời', icon: 'groups' },
-      ],
-    },
-    {
-      title: 'Quản lý',
-      links: [
-        { to: '/organizer/timeline', label: 'Kịch bản', icon: 'timeline' },
-        { to: '/organizer/hr', label: 'Nhân sự', icon: 'people' },
-        { to: '/organizer/finance', label: 'Tài chính', icon: 'account_balance' },
-        { to: '/organizer/feedback', label: 'Phản hồi', icon: 'rate_review' },
-        { to: '/organizer/profile', label: 'Hồ sơ DN', icon: 'business' },
-      ],
-    },
-  ],
-  user: { name: 'Hoàng Nguyễn', role: 'Event Director' },
-}
+const sidebarConfig = organizerSidebarConfig
 
 const chartData = [
   { month: 'T6', value: 40 }, { month: 'T7', value: 65 }, { month: 'T8', value: 55 },

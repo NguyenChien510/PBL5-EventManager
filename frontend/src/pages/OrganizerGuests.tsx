@@ -1,17 +1,8 @@
 import { Icon, Avatar, StatCard, SearchInput } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
+import { organizerSidebarConfig } from '../config/organizerSidebarConfig'
 
-const sidebarConfig = {
-  brandName: 'Vibrant', brandSub: 'Organizer Hub', brandIcon: 'event_available',
-  sections: [
-    { title: 'Dashboard', links: [
-      { to: '/organizer/dashboard', label: 'Tổng quan', icon: 'dashboard' },
-      { to: '/organizer/events', label: 'Sự kiện', icon: 'event' },
-      { to: '/organizer/guests', label: 'Khách mời', icon: 'groups' },
-    ]},
-  ],
-  user: { name: 'Hoàng Nguyễn', role: 'Event Director' },
-}
+const sidebarConfig = organizerSidebarConfig
 
 const guests = [
   { name: 'Nguyễn Minh Khoa', email: 'khoa@email.com', ticket: 'VIP-001', type: 'VIP', checked: true, time: '19:05' },

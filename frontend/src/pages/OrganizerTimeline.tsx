@@ -1,15 +1,8 @@
 import { Icon } from '../components/ui'
 import { DashboardLayout } from '../components/layout'
+import { organizerSidebarConfig } from '../config/organizerSidebarConfig'
 
-const sidebarConfig = {
-  brandName: 'Vibrant', brandSub: 'Organizer Hub', brandIcon: 'event_available',
-  sections: [{ title: 'Quản lý', links: [
-    { to: '/organizer/dashboard', label: 'Tổng quan', icon: 'dashboard' },
-    { to: '/organizer/timeline', label: 'Kịch bản', icon: 'timeline' },
-    { to: '/organizer/hr', label: 'Nhân sự', icon: 'people' },
-  ]}],
-  user: { name: 'Hoàng Nguyễn', role: 'Event Director' },
-}
+const sidebarConfig = organizerSidebarConfig
 
 const phases = [
   { time: '06:00 - 10:00', title: 'Giai đoạn Chuẩn bị', icon: 'engineering', color: 'bg-blue-500', items: ['Setup sân khấu & ánh sáng', 'Kiểm tra âm thanh', 'Phân công vị trí nhân sự', 'Test run kịch bản MC'] },

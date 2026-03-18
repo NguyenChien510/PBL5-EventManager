@@ -1,16 +1,8 @@
 import { Icon } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
+import { userSidebarConfig } from '../config/userSidebarConfig'
 
-const sidebarConfig = {
-  brandName: 'OCEANBLUE', brandSub: 'Event Platform', brandIcon: 'water_drop',
-  sections: [{ title: 'Main Menu', links: [
-    { to: '/profile', label: 'Tổng quan', icon: 'grid_view' },
-    { to: '/tickets', label: 'Vé của tôi', icon: 'confirmation_number' },
-    { to: '/history', label: 'Lịch sử', icon: 'history' },
-    { to: '/settings', label: 'Cài đặt', icon: 'settings' },
-  ]}],
-  user: { name: 'Alex Nguyen', role: 'Diamond Member' },
-}
+const sidebarConfig = userSidebarConfig
 
 const historyEvents = [
   {

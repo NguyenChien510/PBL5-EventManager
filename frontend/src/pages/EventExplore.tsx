@@ -74,11 +74,13 @@ const EventExplore = () => {
       {/* Top Bar */}
       <nav className="glass-nav sticky top-0 z-50 border-b border-slate-200/60">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-lg shadow-primary/20">
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
               <Icon name="confirmation_number" className="text-white text-lg" />
             </div>
-            <h1 className="text-lg font-extrabold tracking-tight">WOW<span className="text-primary">Premium</span></h1>
+            <h1 className="text-lg font-extrabold tracking-tight">
+              Event<span className="text-sky-500 font-black">Platform</span>
+            </h1>
           </Link>
           <SearchInput placeholder="Tìm sự kiện, nghệ sĩ, địa điểm..." className="w-96 hidden md:block" />
           <div className="flex items-center gap-3">

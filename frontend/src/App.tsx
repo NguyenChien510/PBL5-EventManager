@@ -99,7 +99,9 @@ function App() {
             onClick={e => e.stopPropagation()}
           >
             <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-primary to-electric">
-              <h2 className="text-xl font-extrabold text-white tracking-tight">🎫 WOW Premium</h2>
+              <h2 className="text-xl font-extrabold text-white tracking-tight">
+                🎫 Event<span className="text-sky-200 font-black">Platform</span>
+              </h2>
               <p className="text-white/70 text-sm mt-1">Điều hướng tất cả trang</p>
             </div>
             <div className="p-4 space-y-6">

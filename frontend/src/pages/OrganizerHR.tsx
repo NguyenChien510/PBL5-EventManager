@@ -1,27 +1,8 @@
 import { Icon, Avatar } from '../components/ui'
 import { DashboardLayout } from '../components/layout'
+import { organizerSidebarConfig } from '../config/organizerSidebarConfig'
 
-const sidebarConfig = {
-  brandName: 'Vibrant',
-  brandSub: 'Events Ecosystem',
-  brandIcon: 'vibration',
-  sections: [
-    {
-      title: 'Planning & Ops',
-      links: [
-        { to: '/organizer/dashboard', label: 'Tổng quan', icon: 'dashboard' },
-        { to: '/organizer/hr', label: 'Lập lịch Roster', icon: 'calendar_month' },
-        { to: '#', label: 'Nhân sự khả dụng', icon: 'groups' },
-        { to: '#', label: 'Danh sách ca trực', icon: 'assignment' },
-      ],
-    },
-  ],
-  user: {
-    name: 'Hoàng Nguyễn',
-    role: 'Event Planner',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDQ3oNjRKUaraU_NODDJZvWtFAnbxhbWeHMkDA_cxVKeoY2xkitK8HmVPJqJefRYJEUXVuUPKPirEu0CaQYryBLCMUPPIUvnpRY-ZFYoC0at1PYDINVMaFtFGy1JyHVP7UV-43-zQZgRiXxVrUGaaweX3Y2to3siTHMmPS5waguUn2GbjKQdKvpr5EuKriYBIOpFporWMh3Ww-F_1KeFTUcvFFR_LRoohxwitl4-RtT8IECfeZwFEaC3wnAJMoPJjWU5H7EeNIQeoA',
-  },
-}
+const sidebarConfig = organizerSidebarConfig
 
 const staffMembers = [
   {
