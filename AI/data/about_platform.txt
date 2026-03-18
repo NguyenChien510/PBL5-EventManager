@@ -1,0 +1,6 @@
+EventPlatform is a premium event management system designed for high-end concerts, technology summits, and art festivals.
+It features a unified sidebar for different roles (User, Organizer, Admin) and a glassmorphism-style event detail page.
+The system is built with React and Tailwind CSS on the frontend, and Spring Boot on the backend.
+Recently, a new AI Assistant was added to provide context-aware support to users.
+Users can select seats on a 3D-styled map and pay using MoMo, ZaloPay, or International Cards.
+The platform is developed by the WOW Team.

@@ -27,6 +27,7 @@ import AdminFinanceConfig from './pages/AdminFinanceConfig'
 import Homepage from './pages/Homepage'
 import SignInPage from './pages/SignInPage'
 import SignUpPage from './pages/SignUpPage'
+import Chatbot from './components/ui/Chatbot'
 
 function App() {
   const [navOpen, setNavOpen] = useState(false)
@@ -165,6 +166,8 @@ function App() {
         <Route path="/signin" element={<SignInPage />} />
         <Route path="/signup" element={<SignUpPage />} />
       </Routes>
+      {/* Chatbot */}
+      <Chatbot />
     </div>
   )
 }
