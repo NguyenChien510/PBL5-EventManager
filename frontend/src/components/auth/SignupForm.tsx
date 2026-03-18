@@ -36,122 +36,165 @@ export const SignupForm = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-8 shadow">
-        <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold text-gray-900">Đăng ký</h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Nhập thông tin để tạo tài khoản
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {error && (
-            <div className="rounded bg-red-50 p-3 text-sm text-red-600">
-              {error}
+    <div className="bg-slate-50 dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 min-h-screen flex flex-col selection:bg-primary/20">
+      <div className="relative flex min-h-[100svh] w-full flex-col overflow-hidden">
+        {/* Navigation */}
+        <header className="flex items-center justify-between whitespace-nowrap border-b border-primary/10 px-6 py-4 md:px-12 bg-white/50 dark:bg-slate-950/50 backdrop-blur-md z-20">
+          <Link to="/" className="flex items-center gap-2 text-slate-900 dark:text-white hover:opacity-80 transition-opacity">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-electric flex items-center justify-center shadow-lg shadow-primary/20">
+              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
             </div>
-          )}
-
-          <div>
-            <label
-              htmlFor="fullName"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Họ tên
-            </label>
-            <input
-              {...register("fullName")}
-              type="text"
-              id="fullName"
-              placeholder="Nhập họ tên"
-              className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-            />
-            {errors.fullName && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.fullName.message}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label
-              htmlFor="username"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Tên đăng nhập
-            </label>
-            <input
-              {...register("username")}
-              type="text"
-              id="username"
-              placeholder="Nhập tên đăng nhập"
-              className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-            />
-            {errors.username && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.username.message}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Email
-            </label>
-            <input
-              {...register("email")}
-              type="email"
-              id="email"
-              placeholder="Nhập email"
-              className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-            />
-            {errors.email && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.email.message}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Mật khẩu
-            </label>
-            <input
-              {...register("password")}
-              type="password"
-              id="password"
-              placeholder="Nhập mật khẩu"
-              className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-            />
-            {errors.password && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.password.message}
-              </p>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full rounded bg-blue-600 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {isLoading && <Loader className="h-4 w-4 text-white" />}
-            {isLoading ? "Đang tạo tài khoản..." : "Tạo tài khoản"}
-          </button>
-        </form>
-
-        <div className="mt-4 text-center text-sm text-gray-600">
-          Đã có tài khoản?{" "}
-          <Link to="/signin" className="text-blue-600 hover:underline">
-            Đăng nhập
+            <h2 className="text-xl font-bold tracking-tight">MeetCraft</h2>
           </Link>
-        </div>
+          <div className="flex gap-4 items-center">
+            <span className="hidden md:inline-block text-sm font-medium text-slate-500 dark:text-slate-400">Already have an account?</span>
+            <Link to="/signin" className="flex items-center justify-center rounded-lg h-10 px-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm">
+              Log in
+            </Link>
+          </div>
+        </header>
+
+        <main className="flex-1 flex items-center justify-center relative p-4 md:p-8 overflow-y-auto w-full max-h-screen">
+          {/* Background Decorative Elements */}
+          <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px] pointer-events-none"></div>
+          <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-electric/10 rounded-full blur-[100px] pointer-events-none"></div>
+          
+          {/* Main Box Container */}
+          <div className="max-w-[480px] w-full bg-white dark:bg-slate-900 rounded-[2rem] overflow-hidden border border-slate-200 dark:border-slate-800 shadow-2xl z-10 m-auto mt-4">
+
+            {/* Right Side: Signup Form */}
+            <div className="p-6 md:p-8 flex flex-col justify-center">
+              <div className="mb-4">
+                <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">Create Account</h2>
+                <p className="text-slate-500 dark:text-slate-400 font-medium text-sm md:text-base">Start organizing amazing events today.</p>
+              </div>
+
+              {error && (
+                <div className="mb-6 rounded-lg bg-red-50 dark:bg-red-500/10 p-4 border border-red-200 dark:border-red-500/20 text-sm font-medium text-red-600 dark:text-red-400 flex items-start gap-3">
+                  <span className="material-symbols-outlined shrink-0 text-red-500">error</span>
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <form className="space-y-3" onSubmit={handleSubmit(onSubmit)}>
+                {/* Full Name & Username Row */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">Full Name</label>
+                    <input 
+                      {...register("fullName")}
+                      className={`w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900 focus:ring-4 focus:ring-primary/10 transition-all outline-none text-slate-900 dark:text-white shadow-sm ${errors.fullName ? 'border-red-300 dark:border-red-500/50 focus:border-red-500' : 'border-slate-200 dark:border-slate-800 focus:border-primary'}`}
+                      placeholder="John Doe" 
+                      type="text" 
+                    />
+                    {errors.fullName && <p className="text-xs font-medium text-red-500">{errors.fullName.message}</p>}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">Username</label>
+                    <input 
+                      {...register("username")}
+                      className={`w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900 focus:ring-4 focus:ring-primary/10 transition-all outline-none text-slate-900 dark:text-white shadow-sm ${errors.username ? 'border-red-300 dark:border-red-500/50 focus:border-red-500' : 'border-slate-200 dark:border-slate-800 focus:border-primary'}`}
+                      placeholder="johndoe" 
+                      type="text" 
+                    />
+                    {errors.username && <p className="text-xs font-medium text-red-500">{errors.username.message}</p>}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">Email</label>
+                  <div className="relative group">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors text-lg">mail</span>
+                    <input 
+                      {...register("email")}
+                      className={`w-full pl-11 pr-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900 focus:ring-4 focus:ring-primary/10 transition-all outline-none text-slate-900 dark:text-white shadow-sm ${errors.email ? 'border-red-300 dark:border-red-500/50 focus:border-red-500' : 'border-slate-200 dark:border-slate-800 focus:border-primary'}`}
+                      placeholder="john@example.com" 
+                      type="email" 
+                    />
+                  </div>
+                  {errors.email && <p className="text-xs font-medium text-red-500">{errors.email.message}</p>}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">Password</label>
+                  <div className="relative group">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors text-lg">lock</span>
+                    <input 
+                      {...register("password")}
+                      className={`w-full pl-11 pr-12 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900 focus:ring-4 focus:ring-primary/10 transition-all outline-none text-slate-900 dark:text-white shadow-sm ${errors.password ? 'border-red-300 dark:border-red-500/50 focus:border-red-500' : 'border-slate-200 dark:border-slate-800 focus:border-primary'}`}
+                      placeholder="••••••••" 
+                      type="password" 
+                    />
+                    <button className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20" type="button" aria-label="Toggle password visibility">
+                      <span className="material-symbols-outlined text-[18px]">visibility</span>
+                    </button>
+                  </div>
+                  {errors.password && <p className="text-xs font-medium text-red-500">{errors.password.message}</p>}
+                </div>
+
+                {/* User Type Toggle */}
+                <div className="space-y-2 py-1">
+                  <span className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">I am an...</span>
+                  <div className="flex items-center gap-3">
+                    <label className="flex-1 cursor-pointer">
+                      <input defaultChecked className="peer sr-only" name="user-type" type="radio" value="attendee" />
+                      <div className="text-center px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-500 dark:text-slate-400 peer-checked:border-primary peer-checked:bg-primary/5 peer-checked:text-primary transition-all hover:bg-slate-50 dark:hover:bg-slate-800">
+                        Attendee
+                      </div>
+                    </label>
+                    <label className="flex-1 cursor-pointer">
+                      <input className="peer sr-only" name="user-type" type="radio" value="organizer" />
+                      <div className="text-center px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-500 dark:text-slate-400 peer-checked:border-primary peer-checked:bg-primary/5 peer-checked:text-primary transition-all hover:bg-slate-50 dark:hover:bg-slate-800">
+                        Organizer
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <button 
+                  disabled={isLoading}
+                  className="w-full h-11 bg-primary hover:bg-electric text-white font-semibold rounded-xl shadow-lg shadow-primary/25 transition-all focus:ring-4 focus:ring-primary/20 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:hover:translate-y-0 flex items-center justify-center gap-2 mt-2" 
+                  type="submit"
+                >
+                  {isLoading ? (
+                    <div className="flex items-center gap-2">
+                      <Loader className="w-5 h-5 text-white" />
+                      <span>Creating account...</span>
+                    </div>
+                  ) : (
+                    <span>Create Account</span>
+                  )}
+                </button>
+              </form>
+
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div className="w-full border-t border-slate-200 dark:border-slate-800"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-4 bg-white dark:bg-slate-900 text-slate-500 font-medium text-xs uppercase tracking-widest">Or sign up with</span>
+                </div>
+              </div>
+
+              <button type="button" className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 focus:ring-4 focus:ring-slate-200 dark:focus:ring-slate-700 transition-all font-semibold text-slate-700 dark:text-slate-200 shadow-sm">
+                <svg className="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                </svg>
+                <span>Google</span>
+              </button>
+            </div>
+          </div>
+        </main>
+
+        {/* Footer Info */}
+        <footer className="p-6 text-center text-xs text-slate-400 z-10 w-full mt-auto">
+          <p>© 2024 MeetCraft Event Systems. All rights reserved. <a className="hover:text-primary underline px-2 transition-colors" href="#">Privacy Policy</a> <a className="hover:text-primary underline px-2 transition-colors" href="#">Terms of Service</a></p>
+        </footer>
       </div>
     </div>
   );

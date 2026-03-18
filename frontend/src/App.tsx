@@ -25,6 +25,8 @@ import AdminEventReview from './pages/AdminEventReview'
 import AdminUserManagement from './pages/AdminUserManagement'
 import AdminFinanceConfig from './pages/AdminFinanceConfig'
 import Homepage from './pages/Homepage'
+import SignInPage from './pages/SignInPage'
+import SignUpPage from './pages/SignUpPage'
 
 function App() {
   const [navOpen, setNavOpen] = useState(false)
@@ -158,6 +160,8 @@ function App() {
         <Route path="/admin/review" element={<AdminEventReview />} />
         <Route path="/admin/users" element={<AdminUserManagement />} />
         <Route path="/admin/finance" element={<AdminFinanceConfig />} />
+        <Route path="/signin" element={<SignInPage />} />
+        <Route path="/signup" element={<SignUpPage />} />
       </Routes>
     </div>
   )
