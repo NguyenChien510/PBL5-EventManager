@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.pbl.pbl.dto.TokenResponse;
 import com.pbl.pbl.dto.SignInDTO;
 import com.pbl.pbl.dto.SignUpDTO;
+import com.pbl.pbl.dto.GoogleLoginDTO;
 import com.pbl.pbl.service.AuthService;
 import com.pbl.pbl.util.CookieUtil;
 
@@ -55,6 +56,21 @@ public class AuthController {
     public ResponseEntity<SignUpDTO> signup(@Valid @RequestBody SignUpDTO request) {
         SignUpDTO response = authService.signup(request);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<TokenResponse> googleLogin(@Valid @RequestBody GoogleLoginDTO request) {
+        TokenResponse tokens = authService.googleLogin(request.getCredential());
+
+        ResponseCookie refreshCookie = CookieUtil.createRefreshCookie(
+                REFRESH_TOKEN_COOKIE,
+                tokens.getRefreshToken(),
+                refreshExpirationMs / 1000,
+                refreshCookieSecure);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+                .body(tokens);
     }
 
     @PostMapping("/refresh")

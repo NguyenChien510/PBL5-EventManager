@@ -12,7 +12,16 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
+import java.util.UUID;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
+
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 
 import com.pbl.pbl.config.JwtTokenProvider;
 import com.pbl.pbl.dto.TokenResponse;
@@ -56,6 +65,9 @@ public class AuthService {
 
     @Value("${jwt.refresh-token-expiration}")
     private long refreshExpiration;
+
+    @Value("${google.client.id:YOUR_GOOGLE_CLIENT_ID}")
+    private String googleClientId;
 
     @Transactional
     public TokenResponse login(String username, String password) {
@@ -173,5 +185,70 @@ public class AuthService {
                 .email(newUser.getEmail())
                 .fullName(newUser.getFullName())
                 .build();
+    }
+
+    @Transactional
+    public TokenResponse googleLogin(String credential) {
+        try {
+            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
+                    new NetHttpTransport(), new GsonFactory())
+                    .setAudience(Collections.singletonList(googleClientId))
+                    .build();
+
+            GoogleIdToken idToken = verifier.verify(credential);
+            if (idToken == null) {
+                throw new InvalidCredentialsException();
+            }
+
+            Payload payload = idToken.getPayload();
+            String email = payload.getEmail();
+            String name = (String) payload.get("name");
+
+            // Look up the user by email
+            User user = userRepository.findByEmail(email).orElseGet(() -> {
+                // Get default role
+                Role userRole = roleRepository.findByName("USER")
+                        .orElseThrow(() -> ResourceNotFoundException.role("USER"));
+
+                // Create a new user with default random password and username
+                User newUser = User.builder()
+                        .username("google_" + UUID.randomUUID().toString().substring(0, 8))
+                        .email(email)
+                        .password(passwordEncoder.encode(UUID.randomUUID().toString()))
+                        .fullName(name != null ? name : "Google User")
+                        .role(userRole)
+                        .build();
+
+                return userRepository.save(newUser);
+            });
+
+            // Generate tokens
+            UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
+                    .username(user.getUsername())
+                    .password(user.getPassword())
+                    .authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority(
+                        user.getRole().getName()))
+                    .build();
+
+            String accessToken = tokenProvider.generateAccessToken(userDetails);
+            String refreshTokenValue = tokenProvider.generateRefreshToken();
+
+            // Save refresh token
+            RefreshToken refreshToken = RefreshToken.builder()
+                    .token(refreshTokenValue)
+                    .user(user)
+                    .expiresAt(Instant.now().plusSeconds(refreshExpiration / 1000))
+                    .build();
+            refreshTokenRepository.save(refreshToken);
+
+            return TokenResponse.builder()
+                    .accessToken(accessToken)
+                    .refreshToken(refreshTokenValue)
+                    .user(userMapper.toDto(user))
+                    .build();
+
+        } catch (Exception e) {
+            throw new InvalidCredentialsException();
+        }
     }
 }

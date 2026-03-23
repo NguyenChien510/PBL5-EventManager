@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
+import { useState } from 'react'
 import { Icon } from '../components/ui'
 import { EventCard } from '../components/domain'
+import { useAuthStore } from '../stores/useAuthStore'
 
 const categories = [
   { icon: 'music_note', label: 'Âm nhạc', color: 'bg-pink-500' },
@@ -53,6 +55,9 @@ const featuredEvents = [
 ]
 
 const Homepage = () => {
+  const { user, signOut } = useAuthStore()
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+
   return (
     <div className="min-h-screen bg-background-light font-display">
       {/* Navigation */}
@@ -75,12 +80,49 @@ const Homepage = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <Link to="/profile" className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
-              Đăng nhập
-            </Link>
-            <Link to="/explore" className="px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-xl hover:bg-blue-600 transition-colors shadow-sm shadow-primary/20">
-              Khám phá ngay
-            </Link>
+            {user ? (
+              <div className="relative">
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                    {user.fullName?.[0]?.toUpperCase() || user.username?.[0]?.toUpperCase() || 'U'}
+                  </div>
+                  <div className="hidden md:flex flex-col items-start text-xs">
+                    <span className="text-slate-500 font-medium">Xin chào,</span>
+                    <span className="text-slate-900 font-bold max-w-[100px] truncate">{user.fullName || user.email}</span>
+                  </div>
+                  <Icon name="expand_more" className="text-slate-400" size="sm" />
+                </button>
+                
+                {isUserMenuOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 py-2 z-50">
+                    <Link to="/profile" className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-primary transition-colors">
+                      <Icon name="person" size="sm" /> Tài khoản
+                    </Link>
+                    <button
+                      onClick={() => {
+                        signOut();
+                        setIsUserMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <Icon name="logout" size="sm" /> Đăng xuất
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <Link to="/signin" className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+                  Đăng nhập
+                </Link>
+                <Link to="/signup" className="px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-xl hover:bg-blue-600 transition-colors shadow-sm shadow-primary/20">
+                  Đăng ký
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>

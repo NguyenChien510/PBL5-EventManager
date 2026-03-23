@@ -25,3 +25,7 @@ jwt:
 app:
   security:
     refresh-cookie-secure: false
+
+google:
+  client:
+    id: 286951222811-de805r44tl8ut7mck43tlqao2spjlj18.apps.googleusercontent.com

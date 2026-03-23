@@ -13,6 +13,7 @@ import { REFRESH_TOKEN_STORAGE_KEY, USER_STORAGE_KEY } from "@/constants";
 
 interface AuthStore extends AuthState {
   signIn: (payload: SignInPayload) => Promise<void>;
+  googleSignIn: (credential: string) => Promise<void>;
   signUp: (payload: SignUpPayload) => Promise<void>;
   signOut: () => Promise<void>;
   clearError: () => void;
@@ -63,6 +64,28 @@ export const useAuthStore = create<AuthStore>()(
           });
         } catch (error) {
           const message = getErrorMessage(error, "Sign in failed");
+          set({ error: message, isLoading: false });
+          throw new Error(message);
+        }
+      },
+
+      googleSignIn: async (credential: string) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await AuthService.googleSignIn(credential);
+          if (response.refreshToken) {
+            localStorage.setItem(
+              REFRESH_TOKEN_STORAGE_KEY,
+              response.refreshToken,
+            );
+          }
+          set({
+            accessToken: response.accessToken,
+            user: response.user,
+            isLoading: false,
+          });
+        } catch (error) {
+          const message = getErrorMessage(error, "Google sign in failed");
           set({ error: message, isLoading: false });
           throw new Error(message);
         }

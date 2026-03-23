@@ -11,6 +11,14 @@ export class AuthService {
     return response.data;
   }
 
+  static async googleSignIn(credential: string): Promise<AuthResponse> {
+    const response = await apiClient.post<AuthResponse>(
+      API_ENDPOINTS.AUTH.GOOGLE,
+      { credential }
+    );
+    return response.data;
+  }
+
   static async signUp(payload: SignUpPayload): Promise<AuthResponse> {
     const response = await apiClient.post<AuthResponse>(
       API_ENDPOINTS.AUTH.SIGNUP,
