@@ -1,16 +1,10 @@
 import { Link } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
+import { useCategoryStore } from '../stores/useCategoryStore'
 import { Icon, SearchInput, Pagination } from '../components/ui'
 import { EventCard } from '../components/domain'
 
-const categories = [
-  { label: 'Tất cả', icon: 'apps', active: true },
-  { label: 'Âm nhạc', icon: 'music_note', active: false },
-  { label: 'Công nghệ', icon: 'computer', active: false },
-  { label: 'Nghệ thuật', icon: 'palette', active: false },
-  { label: 'Thể thao', icon: 'sports_soccer', active: false },
-  { label: 'Ẩm thực', icon: 'restaurant', active: false },
-]
+// categories will be loaded from store
 
 const events = [
   {
@@ -76,9 +70,21 @@ const EventExplore = () => {
   const [minPrice, setMinPrice] = useState<number>(0);
   const [maxPrice, setMaxPrice] = useState<number>(3000000);
   
+  const { categories, fetchCategories } = useCategoryStore()
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | 'all'>('all');
+  
   const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
   const [selectedCity, setSelectedCity] = useState(cities[0]);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetchCategories()
+  }, [fetchCategories])
+
+  const displayCategories = [
+    { id: 'all' as const, name: 'Tất cả', icon: 'apps' },
+    ...categories
+  ]
 
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const [selectedSort, setSelectedSort] = useState(sorts[0]);
@@ -126,15 +132,16 @@ const EventExplore = () => {
               <Icon name="tune" className="text-primary" size="sm" /> Thể loại
             </h3>
             <div className="space-y-2">
-              {categories.map((cat) => (
+              {displayCategories.map((cat) => (
                 <button
-                  key={cat.label}
+                  key={cat.id}
+                  onClick={() => setSelectedCategoryId(cat.id as any)}
                   className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-sm font-medium ${
-                    cat.active ? 'bg-primary/10 text-primary font-bold' : 'text-slate-500 hover:bg-slate-50'
+                    selectedCategoryId === cat.id ? 'bg-primary/10 text-primary font-bold' : 'text-slate-500 hover:bg-slate-50'
                   }`}
                 >
                   <Icon name={cat.icon} size="sm" />
-                  {cat.label}
+                  {cat.name}
                 </button>
               ))}
             </div>

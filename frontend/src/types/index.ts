@@ -50,3 +50,10 @@ export interface ApiErrorResponse {
   errorCode?: string;
   details?: Record<string, string>;
 }
+
+export interface Category {
+  id: number;
+  name: string;
+  icon: string;
+  color: string;
+}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useCategoryStore } from '../stores/useCategoryStore';
 import { Icon } from '../components/ui';
 import { DashboardLayout, PageHeader } from '../components/layout';
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig';
@@ -42,7 +43,7 @@ const steps = [
   { id: 4, title: 'Hoàn tất' }
 ];
 
-const categories = ['Âm nhạc', 'Công nghệ', 'Nghệ thuật', 'Giáo dục', 'Thể thao'];
+// categories will be loaded from store
 
 const OrganizerEventCreate = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -50,9 +51,21 @@ const OrganizerEventCreate = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [mapCenter, setMapCenter] = useState<L.LatLngExpression>([10.762622, 106.660172]); // default HCMC
   
+  const { categories, fetchCategories } = useCategoryStore()
+  
   // Custom dropdown state
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(categories[0]);
+  const [selectedCategory, setSelectedCategory] = useState<any>(null);
+  
+  useEffect(() => {
+    fetchCategories()
+  }, [fetchCategories])
+
+  useEffect(() => {
+    if (categories.length > 0 && !selectedCategory) {
+      setSelectedCategory(categories[0])
+    }
+  }, [categories, selectedCategory])
   const categoryRef = useRef<HTMLDivElement>(null);
 
   // Handle click outside for dropdown
@@ -147,7 +160,7 @@ const OrganizerEventCreate = () => {
                         onClick={() => setIsCategoryOpen(!isCategoryOpen)}
                         className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 border border-slate-200 hover:border-primary/50 rounded-xl text-left outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
                       >
-                        <span className="font-semibold text-slate-700">{selectedCategory}</span>
+                        <span className="font-semibold text-slate-700">{selectedCategory?.name || 'Chọn thể loại'}</span>
                         <Icon name={isCategoryOpen ? "expand_less" : "expand_more"} className="text-slate-400" />
                       </button>
                       
@@ -155,15 +168,15 @@ const OrganizerEventCreate = () => {
                         <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200">
                           {categories.map((cat) => (
                             <button
-                              key={cat}
+                              key={cat.id}
                               onClick={() => { setSelectedCategory(cat); setIsCategoryOpen(false); }}
                               className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                                selectedCategory === cat 
+                                selectedCategory?.id === cat.id 
                                   ? 'bg-primary/5 text-primary font-bold' 
                                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
                               }`}
                             >
-                              {cat}
+                              {cat.name}
                             </button>
                           ))}
                         </div>

@@ -1,16 +1,9 @@
 import { Link } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Icon } from '../components/ui'
 import { EventCard, EventMap } from '../components/domain'
 import { useAuthStore } from '../stores/useAuthStore'
-
-const categories = [
-  { icon: 'music_note', label: 'Âm nhạc', color: 'bg-pink-500' },
-  { icon: 'computer', label: 'Công nghệ', color: 'bg-cyan-500' },
-  { icon: 'palette', label: 'Nghệ thuật', color: 'bg-purple-500' },
-  { icon: 'sports_soccer', label: 'Thể thao', color: 'bg-orange-500' },
-  { icon: 'restaurant', label: 'Ẩm thực', color: 'bg-yellow-500' },
-]
+import { useCategoryStore } from '../stores/useCategoryStore'
 
 const featuredEvents = [
   {
@@ -62,7 +55,12 @@ const mapEvents = [
 
 const Homepage = () => {
   const { user, signOut } = useAuthStore()
+  const { categories, fetchCategories } = useCategoryStore()
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+
+  useEffect(() => {
+    fetchCategories()
+  }, [fetchCategories])
 
   return (
     <div className="min-h-screen bg-background-light font-display">
@@ -149,13 +147,12 @@ const Homepage = () => {
             <div className="flex flex-col items-center text-center gap-6">
               <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 rounded-full text-[11px] font-semibold tracking-wide ring-1 ring-white/10">
                 <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
-                HỆ SINH THÁI SỰ KIỆN BLUE PREMIUM
+                HỆ SINH THÁI SỰ KIỆN PREMIUM
               </span>
               <div>
                 <h2 className="text-3xl md:text-5xl font-extrabold leading-tight tracking-tight">
                   Kết Nối Trải Nghiệm
                   <br />
-                  <span className="text-sky-400">Đẳng Cấp</span> Đại Dương
                 </h2>
                 <p className="mt-4 text-sm md:text-base text-white/70 max-w-2xl mx-auto">
                   Nền tảng quản lý và bán vé sự kiện chuyên nghiệp, mang lại sự tin cậy
@@ -215,14 +212,14 @@ const Homepage = () => {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {categories.map((cat) => (
             <Link
-              key={cat.label}
+              key={cat.id || cat.name}
               to="/explore"
               className="rounded-2xl p-5 border border-slate-100 bg-gradient-to-b from-white to-slate-50/30 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col items-center gap-3 group"
             >
               <div className={`w-12 h-12 rounded-xl ${cat.color} flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform`}>
                 <Icon name={cat.icon} />
               </div>
-              <span className="text-sm font-bold text-slate-700">{cat.label}</span>
+              <span className="text-sm font-bold text-slate-700">{cat.name}</span>
             </Link>
           ))}
           </div>
