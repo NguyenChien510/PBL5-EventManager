@@ -5,7 +5,7 @@ import org.mapstruct.Mapper;
 import com.pbl.pbl.dto.RoleDTO;
 import com.pbl.pbl.entity.Role;
 
-@Mapper(config = MapStructConfig.class)
+@Mapper(componentModel = "spring", config = MapStructConfig.class)
 public interface RoleMapper {
     RoleDTO toDto(Role role);
 

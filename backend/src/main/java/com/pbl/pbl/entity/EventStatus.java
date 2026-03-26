@@ -1,8 +1,8 @@
 package com.pbl.pbl.entity;
 
 public enum EventStatus {
-    upcoming,
-    ongoing,
+    pending,
+    sold_out,
     ended,
-    sold_out
+    upcoming
 }

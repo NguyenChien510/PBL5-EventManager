@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import { Icon } from '../components/ui'
-import { EventCard } from '../components/domain'
+import { EventCard, EventMap } from '../components/domain'
 import { useAuthStore } from '../stores/useAuthStore'
 
 const categories = [
@@ -52,6 +52,12 @@ const featuredEvents = [
     ticketsLeft: 280,
     totalTickets: 500,
   },
+]
+
+const mapEvents = [
+  { id: '1', title: 'SƠN TÙNG M-TP: THE FIRST JOURNEY 2024', lat: 10.8016, lng: 106.6660, location: 'SVĐ Quân khu 7, TP.HCM', date: '15 Th12, 2024' },
+  { id: '2', title: 'AI Innovation Summit 2024', lat: 10.7877, lng: 106.7018, location: 'Gem Center, Quận 1, TP.HCM', date: '28 Th11, 2024' },
+  { id: '3', title: 'Artisan Market - Hội Chợ Thủ Công', lat: 21.0335, lng: 105.8505, location: 'Khu Phố Cổ, Hà Nội', date: '10 Th01, 2025' }
 ]
 
 const Homepage = () => {
@@ -238,6 +244,19 @@ const Homepage = () => {
           {featuredEvents.map((event, i) => (
             <EventCard key={i} {...event} />
           ))}
+        </div>
+      </section>
+
+      {/* Events Near You Map */}
+      <section className="bg-slate-50 border-y border-slate-200/60 pb-16 pt-12 mt-4 relative z-0">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h3 className="text-2xl font-extrabold text-slate-900">Sự kiện quanh bạn</h3>
+              <p className="text-slate-500 text-sm mt-1">Khám phá các sự kiện thú vị đang diễn ra gần vị trí của bạn</p>
+            </div>
+          </div>
+          <EventMap events={mapEvents} />
         </div>
       </section>
 

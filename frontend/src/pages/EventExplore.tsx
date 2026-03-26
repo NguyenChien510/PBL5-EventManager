@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
 import { Icon, SearchInput, Pagination } from '../components/ui'
 import { EventCard } from '../components/domain'
 
@@ -68,7 +69,35 @@ const events = [
   },
 ]
 
+const cities = ['Tất cả khu vực', 'TP. Hồ Chí Minh', 'Hà Nội', 'Đà Nẵng', 'Hải Phòng']
+const sorts = ['Mới nhất', 'Giá tăng dần', 'Giá giảm dần', 'Đánh giá cao']
+
 const EventExplore = () => {
+  const [minPrice, setMinPrice] = useState<number>(0);
+  const [maxPrice, setMaxPrice] = useState<number>(3000000);
+  
+  const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
+  const [selectedCity, setSelectedCity] = useState(cities[0]);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+  const [selectedSort, setSelectedSort] = useState(sorts[0]);
+  const sortRef = useRef<HTMLDivElement>(null);
+
+  // Handle click outside for dropdowns
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsCityDropdownOpen(false);
+      }
+      if (sortRef.current && !sortRef.current.contains(event.target as Node)) {
+        setIsSortDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background-light font-display">
       {/* Top Bar */}
@@ -115,12 +144,80 @@ const EventExplore = () => {
             <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
               <Icon name="paid" className="text-primary" size="sm" /> Khoảng giá
             </h3>
-            <div className="space-y-3">
-              <div className="flex gap-3">
-                <input type="number" placeholder="Từ" className="flex-1 px-3 py-2 bg-slate-50 rounded-lg border-none text-sm" />
-                <input type="number" placeholder="Đến" className="flex-1 px-3 py-2 bg-slate-50 rounded-lg border-none text-sm" />
+            <div className="space-y-6 select-none">
+              <div className="flex items-center justify-between text-xs font-bold text-primary bg-primary/5 px-3 py-2 rounded-lg">
+                <span>{new Intl.NumberFormat('vi-VN').format(minPrice)}đ</span>
+                <span className="text-slate-400">-</span>
+                <span>{new Intl.NumberFormat('vi-VN', { notation: 'standard' }).format(maxPrice)}đ{maxPrice >= 3000000 ? '+' : ''}</span>
               </div>
-              <input type="range" className="w-full accent-primary" />
+              
+              <div className="relative h-1.5 bg-slate-200 rounded-full flex items-center touch-none">
+                {/* Active track color */}
+                <div 
+                  className="absolute h-full bg-primary rounded-full pointer-events-none"
+                  style={{ 
+                    left: `${(minPrice / 3000000) * 100}%`, 
+                    right: `${100 - (maxPrice / 3000000) * 100}%` 
+                  }}
+                />
+                
+                {/* Min Slider Element */}
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="3000000" 
+                  step="100000"
+                  value={minPrice}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    if (val <= maxPrice) setMinPrice(val);
+                  }}
+                  className="absolute w-full h-1.5 opacity-0 appearance-none pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer z-20"
+                />
+                
+                {/* Max Slider Element */}
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="3000000" 
+                  step="100000"
+                  value={maxPrice}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    if (val >= minPrice) setMaxPrice(val);
+                  }}
+                  className="absolute w-full h-1.5 opacity-0 appearance-none pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer z-30"
+                />
+
+                {/* Min Thumb display */}
+                <div 
+                  className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-[3px] border-primary rounded-full shadow-md z-10 pointer-events-none"
+                  style={{ left: `calc(${(minPrice / 3000000) * 100}% - 8px)` }}
+                />
+                
+                {/* Max Thumb display */}
+                <div 
+                  className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-[3px] border-primary rounded-full shadow-md z-10 pointer-events-none"
+                  style={{ left: `calc(${(maxPrice / 3000000) * 100}% - 8px)` }}
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <input 
+                  type="number" 
+                  value={minPrice}
+                  onChange={(e) => setMinPrice(Number(e.target.value))}
+                  placeholder="Từ" 
+                  className="flex-1 w-0 px-3 py-2.5 bg-white border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl text-sm font-semibold transition-all outline-none" 
+                />
+                <input 
+                  type="number" 
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(Number(e.target.value))}
+                  placeholder="Đến" 
+                  className="flex-1 w-0 px-3 py-2.5 bg-white border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl text-sm font-semibold transition-all outline-none" 
+                />
+              </div>
             </div>
           </div>
 
@@ -128,28 +225,71 @@ const EventExplore = () => {
             <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
               <Icon name="location_on" className="text-primary" size="sm" /> Khu vực
             </h3>
-            <div className="space-y-2">
-              {['TP. Hồ Chí Minh', 'Hà Nội', 'Đà Nẵng', 'Hải Phòng'].map((city) => (
-                <label key={city} className="flex items-center gap-3 py-2 cursor-pointer">
-                  <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/50" />
-                  <span className="text-sm text-slate-600">{city}</span>
-                </label>
-              ))}
+            <div className="relative" ref={dropdownRef}>
+              <button 
+                onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-white border border-slate-200 hover:border-primary/50 rounded-xl text-sm font-semibold text-slate-700 transition-all shadow-sm focus:outline-none focus:ring-4 focus:ring-primary/10"
+              >
+                {selectedCity}
+                <Icon name={isCityDropdownOpen ? "expand_less" : "expand_more"} className="text-slate-400 transition-transform" />
+              </button>
+              
+              {isCityDropdownOpen && (
+                <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 transform opacity-100 scale-100 transition-all origin-top">
+                  {cities.map((city) => (
+                    <button
+                      key={city}
+                      onClick={() => { setSelectedCity(city); setIsCityDropdownOpen(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                        selectedCity === city 
+                          ? 'bg-primary/5 text-primary font-bold' 
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
+                      }`}
+                    >
+                      {city}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </aside>
 
         {/* Event Grid */}
         <main className="flex-1">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-6 z-40 relative">
             <h2 className="text-2xl font-extrabold text-slate-900">Khám phá sự kiện</h2>
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-slate-500">{events.length} sự kiện</span>
-              <select className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm">
-                <option>Mới nhất</option>
-                <option>Giá tăng dần</option>
-                <option>Đánh giá cao</option>
-              </select>
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium text-slate-500 hidden sm:block">{events.length} sự kiện</span>
+              
+              <div className="relative" ref={sortRef}>
+                <button 
+                  onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:border-primary/50 hover:bg-slate-50 rounded-xl text-sm font-semibold text-slate-700 transition-all shadow-sm focus:outline-none focus:ring-4 focus:ring-primary/10"
+                >
+                  <Icon name="sort" size="sm" className="text-slate-400" />
+                  {selectedSort}
+                  <Icon name={isSortDropdownOpen ? "expand_less" : "expand_more"} size="sm" className="text-slate-400 ml-1 transition-transform" />
+                </button>
+                
+                {isSortDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 z-50 transform opacity-100 scale-100 transition-all origin-top-right">
+                    {sorts.map((sortOption) => (
+                      <button
+                        key={sortOption}
+                        onClick={() => { setSelectedSort(sortOption); setIsSortDropdownOpen(false); }}
+                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                          selectedSort === sortOption 
+                            ? 'bg-primary/5 text-primary font-bold' 
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
+                        }`}
+                      >
+                        {sortOption}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

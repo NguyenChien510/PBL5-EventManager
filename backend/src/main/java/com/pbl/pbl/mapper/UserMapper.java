@@ -7,7 +7,7 @@ import com.pbl.pbl.dto.UserDTO;
 import com.pbl.pbl.entity.Role;
 import com.pbl.pbl.entity.User;
 
-@Mapper(config = MapStructConfig.class)
+@Mapper(componentModel = "spring", config = MapStructConfig.class)
 public interface UserMapper {
     UserDTO toDto(User user);
     User toEntity(UserDTO userDto);

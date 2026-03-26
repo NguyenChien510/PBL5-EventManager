@@ -10,7 +10,6 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -53,9 +52,6 @@ public class Event {
 
     @Column(precision = 10, scale = 2)
     private BigDecimal ticketPrice;
-
-    @Column(length = 500)
-    private String ticketUrl;
 
     @Column(length = 500)
     private String posterUrl;

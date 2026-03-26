@@ -23,6 +23,14 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.core.ParameterizedTypeReference;
+import java.util.Map;
+
 import com.pbl.pbl.config.JwtTokenProvider;
 import com.pbl.pbl.dto.TokenResponse;
 import com.pbl.pbl.dto.SignUpDTO;
@@ -32,7 +40,6 @@ import com.pbl.pbl.entity.User;
 import com.pbl.pbl.exception.DuplicateResourceException;
 import com.pbl.pbl.exception.InvalidCredentialsException;
 import com.pbl.pbl.exception.TokenException;
-import com.pbl.pbl.exception.UserNotFoundException;
 import com.pbl.pbl.exception.ResourceNotFoundException;
 import com.pbl.pbl.mapper.UserMapper;
 import com.pbl.pbl.repository.RefreshTokenRepository;
@@ -190,19 +197,43 @@ public class AuthService {
     @Transactional
     public TokenResponse googleLogin(String credential) {
         try {
-            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
-                    new NetHttpTransport(), new GsonFactory())
-                    .setAudience(Collections.singletonList(googleClientId))
-                    .build();
+            String email;
+            String name;
 
-            GoogleIdToken idToken = verifier.verify(credential);
-            if (idToken == null) {
-                throw new InvalidCredentialsException();
+            if (credential.startsWith("ya29.")) {
+                RestTemplate restTemplate = new RestTemplate();
+                HttpHeaders headers = new HttpHeaders();
+                headers.setBearerAuth(credential);
+                HttpEntity<String> entity = new HttpEntity<>("", headers);
+                ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                        "https://www.googleapis.com/oauth2/v3/userinfo", 
+                        HttpMethod.GET, 
+                        entity, 
+                        new ParameterizedTypeReference<Map<String, Object>>() {}
+                );
+                
+                if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                    Map<String, Object> userInfo = response.getBody();
+                    email = (String) userInfo.get("email");
+                    name = (String) userInfo.get("name");
+                } else {
+                    throw new InvalidCredentialsException();
+                }
+            } else {
+                GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
+                        new NetHttpTransport(), new GsonFactory())
+                        .setAudience(Collections.singletonList(googleClientId))
+                        .build();
+
+                GoogleIdToken idToken = verifier.verify(credential);
+                if (idToken == null) {
+                    throw new InvalidCredentialsException();
+                }
+
+                Payload payload = idToken.getPayload();
+                email = payload.getEmail();
+                name = (String) payload.get("name");
             }
-
-            Payload payload = idToken.getPayload();
-            String email = payload.getEmail();
-            String name = (String) payload.get("name");
 
             // Look up the user by email
             User user = userRepository.findByEmail(email).orElseGet(() -> {
