@@ -83,6 +83,7 @@ const EventExplore = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
+    window.scrollTo(0, 0)
     fetchCategories()
     fetchProvinces()
   }, [fetchCategories, fetchProvinces])

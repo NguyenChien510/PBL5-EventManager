@@ -49,6 +49,7 @@ const OrganizerEventCreate = () => {
   const [mapPosition, setMapPosition] = useState<L.LatLng | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [mapCenter, setMapCenter] = useState<L.LatLngExpression>([10.762622, 106.660172]); // default HCMC
+  const [pendingWardName, setPendingWardName] = useState<string | null>(null);
   
   const { categories, fetchCategories } = useCategoryStore()
   const { provinces, fetchProvinces, wards, fetchWards } = useLocationStore()
@@ -81,6 +82,33 @@ const OrganizerEventCreate = () => {
     }
   }, [selectedProvince, fetchWards])
 
+  const normalizeLocationName = (name: string) => {
+    if (!name) return "";
+    return name
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // Remove accents/diacritics
+      .replace(/[đĐ]/g, "d")             // Special case for 'đ' and 'Đ'
+      .replace(/^(tinh|thanh pho|quan|huyen|thi xa|phuong|xa|thi tran|ward|district|city|province)\s+/i, '')
+      .replace(/\s+(thanh pho|tinh|quan|huyen|thi xa|phuong|xa|thi tran|ward|district|city|province)$/i, '')
+      .trim();
+  };
+
+  useEffect(() => {
+    if (wards.length > 0 && pendingWardName) {
+      const normalizedPending = normalizeLocationName(pendingWardName);
+      const matchedWard = wards.find(w => {
+        const normalizedWard = normalizeLocationName(w.name);
+        return normalizedPending.includes(normalizedWard) || normalizedWard.includes(normalizedPending);
+      });
+      
+      if (matchedWard) {
+        setSelectedWard(matchedWard);
+        setPendingWardName(null);
+      }
+    }
+  }, [wards, pendingWardName]);
+
   const categoryRef = useRef<HTMLDivElement>(null);
   const provinceRef = useRef<HTMLDivElement>(null);
   const wardRef = useRef<HTMLDivElement>(null);
@@ -102,17 +130,46 @@ const OrganizerEventCreate = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
   
+  const updateLocationDetails = (address: any) => {
+    if (!address) return;
+    
+    // Extract province/city name
+    const cityName = address.city || address.province || address.state || address.state_district;
+    // Extract ward/suburb name
+    const wardName = address.suburb || address.quarter || address.neighbourhood || address.district || address.town || address.village || address.subdistrict;
+
+    if (cityName) {
+      const normalizedCity = normalizeLocationName(cityName);
+      const matchedProvince = provinces.find(p => {
+        const normalizedP = normalizeLocationName(p.name);
+        return normalizedCity.includes(normalizedP) || normalizedP.includes(normalizedCity);
+      });
+      
+      if (matchedProvince) {
+        setSelectedProvince(matchedProvince);
+        if (wardName) {
+          setPendingWardName(wardName);
+        }
+      }
+    }
+  };
+
   const searchLocation = async () => {
     if (!searchQuery) return;
     try {
-      const query = `${searchQuery}${selectedWard ? `, ${selectedWard.name}` : ''}${selectedProvince ? `, ${selectedProvince.name}` : ''}`;
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+      const query = searchQuery; // Don't append current selectors to avoid circular loops
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1`);
       const data = await res.json();
       if (data && data.length > 0) {
-        const { lat, lon } = data[0];
+        const first = data[0];
+        const { lat, lon } = first;
         const newPos = new L.LatLng(parseFloat(lat), parseFloat(lon));
         setMapPosition(newPos);
         setMapCenter(newPos);
+        
+        if (first.address) {
+          updateLocationDetails(first.address);
+        }
       }
     } catch (err) {
       console.error("Geocoding failed", err);
@@ -122,10 +179,13 @@ const OrganizerEventCreate = () => {
   const handleMapClick = async (latlng: L.LatLng) => {
     setMapPosition(latlng);
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latlng.lat}&lon=${latlng.lng}`);
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latlng.lat}&lon=${latlng.lng}&addressdetails=1`);
       const data = await res.json();
       if (data && data.display_name) {
         setSearchQuery(data.display_name);
+        if (data.address) {
+          updateLocationDetails(data.address);
+        }
       }
     } catch (err) {
       console.error("Reverse geocoding failed", err);
@@ -232,26 +292,18 @@ const OrganizerEventCreate = () => {
             <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500 ease-out fill-mode-both">
               <h2 className="text-2xl font-extrabold text-slate-900 mb-6">Thời gian & Địa điểm</h2>
               <div className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-bold text-slate-700 mb-2 block">Ngày bắt đầu</label>
-                      <input type="date" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl outline-none transition-all" />
-                    </div>
-                    <div>
-                      <label className="text-sm font-bold text-slate-700 mb-2 block">Giờ bắt đầu</label>
-                      <input type="time" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl outline-none transition-all" />
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <label className="text-sm font-bold text-slate-700 mb-2 block">Ngày diễn ra</label>
+                    <input type="date" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl outline-none transition-all" />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-bold text-slate-700 mb-2 block">Ngày kết thúc</label>
-                      <input type="date" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl outline-none transition-all" />
-                    </div>
-                    <div>
-                      <label className="text-sm font-bold text-slate-700 mb-2 block">Giờ kết thúc</label>
-                      <input type="time" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl outline-none transition-all" />
-                    </div>
+                  <div>
+                    <label className="text-sm font-bold text-slate-700 mb-2 block">Giờ bắt đầu</label>
+                    <input type="time" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl outline-none transition-all" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-bold text-slate-700 mb-2 block">Giờ kết thúc</label>
+                    <input type="time" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl outline-none transition-all" />
                   </div>
                 </div>
 
