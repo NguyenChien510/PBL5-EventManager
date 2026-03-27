@@ -1,7 +1,9 @@
 package com.pbl.pbl.service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Service;
@@ -10,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.pbl.pbl.dto.EventRequestDTO;
 import com.pbl.pbl.dto.EventSessionRequestDTO;
 import com.pbl.pbl.dto.TicketTypeRequestDTO;
+import com.pbl.pbl.dto.UpcomingEventCardDTO;
 import com.pbl.pbl.entity.Category;
 import com.pbl.pbl.entity.Event;
 import com.pbl.pbl.entity.EventSession;
@@ -40,6 +43,39 @@ public class EventService {
     private final CategoryRepository categoryRepository;
     private final ProvinceRepository provinceRepository;
     private final WardRepository wardRepository;
+
+    @Transactional(readOnly = true)
+    public List<Event> getUpcomingEvents() {
+        return eventRepository.findByStatusOrderByStartTimeAsc(EventStatus.upcoming);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UpcomingEventCardDTO> getUpcomingEventsForHomepage() {
+        List<Event> events = eventRepository.findByStatusOrderByStartTimeAsc(EventStatus.upcoming);
+        List<UpcomingEventCardDTO> result = new ArrayList<>();
+
+        for (Event event : events) {
+            result.add(
+                UpcomingEventCardDTO.builder()
+                    .id(event.getId())
+                    .title(event.getTitle())
+                    .location(event.getLocation())
+                    .startTime(event.getStartTime())
+                    .posterUrl(event.getPosterUrl())
+                    .ticketsLeft(event.getTicketsLeft())
+                    .totalTickets(event.getTotalTickets())
+                    .status(event.getStatus())
+                    .categoryName(event.getCategory() != null ? event.getCategory().getName() : null)
+                    .categoryColor(event.getCategory() != null ? event.getCategory().getColor() : null)
+                    .provinceName(event.getProvince() != null ? event.getProvince().getName() : null)
+                    .minPrice(ticketTypeRepository.findMinPriceByEventId(event.getId()))
+                    .maxPrice(ticketTypeRepository.findMaxPriceByEventId(event.getId()))
+                    .build()
+            );
+        }
+
+        return result;
+    }
 
     @Transactional
     public Event createEvent(EventRequestDTO request) {

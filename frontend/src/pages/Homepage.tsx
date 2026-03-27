@@ -48,11 +48,42 @@ const featuredEvents = [
   },
 ]
 
-const mapEvents = [
-  { id: '1', title: 'SƠN TÙNG M-TP: THE FIRST JOURNEY 2024', lat: 10.8016, lng: 106.6660, location: 'SVĐ Quân khu 7, TP.HCM', date: '15 Th12, 2024' },
-  { id: '2', title: 'AI Innovation Summit 2024', lat: 10.7877, lng: 106.7018, location: 'Gem Center, Quận 1, TP.HCM', date: '28 Th11, 2024' },
-  { id: '3', title: 'Artisan Market - Hội Chợ Thủ Công', lat: 21.0335, lng: 105.8505, location: 'Khu Phố Cổ, Hà Nội', date: '10 Th01, 2025' }
-]
+interface UpcomingEvent {
+  id: number
+  title: string
+  location: string
+  startTime: string
+  posterUrl?: string
+  categoryName?: string
+  categoryColor?: string
+  provinceName?: string
+  minPrice?: number
+  maxPrice?: number
+  ticketsLeft?: number
+  totalTickets?: number
+  status: 'pending' | 'sold_out' | 'ended' | 'upcoming'
+}
+
+interface NearbyMapEvent {
+  id: string
+  title: string
+  lat: number
+  lng: number
+  location: string
+  date: string
+  provinceName: string
+}
+
+const provinceFallbackCoords: Record<string, { lat: number; lng: number }> = {
+  'TP. Hồ Chí Minh': { lat: 10.7769, lng: 106.7009 },
+  'Hồ Chí Minh': { lat: 10.7769, lng: 106.7009 },
+  'Hà Nội': { lat: 21.0285, lng: 105.8542 },
+  'Đà Nẵng': { lat: 16.0544, lng: 108.2022 },
+  'Cần Thơ': { lat: 10.0452, lng: 105.7469 },
+  'Hải Phòng': { lat: 20.8449, lng: 106.6881 },
+  'Khánh Hòa': { lat: 12.2388, lng: 109.1967 },
+  'Lâm Đồng': { lat: 11.9404, lng: 108.4583 },
+}
 
 const Homepage = () => {
   const { categories, fetchCategories } = useCategoryStore()
@@ -64,11 +95,111 @@ const Homepage = () => {
   const [isDateOpen, setIsDateOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState('Tất cả thời gian')
   const dateRef = useRef<HTMLDivElement>(null)
+  const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([])
+  const [nearbyMapEvents, setNearbyMapEvents] = useState<NearbyMapEvent[]>([])
+  const [isMapLoading, setIsMapLoading] = useState(false)
 
   useEffect(() => {
     fetchCategories()
     fetchProvinces()
   }, [fetchCategories, fetchProvinces])
+
+  useEffect(() => {
+    let isMounted = true
+    const fetchUpcomingEvents = async () => {
+      try {
+        const res = await fetch('http://localhost:8080/api/events/upcoming-card-data')
+        if (!res.ok) throw new Error('Failed to fetch upcoming events')
+        const data = await res.json()
+        if (isMounted) setUpcomingEvents(Array.isArray(data) ? data : [])
+      } catch (error) {
+        console.error('Failed to load upcoming events for homepage map:', error)
+        if (isMounted) setUpcomingEvents([])
+      }
+    }
+
+    fetchUpcomingEvents()
+    return () => { isMounted = false }
+  }, [])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const toDisplayDate = (isoDateTime: string) => {
+      const date = new Date(isoDateTime)
+      if (Number.isNaN(date.getTime())) return 'Sắp diễn ra'
+      return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    }
+
+    const getFallbackCoords = (provinceName?: string, location?: string) => {
+      if (provinceName && provinceFallbackCoords[provinceName]) {
+        return provinceFallbackCoords[provinceName]
+      }
+
+      if (location) {
+        const matched = Object.entries(provinceFallbackCoords).find(([key]) => location.includes(key))
+        if (matched) return matched[1]
+      }
+
+      return { lat: 10.7769, lng: 106.7009 }
+    }
+
+    const buildNearbyMapEvents = async () => {
+      if (upcomingEvents.length === 0) {
+        setNearbyMapEvents([])
+        return
+      }
+
+      setIsMapLoading(true)
+      try {
+        const geocoded = await Promise.all(
+          upcomingEvents.slice(0, 20).map(async (event) => {
+            const query = [event.location, event.provinceName, 'Viet Nam'].filter(Boolean).join(', ')
+            let lat: number | null = null
+            let lng: number | null = null
+            try {
+              const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`)
+              const data = await res.json()
+              if (Array.isArray(data) && data.length > 0) {
+                lat = Number(data[0].lat)
+                lng = Number(data[0].lon)
+              }
+            } catch {
+              // fall through to province-level fallback
+            }
+
+            if (lat === null || lng === null || Number.isNaN(lat) || Number.isNaN(lng)) {
+              const fallback = getFallbackCoords(event.provinceName, event.location)
+              lat = fallback.lat
+              lng = fallback.lng
+            }
+
+            return {
+              id: String(event.id),
+              title: event.title,
+              lat,
+              lng,
+              location: event.location,
+              date: toDisplayDate(event.startTime),
+              provinceName: event.provinceName || '',
+            } as NearbyMapEvent
+          })
+        )
+
+        if (isMounted) {
+          setNearbyMapEvents(geocoded.filter((e): e is NearbyMapEvent => !!e))
+        }
+      } catch (error) {
+        console.error('Failed to geocode upcoming event locations:', error)
+        if (isMounted) setNearbyMapEvents([])
+      } finally {
+        if (isMounted) setIsMapLoading(false)
+      }
+    }
+
+    buildNearbyMapEvents()
+    return () => { isMounted = false }
+  }, [upcomingEvents])
 
   // Handle click outside for dropdowns
   useEffect(() => {
@@ -83,6 +214,39 @@ const Homepage = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const filteredNearbyEvents =
+    selectedProvince === 'Chọn khu vực' || selectedProvince === 'Tất cả khu vực'
+      ? nearbyMapEvents
+      : nearbyMapEvents.filter(event => event.provinceName === selectedProvince)
+
+  const featuredEventsFromDb = upcomingEvents.slice(0, 6).map((event) => {
+    const dateObj = new Date(event.startTime)
+    const validDate = !Number.isNaN(dateObj.getTime())
+    const formatVnd = (value?: number) =>
+      typeof value === 'number'
+        ? value.toLocaleString('vi-VN', { maximumFractionDigits: 0 }) + 'đ'
+        : null
+    const low = formatVnd(event.minPrice)
+    const high = formatVnd(event.maxPrice)
+    const priceDisplay = low && high ? (low === high ? low : `${low} - ${high}`) : (low || high || 'Đang cập nhật')
+
+    return {
+      image: event.posterUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200&auto=format&fit=crop',
+      title: event.title,
+      date: validDate ? dateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'Sắp cập nhật',
+      time: validDate ? dateObj.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--',
+      location: event.location,
+      price: priceDisplay,
+      category: event.categoryName || 'Sự kiện',
+      categoryColor: event.categoryColor ? `${event.categoryColor.replace('-500', '-100')} text-slate-700` : 'bg-primary/10 text-primary',
+      rating: undefined,
+      ticketsLeft: event.ticketsLeft,
+      totalTickets: event.totalTickets,
+    }
+  })
+
+  const visibleFeaturedEvents = featuredEventsFromDb.length > 0 ? featuredEventsFromDb : featuredEvents
 
   return (
     <div className="min-h-screen bg-background-light font-display">
@@ -266,14 +430,14 @@ const Homepage = () => {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h3 className="text-2xl font-extrabold text-slate-900">Sự kiện nổi bật</h3>
-            <p className="text-slate-500 text-sm mt-1">Những sự kiện hot nhất đang được săn đón</p>
+            <p className="text-slate-500 text-sm mt-1">Các sự kiện đang được quan tâm nhiều nhất</p>
           </div>
           <Link to="/explore" className="text-sm font-bold text-primary hover:underline flex items-center gap-1">
             Xem tất cả <Icon name="arrow_forward" size="sm" />
           </Link>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {featuredEvents.map((event, i) => (
+          {visibleFeaturedEvents.map((event, i) => (
             <EventCard key={i} {...event} />
           ))}
         </div>
@@ -285,10 +449,19 @@ const Homepage = () => {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h3 className="text-2xl font-extrabold text-slate-900">Sự kiện quanh bạn</h3>
-              <p className="text-slate-500 text-sm mt-1">Khám phá các sự kiện thú vị đang diễn ra gần vị trí của bạn</p>
             </div>
           </div>
-          <EventMap events={mapEvents} />
+          {isMapLoading ? (
+            <div className="w-full h-[400px] md:h-[500px] rounded-3xl border border-slate-200 bg-white flex items-center justify-center text-slate-500 font-semibold">
+              Đang tải vị trí sự kiện...
+            </div>
+          ) : filteredNearbyEvents.length > 0 ? (
+            <EventMap events={filteredNearbyEvents} />
+          ) : (
+            <div className="w-full h-[400px] md:h-[500px] rounded-3xl border border-slate-200 bg-white flex items-center justify-center text-slate-500 font-semibold">
+              Chưa có sự kiện upcoming phù hợp để hiển thị bản đồ.
+            </div>
+          )}
         </div>
       </section>
 
