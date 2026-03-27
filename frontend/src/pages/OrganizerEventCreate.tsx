@@ -269,6 +269,37 @@ const OrganizerEventCreate = () => {
 
   const handleCreateEvent = async () => {
     try {
+      if (!title.trim()) {
+        alert("Vui lòng nhập tên sự kiện");
+        setCurrentStep(1);
+        return;
+      }
+      if (!selectedCategory?.id) {
+        alert("Vui lòng chọn thể loại");
+        setCurrentStep(1);
+        return;
+      }
+      if (!description.trim()) {
+        alert("Vui lòng nhập mô tả chi tiết");
+        setCurrentStep(1);
+        return;
+      }
+      if (!selectedProvince?.id) {
+        alert("Vui lòng chọn Tỉnh / Thành phố");
+        setCurrentStep(2);
+        return;
+      }
+      if (sessions.length === 0 || sessions.some(s => !s.sessionDate || !s.startTime || !s.endTime)) {
+        alert("Vui lòng điền đầy đủ thông tin các phiên diễn");
+        setCurrentStep(2);
+        return;
+      }
+      if (ticketTypes.length === 0 || ticketTypes.some(t => !t.name?.trim())) {
+        alert("Vui lòng tạo ít nhất 1 hạng vé hợp lệ");
+        setCurrentStep(3);
+        return;
+      }
+
       const payload = {
         title,
         categoryId: selectedCategory?.id,
