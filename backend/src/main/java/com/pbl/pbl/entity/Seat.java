@@ -1,7 +1,5 @@
 package com.pbl.pbl.entity;
 
-import java.time.LocalDateTime;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -24,39 +22,26 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "events")
-public class Event {
+@Table(name = "seats")
+public class Seat {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 255)
-    private String title;
+    @ManyToOne
+    @JoinColumn(name = "event_id", nullable = false)
+    private Event event;
 
     @ManyToOne
-    @JoinColumn(name = "category_id")
-    private Category category;
+    @JoinColumn(name = "ticket_type_id", nullable = false)
+    private TicketType ticketType;
 
-    @Column(columnDefinition = "TEXT")
-    private String artists;
-
-    @Column(columnDefinition = "TEXT")
-    private String description;
-
-    @Column(nullable = false, length = 255)
-    private String location;
-
-    @Column(nullable = false)
-    private LocalDateTime startTime;
-
-    private LocalDateTime endTime;
-
-    @Column(length = 500)
-    private String posterUrl;
+    @Column(nullable = false, length = 20)
+    private String seatNumber;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     @Builder.Default
-    private EventStatus status = EventStatus.upcoming;
-
+    private SeatStatus status = SeatStatus.AVAILABLE;
 }

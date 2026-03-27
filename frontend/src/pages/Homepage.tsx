@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Icon } from '../components/ui'
+import { Navbar } from '../components/layout'
 import { EventCard, EventMap } from '../components/domain'
-import { useAuthStore } from '../stores/useAuthStore'
 import { useCategoryStore } from '../stores/useCategoryStore'
+import { useLocationStore } from '../stores/useLocationStore'
 
 const featuredEvents = [
   {
@@ -54,88 +55,44 @@ const mapEvents = [
 ]
 
 const Homepage = () => {
-  const { user, signOut } = useAuthStore()
   const { categories, fetchCategories } = useCategoryStore()
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  const { provinces, fetchProvinces } = useLocationStore()
+  const [isLocationOpen, setIsLocationOpen] = useState(false)
+  const [selectedProvince, setSelectedProvince] = useState('Chọn khu vực')
+  const locationRef = useRef<HTMLDivElement>(null)
+
+  const [isDateOpen, setIsDateOpen] = useState(false)
+  const [selectedDate, setSelectedDate] = useState('Tất cả thời gian')
+  const dateRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetchCategories()
-  }, [fetchCategories])
+    fetchProvinces()
+  }, [fetchCategories, fetchProvinces])
+
+  // Handle click outside for dropdowns
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (locationRef.current && !locationRef.current.contains(event.target as Node)) {
+        setIsLocationOpen(false);
+      }
+      if (dateRef.current && !dateRef.current.contains(event.target as Node)) {
+        setIsDateOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background-light font-display">
-      {/* Navigation */}
-      <nav className="glass-nav sticky top-0 z-50 border-b border-slate-200/60 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-lg shadow-primary/20">
-              <Icon name="confirmation_number" className="text-white text-lg" />
-            </div>
-            <h1 className="text-lg font-extrabold tracking-tight">
-              Event<span className="text-sky-400">Platform</span>
-            </h1>
-          </div>
-
-          <div className="hidden md:flex items-center gap-8">
-            <Link to="/" className="text-sm font-semibold text-primary">Trang chủ</Link>
-            <Link to="/explore" className="text-sm font-medium text-slate-500 hover:text-primary transition-colors">Khám phá</Link>
-            <a href="#" className="text-sm font-medium text-slate-500 hover:text-primary transition-colors">Về chúng tôi</a>
-            <a href="#" className="text-sm font-medium text-slate-500 hover:text-primary transition-colors">Liên hệ</a>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {user ? (
-              <div className="relative">
-                <button
-                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100 transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                    {user.fullName?.[0]?.toUpperCase() || user.username?.[0]?.toUpperCase() || 'U'}
-                  </div>
-                  <div className="hidden md:flex flex-col items-start text-xs">
-                    <span className="text-slate-500 font-medium">Xin chào,</span>
-                    <span className="text-slate-900 font-bold max-w-[100px] truncate">{user.fullName || user.email}</span>
-                  </div>
-                  <Icon name="expand_more" className="text-slate-400" size="sm" />
-                </button>
-                
-                {isUserMenuOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 py-2 z-50">
-                    <Link to="/profile" className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-primary transition-colors">
-                      <Icon name="person" size="sm" /> Tài khoản
-                    </Link>
-                    <button
-                      onClick={() => {
-                        signOut();
-                        setIsUserMenuOpen(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                    >
-                      <Icon name="logout" size="sm" /> Đăng xuất
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <>
-                <Link to="/signin" className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
-                  Đăng nhập
-                </Link>
-                <Link to="/signup" className="px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-xl hover:bg-blue-600 transition-colors shadow-sm shadow-primary/20">
-                  Đăng ký
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-6 pt-6 md:pt-10">
-        <div className="relative overflow-hidden rounded-[28px] bg-[#061A3A] text-white shadow-[0_24px_70px_rgba(2,6,23,0.35)] ring-1 ring-white/10">
-          {/* background accents (lightweight) */}
-          <div className="pointer-events-none absolute inset-0">
+      <section className="max-w-7xl mx-auto px-6 pt-6 md:pt-10 relative z-40">
+        <div className="relative rounded-[28px] bg-[#061A3A] text-white shadow-[0_24px_70px_rgba(2,6,23,0.35)] ring-1 ring-white/10 min-h-[400px]">
+          {/* Background Decorations With Clipping */}
+          <div className="absolute inset-0 overflow-hidden rounded-[28px] pointer-events-none">
             <div className="absolute -top-24 left-1/2 h-52 w-[520px] -translate-x-1/2 bg-sky-500/25 blur-3xl" />
             <div className="absolute -top-12 -left-10 h-48 w-48 bg-fuchsia-500/25 blur-3xl" />
             <div className="absolute -top-12 -right-10 h-48 w-48 bg-fuchsia-500/25 blur-3xl" />
@@ -143,7 +100,7 @@ const Homepage = () => {
             <div className="absolute inset-0 opacity-[0.10] [background:radial-gradient(circle_at_50%_35%,white,transparent_60%)]" />
           </div>
 
-          <div className="relative px-6 py-14 md:px-12 md:py-16 lg:px-16 lg:py-20">
+          <div className="relative px-6 py-14 md:px-12 md:py-16 lg:px-16 lg:py-20 z-20">
             <div className="flex flex-col items-center text-center gap-6">
               <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 rounded-full text-[11px] font-semibold tracking-wide ring-1 ring-white/10">
                 <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
@@ -162,29 +119,107 @@ const Homepage = () => {
               </div>
 
               {/* Search bar */}
-              <div className="mt-4 w-full max-w-3xl">
+              <div className="mt-4 w-full max-w-4xl relative z-50">
                 <div className="bg-white rounded-full shadow-[0_18px_44px_rgba(2,6,23,0.35)] px-2 py-2 ring-1 ring-slate-200">
                   <div className="flex flex-col md:flex-row items-stretch gap-2 md:gap-0">
-                    <div className="flex-1 flex items-center gap-2 px-4 py-2 rounded-full bg-slate-50 border border-slate-200">
+                    <div className="flex-1 flex items-center gap-2 px-4 py-2 rounded-full bg-slate-50 border border-slate-200 transition-all">
                       <Icon name="search" className="text-slate-400" />
                       <input
                         placeholder="Tìm tên sự kiện, nghệ sĩ, hội thảo..."
-                        className="w-full bg-transparent text-[13px] md:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none border-none"
+                        className="w-full bg-transparent text-[13px] md:text-sm text-slate-800 placeholder:text-slate-400 outline-none border-none focus:outline-none focus:ring-0"
                       />
                     </div>
-                    <div className="hidden md:block h-10 w-px bg-slate-200 my-auto" />
-                    <button className="flex items-center justify-between gap-2 px-4 py-2 rounded-full bg-slate-50 border border-slate-200 text-[13px] md:text-sm text-slate-700 font-semibold">
-                      <Icon name="location_on" className="text-sky-500" />
-                      <span className="whitespace-nowrap">Chọn khu vực</span>
-                    </button>
-                    <div className="hidden md:block h-10 w-px bg-slate-200 my-auto" />
-                    <button className="flex items-center justify-between gap-2 px-4 py-2 rounded-full bg-slate-50 border border-slate-200 text-[13px] md:text-sm text-slate-700 font-semibold">
-                      <Icon name="event" className="text-sky-500" />
-                      <span className="whitespace-nowrap">Chọn ngày</span>
-                    </button>
+                    <div className="hidden md:block h-10 w-px bg-slate-100 my-auto mx-2" />
+                    
+                    {/* Province Selector */}
+                    <div className="relative" ref={locationRef}>
+                      <button 
+                        onClick={() => setIsLocationOpen(!isLocationOpen)}
+                        className={`h-full flex items-center justify-between gap-2 px-4 py-2 rounded-full border text-[13px] md:text-sm font-bold transition-all min-w-[160px] ${
+                          isLocationOpen ? 'bg-white border-sky-500 text-primary shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-white hover:border-sky-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Icon name="location_on" className="text-sky-500" />
+                          <span className="whitespace-nowrap">{selectedProvince}</span>
+                        </div>
+                        <Icon name={isLocationOpen ? "expand_less" : "expand_more"} size="sm" className="text-slate-400" />
+                      </button>
+                      
+                      {isLocationOpen && (
+                        <div className="absolute top-full left-0 mt-3 w-full max-h-64 overflow-y-auto bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-100 py-2 z-[100] text-left animate-slide-down ring-1 ring-slate-200/50">
+                          <button
+                            onClick={() => { setSelectedProvince('Tất cả khu vực'); setIsLocationOpen(false); }}
+                            className="w-full px-4 py-3 text-sm text-slate-600 hover:bg-sky-50 hover:text-primary transition-all font-semibold flex items-center justify-between group"
+                          >
+                            Tất cả khu vực
+                            {selectedProvince === 'Tất cả khu vực' && <Icon name="check" size="sm" className="text-primary" />}
+                          </button>
+                          {provinces.map((province) => (
+                            <button
+                              key={province.id}
+                              onClick={() => { setSelectedProvince(province.name); setIsLocationOpen(false); }}
+                              className={`w-full px-4 py-3 text-sm transition-all font-semibold border-t border-slate-50 flex items-center justify-between group ${
+                                selectedProvince === province.name ? 'bg-sky-50 text-primary' : 'text-slate-600 hover:bg-slate-50 hover:text-primary'
+                              }`}
+                            >
+                              {province.name}
+                              {selectedProvince === province.name && <Icon name="check" size="sm" className="text-primary" />}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="hidden md:block h-10 w-px bg-slate-100 my-auto mx-2" />
+                    
+                    {/* Date Selector */}
+                    <div className="relative" ref={dateRef}>
+                      <button 
+                        onClick={() => setIsDateOpen(!isDateOpen)}
+                        className={`h-full flex items-center justify-between gap-2 px-5 py-2.5 rounded-full border text-[13px] md:text-sm font-bold transition-all group shadow-sm active:scale-95 ${
+                          isDateOpen ? 'bg-white border-sky-500 text-primary' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-white hover:border-sky-300'
+                        }`}
+                      >
+                        <Icon name="event" className={`text-sky-500 transition-transform ${isDateOpen ? 'scale-110' : ''}`} />
+                        <span className="whitespace-nowrap">{selectedDate}</span>
+                        <Icon name={isDateOpen ? "expand_less" : "expand_more"} size="sm" className="text-slate-400" />
+                      </button>
+
+                      {isDateOpen && (
+                        <div className="absolute top-full right-0 md:left-0 mt-3 w-64 bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-100 py-2 z-[100] text-left animate-slide-down ring-1 ring-slate-200/50">
+                          {['Tất cả thời gian', 'Hôm nay', 'Ngày mai', 'Tháng này'].map((option) => (
+                            <button
+                              key={option}
+                              onClick={() => { setSelectedDate(option); setIsDateOpen(false); }}
+                              className={`w-full px-4 py-3 text-sm transition-all font-semibold flex items-center justify-between group ${
+                                selectedDate === option ? 'bg-sky-50 text-primary' : 'text-slate-600 hover:bg-slate-50 hover:text-primary'
+                              }`}
+                            >
+                              {option}
+                              {selectedDate === option && <Icon name="check" size="sm" className="text-primary" />}
+                            </button>
+                          ))}
+                          <div className="border-t border-slate-50 px-4 py-2 mt-1">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">Hoặc chọn ngày cụ thể</label>
+                            <input 
+                              type="date" 
+                              className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-600 outline-none focus:border-sky-500 transition-colors"
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  setSelectedDate(new Date(e.target.value).toLocaleDateString('vi-VN'));
+                                  setIsDateOpen(false);
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     <Link
                       to="/explore"
-                      className="mt-1 md:mt-0 md:ml-2 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-sky-500 hover:bg-sky-600 text-sm font-bold text-white whitespace-nowrap"
+                      className="mt-1 md:mt-0 md:ml-3 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-sky-500 hover:bg-sky-600 text-sm font-black text-white whitespace-nowrap shadow-lg shadow-sky-500/25 transition-all hover:scale-105 active:scale-95"
                     >
                       <Icon name="search" size="sm" />
                       Tìm ngay

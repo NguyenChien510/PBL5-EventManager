@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useCategoryStore } from '../stores/useCategoryStore';
+import { useLocationStore } from '../stores/useLocationStore';
 import { Icon } from '../components/ui';
 import { DashboardLayout, PageHeader } from '../components/layout';
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig';
@@ -43,8 +44,6 @@ const steps = [
   { id: 4, title: 'Hoàn tất' }
 ];
 
-// categories will be loaded from store
-
 const OrganizerEventCreate = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [mapPosition, setMapPosition] = useState<L.LatLng | null>(null);
@@ -52,27 +51,51 @@ const OrganizerEventCreate = () => {
   const [mapCenter, setMapCenter] = useState<L.LatLngExpression>([10.762622, 106.660172]); // default HCMC
   
   const { categories, fetchCategories } = useCategoryStore()
+  const { provinces, fetchProvinces, wards, fetchWards } = useLocationStore()
   
   // Custom dropdown state
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<any>(null);
   
+  const [isProvinceOpen, setIsProvinceOpen] = useState(false);
+  const [selectedProvince, setSelectedProvince] = useState<any>(null);
+  
+  const [isWardOpen, setIsWardOpen] = useState(false);
+  const [selectedWard, setSelectedWard] = useState<any>(null);
+  
   useEffect(() => {
     fetchCategories()
-  }, [fetchCategories])
+    fetchProvinces()
+  }, [fetchCategories, fetchProvinces])
 
   useEffect(() => {
     if (categories.length > 0 && !selectedCategory) {
       setSelectedCategory(categories[0])
     }
   }, [categories, selectedCategory])
-  const categoryRef = useRef<HTMLDivElement>(null);
 
-  // Handle click outside for dropdown
+  useEffect(() => {
+    if (selectedProvince) {
+      fetchWards(selectedProvince.id)
+      setSelectedWard(null)
+    }
+  }, [selectedProvince, fetchWards])
+
+  const categoryRef = useRef<HTMLDivElement>(null);
+  const provinceRef = useRef<HTMLDivElement>(null);
+  const wardRef = useRef<HTMLDivElement>(null);
+
+  // Handle click outside for dropdowns
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (categoryRef.current && !categoryRef.current.contains(event.target as Node)) {
         setIsCategoryOpen(false);
+      }
+      if (provinceRef.current && !provinceRef.current.contains(event.target as Node)) {
+        setIsProvinceOpen(false);
+      }
+      if (wardRef.current && !wardRef.current.contains(event.target as Node)) {
+        setIsWardOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -82,7 +105,8 @@ const OrganizerEventCreate = () => {
   const searchLocation = async () => {
     if (!searchQuery) return;
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`);
+      const query = `${searchQuery}${selectedWard ? `, ${selectedWard.name}` : ''}${selectedProvince ? `, ${selectedProvince.name}` : ''}`;
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
       const data = await res.json();
       if (data && data.length > 0) {
         const { lat, lon } = data[0];
@@ -165,7 +189,7 @@ const OrganizerEventCreate = () => {
                       </button>
                       
                       {isCategoryOpen && (
-                        <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200 shadow-sky-900/10">
                           {categories.map((cat) => (
                             <button
                               key={cat.id}
@@ -208,7 +232,6 @@ const OrganizerEventCreate = () => {
             <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500 ease-out fill-mode-both">
               <h2 className="text-2xl font-extrabold text-slate-900 mb-6">Thời gian & Địa điểm</h2>
               <div className="space-y-8">
-                {/* Time Section */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -235,16 +258,83 @@ const OrganizerEventCreate = () => {
                 <div className="h-px bg-slate-200 w-full" />
 
                 {/* Location Section */}
-                <div className="space-y-4">
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Province Selector */}
+                    <div>
+                      <label className="text-sm font-bold text-slate-700 mb-2 block">Tỉnh / Thành phố *</label>
+                      <div className="relative" ref={provinceRef}>
+                        <button 
+                          onClick={() => setIsProvinceOpen(!isProvinceOpen)}
+                          className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 border border-slate-200 hover:border-primary/50 rounded-xl text-left outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
+                        >
+                          <span className="font-semibold text-slate-700">{selectedProvince?.name || 'Chọn tỉnh thành'}</span>
+                          <Icon name={isProvinceOpen ? "expand_less" : "expand_more"} className="text-slate-400" />
+                        </button>
+                        
+                        {isProvinceOpen && (
+                          <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200 max-h-60 overflow-y-auto shadow-sky-900/10">
+                            {provinces.map((p) => (
+                              <button
+                                key={p.id}
+                                onClick={() => { setSelectedProvince(p); setIsProvinceOpen(false); }}
+                                className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                                  selectedProvince?.id === p.id 
+                                    ? 'bg-primary/5 text-primary font-bold' 
+                                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
+                                }`}
+                              >
+                                {p.name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Ward Selector */}
+                    <div>
+                      <label className="text-sm font-bold text-slate-700 mb-2 block">Phường / Xã *</label>
+                      <div className="relative" ref={wardRef}>
+                        <button 
+                          onClick={() => setIsWardOpen(!isWardOpen)}
+                          disabled={!selectedProvince}
+                          className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 border border-slate-200 hover:border-primary/50 disabled:opacity-50 rounded-xl text-left outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
+                        >
+                          <span className="font-semibold text-slate-700">{selectedWard?.name || 'Chọn phường xã'}</span>
+                          <Icon name={isWardOpen ? "expand_less" : "expand_more"} className="text-slate-400" />
+                        </button>
+                        
+                        {isWardOpen && (
+                          <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200 max-h-60 overflow-y-auto shadow-sky-900/10">
+                            {wards.map((w) => (
+                              <button
+                                key={w.id}
+                                onClick={() => { setSelectedWard(w); setIsWardOpen(false); }}
+                                className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                                  selectedWard?.id === w.id 
+                                    ? 'bg-primary/5 text-primary font-bold' 
+                                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
+                                }`}
+                              >
+                                {w.name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
                   <div>
-                    <label className="text-sm font-bold text-slate-700 mb-2 block">Tìm kiếm và ghim trên bản đồ *</label>
+                    <label className="text-sm font-bold text-slate-700 mb-2 block">Địa chỉ chi tiết & Bản đồ *</label>
                     <div className="flex gap-2 w-full">
                       <input 
                         type="text" 
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') searchLocation(); }}
-                        placeholder="Nhập địa chỉ để tìm kiếm và ghim tự động..." 
+                        placeholder="Nhập số nhà, tên đường hoặc gợi ý địa chỉ..." 
                         className="flex-1 px-4 py-3.5 bg-slate-50 border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl outline-none transition-all text-base font-medium" 
                       />
                       <button 
@@ -254,10 +344,10 @@ const OrganizerEventCreate = () => {
                         <Icon name="search" size="sm" /> Tìm kiếm
                       </button>
                     </div>
-                    <p className="text-sm text-slate-500 mt-3 font-medium">Bạn có thể kéo thả bản đồ và click trực tiếp để ghim vị trí chính xác nhất</p>
+                    <p className="text-sm text-slate-500 mt-3 font-medium">Click trực tiếp vào bản đồ để ghim vị trí chính xác nhất</p>
                   </div>
                   
-                  <div className="w-full h-[450px] bg-slate-100 rounded-3xl overflow-hidden border-2 border-slate-200 relative z-0 mt-4 shadow-sm">
+                  <div className="w-full h-[400px] bg-slate-100 rounded-3xl overflow-hidden border-2 border-slate-200 relative z-0 mt-4 shadow-sm">
                     <MapContainer center={mapCenter} zoom={13} scrollWheelZoom={true} className="h-full w-full z-0">
                       <TileLayer
                         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

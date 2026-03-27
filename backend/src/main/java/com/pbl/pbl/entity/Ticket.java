@@ -11,6 +11,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,39 +25,25 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "events")
-public class Event {
+@Table(name = "tickets")
+public class Ticket {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 255)
-    private String title;
-
     @ManyToOne
-    @JoinColumn(name = "category_id")
-    private Category category;
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
-    @Column(columnDefinition = "TEXT")
-    private String artists;
-
-    @Column(columnDefinition = "TEXT")
-    private String description;
-
-    @Column(nullable = false, length = 255)
-    private String location;
-
-    @Column(nullable = false)
-    private LocalDateTime startTime;
-
-    private LocalDateTime endTime;
-
-    @Column(length = 500)
-    private String posterUrl;
+    @OneToOne
+    @JoinColumn(name = "seat_id", nullable = false)
+    private Seat seat;
 
     @Enumerated(EnumType.STRING)
-    @Builder.Default
-    private EventStatus status = EventStatus.upcoming;
+    @Column(nullable = false)
+    private TicketStatus status;
 
+    @Column(nullable = false)
+    private LocalDateTime purchaseDate;
 }

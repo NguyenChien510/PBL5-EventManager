@@ -1,10 +1,9 @@
-import { Link } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import { useCategoryStore } from '../stores/useCategoryStore'
-import { Icon, SearchInput, Pagination } from '../components/ui'
+import { useLocationStore } from '../stores/useLocationStore'
+import { Icon, Pagination } from '../components/ui'
+import { Navbar } from '../components/layout'
 import { EventCard } from '../components/domain'
-
-// categories will be loaded from store
 
 const events = [
   {
@@ -63,7 +62,6 @@ const events = [
   },
 ]
 
-const cities = ['Tất cả khu vực', 'TP. Hồ Chí Minh', 'Hà Nội', 'Đà Nẵng', 'Hải Phòng']
 const sorts = ['Mới nhất', 'Giá tăng dần', 'Giá giảm dần', 'Đánh giá cao']
 
 const EventExplore = () => {
@@ -73,17 +71,24 @@ const EventExplore = () => {
   const { categories, fetchCategories } = useCategoryStore()
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | 'all'>('all');
   
+  const { provinces, fetchProvinces } = useLocationStore()
   const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
-  const [selectedCity, setSelectedCity] = useState(cities[0]);
+  const [selectedCity, setSelectedCity] = useState('Tất cả khu vực');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchCategories()
-  }, [fetchCategories])
+    fetchProvinces()
+  }, [fetchCategories, fetchProvinces])
 
   const displayCategories = [
     { id: 'all' as const, name: 'Tất cả', icon: 'apps' },
     ...categories
+  ]
+
+  const displayProvinces = [
+    { id: 0, name: 'Tất cả khu vực' },
+    ...provinces
   ]
 
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
@@ -106,23 +111,7 @@ const EventExplore = () => {
 
   return (
     <div className="min-h-screen bg-background-light font-display">
-      {/* Top Bar */}
-      <nav className="glass-nav sticky top-0 z-50 border-b border-slate-200/60">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
-              <Icon name="confirmation_number" className="text-white text-lg" />
-            </div>
-            <h1 className="text-lg font-extrabold tracking-tight">
-              Event<span className="text-sky-500 font-black">Platform</span>
-            </h1>
-          </Link>
-          <SearchInput placeholder="Tìm sự kiện, nghệ sĩ, địa điểm..." className="w-96 hidden md:block" />
-          <div className="flex items-center gap-3">
-            <Link to="/profile" className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-primary">Đăng nhập</Link>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       <div className="max-w-7xl mx-auto px-6 py-8 flex gap-8">
         {/* Sidebar Filters */}
@@ -159,7 +148,6 @@ const EventExplore = () => {
               </div>
               
               <div className="relative h-1.5 bg-slate-200 rounded-full flex items-center touch-none">
-                {/* Active track color */}
                 <div 
                   className="absolute h-full bg-primary rounded-full pointer-events-none"
                   style={{ 
@@ -168,7 +156,6 @@ const EventExplore = () => {
                   }}
                 />
                 
-                {/* Min Slider Element */}
                 <input 
                   type="range" 
                   min="0" 
@@ -182,7 +169,6 @@ const EventExplore = () => {
                   className="absolute w-full h-1.5 opacity-0 appearance-none pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer z-20"
                 />
                 
-                {/* Max Slider Element */}
                 <input 
                   type="range" 
                   min="0" 
@@ -196,13 +182,11 @@ const EventExplore = () => {
                   className="absolute w-full h-1.5 opacity-0 appearance-none pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer z-30"
                 />
 
-                {/* Min Thumb display */}
                 <div 
                   className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-[3px] border-primary rounded-full shadow-md z-10 pointer-events-none"
                   style={{ left: `calc(${(minPrice / 3000000) * 100}% - 8px)` }}
                 />
                 
-                {/* Max Thumb display */}
                 <div 
                   className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-[3px] border-primary rounded-full shadow-md z-10 pointer-events-none"
                   style={{ left: `calc(${(maxPrice / 3000000) * 100}% - 8px)` }}
@@ -242,18 +226,18 @@ const EventExplore = () => {
               </button>
               
               {isCityDropdownOpen && (
-                <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 transform opacity-100 scale-100 transition-all origin-top">
-                  {cities.map((city) => (
+                <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 transform opacity-100 scale-100 transition-all origin-top max-h-60 overflow-y-auto">
+                  {displayProvinces.map((province) => (
                     <button
-                      key={city}
-                      onClick={() => { setSelectedCity(city); setIsCityDropdownOpen(false); }}
+                      key={province.id}
+                      onClick={() => { setSelectedCity(province.name); setIsCityDropdownOpen(false); }}
                       className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                        selectedCity === city 
+                        selectedCity === province.name 
                           ? 'bg-primary/5 text-primary font-bold' 
                           : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
                       }`}
                     >
-                      {city}
+                      {province.name}
                     </button>
                   ))}
                 </div>
