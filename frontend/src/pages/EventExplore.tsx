@@ -72,9 +72,15 @@ const EventExplore = () => {
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | 'all'>('all');
   
   const { provinces, fetchProvinces } = useLocationStore()
-  const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
-  const [selectedCity, setSelectedCity] = useState('Tất cả khu vực');
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [selectedProvince, setSelectedProvince] = useState('Chọn khu vực');
+  const [isLocationOpen, setIsLocationOpen] = useState(false);
+  const locationRef = useRef<HTMLDivElement>(null);
+
+  const [selectedDate, setSelectedDate] = useState('Tất cả thời gian');
+  const [isDateOpen, setIsDateOpen] = useState(false);
+  const dateRef = useRef<HTMLDivElement>(null);
+
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchCategories()
@@ -86,10 +92,6 @@ const EventExplore = () => {
     ...categories
   ]
 
-  const displayProvinces = [
-    { id: 0, name: 'Tất cả khu vực' },
-    ...provinces
-  ]
 
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const [selectedSort, setSelectedSort] = useState(sorts[0]);
@@ -98,8 +100,11 @@ const EventExplore = () => {
   // Handle click outside for dropdowns
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsCityDropdownOpen(false);
+      if (locationRef.current && !locationRef.current.contains(event.target as Node)) {
+        setIsLocationOpen(false);
+      }
+      if (dateRef.current && !dateRef.current.contains(event.target as Node)) {
+        setIsDateOpen(false);
       }
       if (sortRef.current && !sortRef.current.contains(event.target as Node)) {
         setIsSortDropdownOpen(false);
@@ -212,42 +217,121 @@ const EventExplore = () => {
             </div>
           </div>
 
-          <div className="filter-card">
-            <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <Icon name="location_on" className="text-primary" size="sm" /> Khu vực
-            </h3>
-            <div className="relative" ref={dropdownRef}>
-              <button 
-                onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
-                className="w-full flex items-center justify-between px-4 py-3 bg-white border border-slate-200 hover:border-primary/50 rounded-xl text-sm font-semibold text-slate-700 transition-all shadow-sm focus:outline-none focus:ring-4 focus:ring-primary/10"
-              >
-                {selectedCity}
-                <Icon name={isCityDropdownOpen ? "expand_less" : "expand_more"} className="text-slate-400 transition-transform" />
-              </button>
-              
-              {isCityDropdownOpen && (
-                <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 transform opacity-100 scale-100 transition-all origin-top max-h-60 overflow-y-auto">
-                  {displayProvinces.map((province) => (
-                    <button
-                      key={province.id}
-                      onClick={() => { setSelectedCity(province.name); setIsCityDropdownOpen(false); }}
-                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                        selectedCity === province.name 
-                          ? 'bg-primary/5 text-primary font-bold' 
-                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
-                      }`}
-                    >
-                      {province.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
         </aside>
 
         {/* Event Grid */}
-        <main className="flex-1">
+        <main className="flex-1 space-y-8">
+          {/* Main Search Bar (from Homepage Hero) */}
+          <div className="w-full relative z-50">
+            <div className="bg-white rounded-2xl md:rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.08)] px-2 py-2 ring-1 ring-slate-200/60">
+              <div className="flex flex-col md:flex-row items-stretch gap-2 md:gap-0">
+                <div className="flex-1 flex items-center gap-2 px-4 py-2 rounded-full bg-slate-50/50 border border-slate-100 transition-all focus-within:bg-white focus-within:border-primary/30">
+                  <Icon name="search" className="text-slate-400" />
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Tìm tên sự kiện, nghệ sĩ, hội thảo..."
+                    className="w-full bg-transparent text-[13px] md:text-sm text-slate-800 placeholder:text-slate-400 outline-none border-none focus:outline-none focus:ring-0"
+                  />
+                </div>
+                
+                <div className="hidden md:block h-8 w-px bg-slate-100 my-auto mx-2" />
+                
+                {/* Province Selector */}
+                <div className="relative" ref={locationRef}>
+                  <button 
+                    onClick={() => setIsLocationOpen(!isLocationOpen)}
+                    className={`h-full flex items-center justify-between gap-2 px-4 py-2 rounded-full border text-[13px] md:text-sm font-bold transition-all min-w-[160px] ${
+                      isLocationOpen ? 'bg-white border-primary text-primary shadow-sm' : 'bg-slate-50/50 border-slate-100 text-slate-700 hover:bg-white hover:border-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Icon name="location_on" className="text-primary" />
+                      <span className="whitespace-nowrap">{selectedProvince}</span>
+                    </div>
+                    <Icon name={isLocationOpen ? "expand_less" : "expand_more"} size="sm" className="text-slate-400" />
+                  </button>
+                  
+                  {isLocationOpen && (
+                    <div className="absolute top-full left-0 mt-3 w-full max-h-64 overflow-y-auto bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-100 py-2 z-[100] text-left ring-1 ring-slate-200/50">
+                      <button
+                        onClick={() => { setSelectedProvince('Tất cả khu vực'); setIsLocationOpen(false); }}
+                        className="w-full px-4 py-3 text-sm text-slate-600 hover:bg-primary/5 hover:text-primary transition-all font-semibold flex items-center justify-between group"
+                      >
+                        Tất cả khu vực
+                        {selectedProvince === 'Tất cả khu vực' && <Icon name="check" size="sm" className="text-primary" />}
+                      </button>
+                      {provinces.map((province) => (
+                        <button
+                          key={province.id}
+                          onClick={() => { setSelectedProvince(province.name); setIsLocationOpen(false); }}
+                          className={`w-full px-4 py-3 text-sm transition-all font-semibold border-t border-slate-50 flex items-center justify-between group ${
+                            selectedProvince === province.name ? 'bg-primary/5 text-primary' : 'text-slate-600 hover:bg-slate-50 hover:text-primary'
+                          }`}
+                        >
+                          {province.name}
+                          {selectedProvince === province.name && <Icon name="check" size="sm" className="text-primary" />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="hidden md:block h-8 w-px bg-slate-100 my-auto mx-2" />
+                
+                {/* Date Selector */}
+                <div className="relative" ref={dateRef}>
+                  <button 
+                    onClick={() => setIsDateOpen(!isDateOpen)}
+                    className={`h-full flex items-center justify-between gap-2 px-5 py-2.5 rounded-full border text-[13px] md:text-sm font-bold transition-all group active:scale-95 ${
+                      isDateOpen ? 'bg-white border-primary text-primary' : 'bg-slate-50/50 border-slate-100 text-slate-700 hover:bg-white hover:border-slate-200'
+                    }`}
+                  >
+                    <Icon name="event" className={`text-primary transition-transform ${isDateOpen ? 'scale-110' : ''}`} />
+                    <span className="whitespace-nowrap">{selectedDate}</span>
+                    <Icon name={isDateOpen ? "expand_less" : "expand_more"} size="sm" className="text-slate-400" />
+                  </button>
+
+                  {isDateOpen && (
+                    <div className="absolute top-full right-0 md:left-0 mt-3 w-64 bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-100 py-2 z-[100] text-left ring-1 ring-slate-200/50">
+                      {['Tất cả thời gian', 'Hôm nay', 'Ngày mai', 'Tháng này'].map((option) => (
+                        <button
+                          key={option}
+                          onClick={() => { setSelectedDate(option); setIsDateOpen(false); }}
+                          className={`w-full px-4 py-3 text-sm transition-all font-semibold flex items-center justify-between group ${
+                            selectedDate === option ? 'bg-primary/5 text-primary' : 'text-slate-600 hover:bg-slate-50 hover:text-primary'
+                          }`}
+                        >
+                          {option}
+                          {selectedDate === option && <Icon name="check" size="sm" className="text-primary" />}
+                        </button>
+                      ))}
+                      <div className="border-t border-slate-50 px-4 py-2 mt-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">Hoặc chọn ngày cụ thể</label>
+                        <input 
+                          type="date" 
+                          className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-600 outline-none focus:border-primary transition-colors"
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              setSelectedDate(new Date(e.target.value).toLocaleDateString('vi-VN'));
+                              setIsDateOpen(false);
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  className="mt-1 md:mt-0 md:ml-3 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-primary hover:bg-blue-600 text-sm font-black text-white whitespace-nowrap shadow-lg shadow-primary/25 transition-all hover:scale-105 active:scale-95"
+                >
+                  <Icon name="search" size="sm" />
+                  Tìm ngay
+                </button>
+              </div>
+            </div>
+          </div>
           <div className="flex items-center justify-between mb-6 z-40 relative">
             <h2 className="text-2xl font-extrabold text-slate-900">Khám phá sự kiện</h2>
             <div className="flex items-center gap-4">
