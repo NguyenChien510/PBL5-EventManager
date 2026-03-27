@@ -47,6 +47,15 @@ public class Event {
     @Column(nullable = false, length = 255)
     private String location;
 
+    @ManyToOne
+    @JoinColumn(name = "province_id")
+    private Province province;
+
+    @ManyToOne
+    @JoinColumn(name = "ward_id")
+    @Builder.Default
+    private Ward ward = null;
+
     @Column(nullable = false)
     private LocalDateTime startTime;
 
@@ -57,6 +66,12 @@ public class Event {
 
     @Enumerated(EnumType.STRING)
     @Builder.Default
-    private EventStatus status = EventStatus.upcoming;
+    private EventStatus status = EventStatus.pending;
+
+    @Builder.Default
+    private Integer totalTickets = 0;
+
+    @Builder.Default
+    private Integer ticketsLeft = 0;
 
 }

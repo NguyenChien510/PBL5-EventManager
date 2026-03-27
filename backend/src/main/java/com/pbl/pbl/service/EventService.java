@@ -1,0 +1,158 @@
+package com.pbl.pbl.service;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.pbl.pbl.dto.EventRequestDTO;
+import com.pbl.pbl.dto.EventSessionRequestDTO;
+import com.pbl.pbl.dto.TicketTypeRequestDTO;
+import com.pbl.pbl.entity.Category;
+import com.pbl.pbl.entity.Event;
+import com.pbl.pbl.entity.EventSession;
+import com.pbl.pbl.entity.EventStatus;
+import com.pbl.pbl.entity.Province;
+import com.pbl.pbl.entity.Seat;
+import com.pbl.pbl.entity.SeatStatus;
+import com.pbl.pbl.entity.TicketType;
+import com.pbl.pbl.entity.Ward;
+import com.pbl.pbl.repository.CategoryRepository;
+import com.pbl.pbl.repository.EventRepository;
+import com.pbl.pbl.repository.EventSessionRepository;
+import com.pbl.pbl.repository.ProvinceRepository;
+import com.pbl.pbl.repository.SeatRepository;
+import com.pbl.pbl.repository.TicketTypeRepository;
+import com.pbl.pbl.repository.WardRepository;
+
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
+public class EventService {
+
+    private final EventRepository eventRepository;
+    private final EventSessionRepository eventSessionRepository;
+    private final TicketTypeRepository ticketTypeRepository;
+    private final SeatRepository seatRepository;
+    private final CategoryRepository categoryRepository;
+    private final ProvinceRepository provinceRepository;
+    private final WardRepository wardRepository;
+
+    @Transactional
+    public Event createEvent(EventRequestDTO request) {
+        Category category = categoryRepository.findById(request.getCategoryId())
+            .orElseThrow(() -> new RuntimeException("Category not found"));
+        
+        Province province = provinceRepository.findById(request.getProvinceId())
+            .orElseThrow(() -> new RuntimeException("Province not found"));
+            
+        Ward ward = null;
+        if (request.getWardId() != null) {
+            ward = wardRepository.findById(request.getWardId())
+                .orElse(null);
+        }
+
+        // Calculate outer time range
+        LocalDateTime eventStart = request.getSessions().stream()
+            .map(s -> LocalDateTime.of(s.getSessionDate(), s.getStartTime()))
+            .min(LocalDateTime::compareTo).orElse(LocalDateTime.now());
+        LocalDateTime eventEnd = request.getSessions().stream()
+            .map(s -> LocalDateTime.of(s.getSessionDate(), s.getEndTime()))
+            .max(LocalDateTime::compareTo).orElse(LocalDateTime.now());
+
+        Event event = Event.builder()
+            .title(request.getTitle())
+            .category(category)
+            .province(province)
+            .ward(ward)
+            .artists(request.getArtists())
+            .description(request.getDescription())
+            .location(request.getLocation())
+            .startTime(eventStart)
+            .endTime(eventEnd)
+            .posterUrl(request.getPosterUrl())
+            .status(EventStatus.pending)
+            .build();
+
+        event = eventRepository.save(event);
+
+        for (EventSessionRequestDTO sessionReq : request.getSessions()) {
+            EventSession session = EventSession.builder()
+                .event(event)
+                .sessionDate(sessionReq.getSessionDate())
+                .startTime(sessionReq.getStartTime())
+                .endTime(sessionReq.getEndTime())
+                .name(sessionReq.getName())
+                .build();
+            
+            session = eventSessionRepository.save(session);
+
+            // Create TicketTypes for this session
+            Map<String, TicketType> ticketTypeMap = new HashMap<>();
+            for (TicketTypeRequestDTO ttReq : request.getTicketTypes()) {
+                TicketType tt = TicketType.builder()
+                    .eventSession(session)
+                    .name(ttReq.getName())
+                    .price(ttReq.getPrice())
+                    .totalQuantity(ttReq.getTotalQuantity())
+                    .build();
+                tt = ticketTypeRepository.save(tt);
+                ticketTypeMap.put(tt.getName(), tt);
+            }
+
+            // Generate Seats
+            if (request.getSeatMapConfig() != null) {
+                int rows = request.getSeatMapConfig().getRows();
+                int seatsPerRow = request.getSeatMapConfig().getSeatsPerRow();
+
+                for (int i = 0; i < rows; i++) {
+                    String rowLetter = getRowLetter(i);
+                    final int rowIndex = i + 1;
+                    
+                    // Match row to ticket type
+                    String ticketTypeName = request.getSeatMapConfig().getRowAssignments().stream()
+                        .filter(a -> a.getRowIndex() == rowIndex)
+                        .map(a -> a.getTicketTypeName())
+                        .findFirst()
+                        .orElse(request.getTicketTypes().get(0).getName());
+
+                    TicketType tt = ticketTypeMap.get(ticketTypeName);
+
+                    for (int j = 1; j <= seatsPerRow; j++) {
+                        String seatNumber = rowLetter + String.format("%02d", j);
+                        Seat seat = Seat.builder()
+                            .eventSession(session)
+                            .ticketType(tt)
+                            .seatNumber(seatNumber)
+                            .status(SeatStatus.AVAILABLE)
+                            .build();
+                        seatRepository.save(seat);
+                    }
+                }
+            }
+        }
+        
+        // Finalize event summaries
+        int totalTicketsCount = request.getTicketTypes().stream()
+            .mapToInt(tt -> (tt.getTotalQuantity() != null ? tt.getTotalQuantity() : 0))
+            .sum() * request.getSessions().size();
+            
+        event.setTotalTickets(totalTicketsCount);
+        event.setTicketsLeft(totalTicketsCount);
+        eventRepository.save(event);
+
+        return event;
+    }
+
+    private String getRowLetter(int index) {
+        StringBuilder row = new StringBuilder();
+        while (index >= 0) {
+            row.insert(0, (char) ('A' + (index % 26)));
+            index = (index / 26) - 1;
+        }
+        return row.toString();
+    }
+}

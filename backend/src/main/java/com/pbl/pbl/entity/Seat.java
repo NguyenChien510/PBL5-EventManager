@@ -30,8 +30,8 @@ public class Seat {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "event_id", nullable = false)
-    private Event event;
+    @JoinColumn(name = "event_session_id", nullable = false)
+    private EventSession eventSession;
 
     @ManyToOne
     @JoinColumn(name = "ticket_type_id", nullable = false)

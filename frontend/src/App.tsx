@@ -1,5 +1,5 @@
 import { Routes, Route, Link, useLocation } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 // Page imports
 import UserProfile from './pages/UserProfile'
@@ -32,6 +32,11 @@ import Chatbot from './components/ui/Chatbot'
 function App() {
   const [navOpen, setNavOpen] = useState(false)
   const location = useLocation()
+
+  // Global scroll to top on route change
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   const navSections = [
     {

@@ -1,0 +1,19 @@
+package com.pbl.pbl.dto;
+
+import java.util.List;
+import lombok.Data;
+
+@Data
+public class EventRequestDTO {
+    private String title;
+    private Long categoryId;
+    private String artists;
+    private String description;
+    private String location;
+    private Long provinceId;
+    private Long wardId;
+    private String posterUrl;
+    private List<EventSessionRequestDTO> sessions;
+    private SeatMapConfigRequestDTO seatMapConfig;
+    private List<TicketTypeRequestDTO> ticketTypes;
+}

@@ -1,6 +1,7 @@
 package com.pbl.pbl.entity;
 
-import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -22,23 +23,26 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "ticket_types")
-public class TicketType {
+@Table(name = "event_sessions")
+public class EventSession {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "event_session_id", nullable = false)
-    private EventSession eventSession;
-
-    @Column(nullable = false, length = 100)
-    private String name;
-
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal price;
+    @JoinColumn(name = "event_id", nullable = false)
+    private Event event;
 
     @Column(nullable = false)
-    private Integer totalQuantity;
+    private LocalDate sessionDate;
+
+    @Column(nullable = false)
+    private LocalTime startTime;
+
+    @Column(nullable = false)
+    private LocalTime endTime;
+
+    @Column(length = 255)
+    private String name; // e.g. "Ngày 1", "Morning Session"
 }
