@@ -1,19 +1,22 @@
 package com.pbl.pbl.repository;
 
-import java.math.BigDecimal;
+import java.util.List;
 
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import com.pbl.pbl.entity.EventStatus;
 import com.pbl.pbl.entity.TicketType;
 
 @Repository
 public interface TicketTypeRepository extends JpaRepository<TicketType, Long> {
-    @Query("select min(tt.price) from TicketType tt where tt.eventSession.event.id = :eventId")
-    BigDecimal findMinPriceByEventId(@Param("eventId") Long eventId);
 
-    @Query("select max(tt.price) from TicketType tt where tt.eventSession.event.id = :eventId")
-    BigDecimal findMaxPriceByEventId(@Param("eventId") Long eventId);
+    /**
+     * One query for all min/max prices per event (avoids N+1 when listing homepage cards).
+     */
+    @Query("select es.event.id, min(tt.price), max(tt.price) from TicketType tt join tt.eventSession es "
+            + "where es.event.status = :status group by es.event.id")
+    List<Object[]> findMinMaxPriceGroupedByEventStatus(@Param("status") EventStatus status);
 }

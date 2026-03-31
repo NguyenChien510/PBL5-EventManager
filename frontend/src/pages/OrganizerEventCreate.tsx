@@ -364,8 +364,8 @@ const OrganizerEventCreate = () => {
         {isSubmitted ? (
           <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-16 text-center animate-in fade-in zoom-in-95 duration-700 ease-out fill-mode-both">
             <div className="flex justify-center mb-8">
-              <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center border border-green-100 animate-bounce">
-                <Icon name="check_circle" className="text-green-500 text-6xl" />
+              <div className="w-32 h-32 bg-green-50 rounded-full flex items-center justify-center border border-green-100 animate-bounce">
+                <Icon name="check_circle" className="text-green-500 text-[60px]" />
               </div>
             </div>
             <h2 className="text-3xl font-extrabold text-slate-900 mb-4">Chúc mừng! Sự kiện đã được đăng</h2>

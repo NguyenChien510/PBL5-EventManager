@@ -1,5 +1,6 @@
 package com.pbl.pbl.service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -52,9 +53,15 @@ public class EventService {
     @Transactional(readOnly = true)
     public List<UpcomingEventCardDTO> getUpcomingEventsForHomepage() {
         List<Event> events = eventRepository.findByStatusOrderByStartTimeAsc(EventStatus.upcoming);
-        List<UpcomingEventCardDTO> result = new ArrayList<>();
+        Map<Long, BigDecimal[]> minMaxByEventId = new HashMap<>();
+        for (Object[] row : ticketTypeRepository.findMinMaxPriceGroupedByEventStatus(EventStatus.upcoming)) {
+            Long eventId = ((Number) row[0]).longValue();
+            minMaxByEventId.put(eventId, new BigDecimal[] { (BigDecimal) row[1], (BigDecimal) row[2] });
+        }
 
+        List<UpcomingEventCardDTO> result = new ArrayList<>();
         for (Event event : events) {
+            BigDecimal[] mm = minMaxByEventId.get(event.getId());
             result.add(
                 UpcomingEventCardDTO.builder()
                     .id(event.getId())
@@ -68,8 +75,8 @@ public class EventService {
                     .categoryName(event.getCategory() != null ? event.getCategory().getName() : null)
                     .categoryColor(event.getCategory() != null ? event.getCategory().getColor() : null)
                     .provinceName(event.getProvince() != null ? event.getProvince().getName() : null)
-                    .minPrice(ticketTypeRepository.findMinPriceByEventId(event.getId()))
-                    .maxPrice(ticketTypeRepository.findMaxPriceByEventId(event.getId()))
+                    .minPrice(mm != null ? mm[0] : null)
+                    .maxPrice(mm != null ? mm[1] : null)
                     .build()
             );
         }
