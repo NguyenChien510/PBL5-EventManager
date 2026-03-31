@@ -41,7 +41,7 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
 
 export const useAuthStore = create<AuthStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       accessToken: null,
       isLoading: false,

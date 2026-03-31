@@ -22,6 +22,7 @@ export interface SignUpPayload {
   password: string;
   email: string;
   fullName: string;
+  role: "USER" | "ORGANIZER";
 }
 
 export interface AuthResponse {

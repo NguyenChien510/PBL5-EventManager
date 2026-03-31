@@ -6,11 +6,25 @@ import { Link, useNavigate } from "react-router-dom";
 import { Loader } from "@/components/ui/loader";
 import { useGoogleLogin } from '@react-oauth/google';
 
+const getRedirectPathByRole = (roleName?: string | null) => {
+  const normalized = (roleName ?? "").toUpperCase().replace("ROLE_", "");
+  switch (normalized) {
+    case "ORGANIZER":
+      return "/organizer/dashboard";
+    case "ADMIN":
+      return "/admin/moderation";
+    case "USER":
+    default:
+      return "/";
+  }
+};
+
 const signUpSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
+  role: z.enum(["USER", "ORGANIZER"]).default("USER"),
 });
 
 type SignUpFormData = z.infer<typeof signUpSchema>;
@@ -30,7 +44,8 @@ export const SignupForm = () => {
   const onSubmit = async (data: SignUpFormData) => {
     try {
       await signUp(data);
-      navigate("/");
+      const roleName = useAuthStore.getState().user?.role?.name;
+      navigate(getRedirectPathByRole(roleName));
     } catch (err) {
       console.error(err);
     }
@@ -41,7 +56,8 @@ export const SignupForm = () => {
       if (tokenResponse.access_token) {
         try {
           await googleSignIn(tokenResponse.access_token);
-          navigate("/");
+          const roleName = useAuthStore.getState().user?.role?.name;
+          navigate(getRedirectPathByRole(roleName));
         } catch (err) {
           console.error("Google sign up failed:", err);
         }
@@ -154,13 +170,24 @@ export const SignupForm = () => {
                   <span className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">I am an...</span>
                   <div className="flex items-center gap-3">
                     <label className="flex-1 cursor-pointer">
-                      <input defaultChecked className="peer sr-only" name="user-type" type="radio" value="attendee" />
+                      <input
+                        {...register("role")}
+                        className="peer sr-only"
+                        type="radio"
+                        value="USER"
+                        defaultChecked
+                      />
                       <div className="text-center px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-500 dark:text-slate-400 peer-checked:border-primary peer-checked:bg-primary/5 peer-checked:text-primary transition-all hover:bg-slate-50 dark:hover:bg-slate-800">
                         Attendee
                       </div>
                     </label>
                     <label className="flex-1 cursor-pointer">
-                      <input className="peer sr-only" name="user-type" type="radio" value="organizer" />
+                      <input
+                        {...register("role")}
+                        className="peer sr-only"
+                        type="radio"
+                        value="ORGANIZER"
+                      />
                       <div className="text-center px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-500 dark:text-slate-400 peer-checked:border-primary peer-checked:bg-primary/5 peer-checked:text-primary transition-all hover:bg-slate-50 dark:hover:bg-slate-800">
                         Organizer
                       </div>

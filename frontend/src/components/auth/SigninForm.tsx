@@ -6,6 +6,19 @@ import { Link, useNavigate } from "react-router-dom";
 import { Loader } from "@/components/ui/loader";
 import { useGoogleLogin } from '@react-oauth/google';
 
+const getRedirectPathByRole = (roleName?: string | null) => {
+  const normalized = (roleName ?? "").toUpperCase().replace("ROLE_", "");
+  switch (normalized) {
+    case "ORGANIZER":
+      return "/organizer/dashboard";
+    case "ADMIN":
+      return "/admin/moderation";
+    case "USER":
+    default:
+      return "/";
+  }
+};
+
 const signInSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
@@ -28,7 +41,8 @@ export const SigninForm = () => {
   const onSubmit = async (data: SignInFormData) => {
     try {
       await signIn(data);
-      navigate("/");
+      const roleName = useAuthStore.getState().user?.role?.name;
+      navigate(getRedirectPathByRole(roleName));
     } catch (err) {
       console.error(err);
     }
@@ -39,7 +53,8 @@ export const SigninForm = () => {
       if (tokenResponse.access_token) {
         try {
           await googleSignIn(tokenResponse.access_token);
-          navigate("/");
+          const roleName = useAuthStore.getState().user?.role?.name;
+          navigate(getRedirectPathByRole(roleName));
         } catch (err) {
           console.error("Google sign in failed:", err);
         }

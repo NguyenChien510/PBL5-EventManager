@@ -28,4 +28,7 @@ public class SignUpDTO {
     @NotBlank(message = "Full name is required")
     @Size(min = 2, max = 120, message = "Full name must be between 2 and 120 characters")
     private String fullName;
+
+    // USER hoặc ORGANIZER, nếu không gửi sẽ mặc định USER ở service
+    private String role;
 }

@@ -5,6 +5,7 @@ import { useAuthStore } from '../../stores/useAuthStore'
 
 const Navbar = () => {
   const { user, signOut } = useAuthStore()
+  const roleName = (user?.role?.name ?? '').toUpperCase().replace('ROLE_', '')
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -60,21 +61,61 @@ const Navbar = () => {
                   <div className="px-4 py-2 mb-2 border-b border-slate-50">
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tài khoản cá nhân</p>
                   </div>
-                  <Link 
-                    to="/profile" 
-                    onClick={() => setIsUserMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors font-medium"
-                  >
-                    <Icon name="person" size="sm" /> Thông tin cá nhân
-                  </Link>
-                  <Link 
-                    to="/my-tickets" 
-                    onClick={() => setIsUserMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors font-medium"
-                  >
-                    <Icon name="confirmation_number" size="sm" /> Vé của tôi
-                  </Link>
-                  <div className="my-2 border-t border-slate-50" />
+                  {roleName === 'ORGANIZER' ? (
+                    <>
+                      <Link
+                        to="/organizer/dashboard"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors font-medium"
+                      >
+                        <Icon name="dashboard" size="sm" /> Trung tâm điều hành
+                      </Link>
+                      <Link
+                        to="/organizer/profile"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors font-medium"
+                      >
+                        <Icon name="business" size="sm" /> Hồ sơ doanh nghiệp
+                      </Link>
+                      <div className="my-2 border-t border-slate-50" />
+                    </>
+                  ) : roleName === 'ADMIN' ? (
+                    <>
+                      <Link
+                        to="/admin/moderation"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors font-medium"
+                      >
+                        <Icon name="verified_user" size="sm" /> Kiểm duyệt sự kiện
+                      </Link>
+                      <Link
+                        to="/admin/users"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors font-medium"
+                      >
+                        <Icon name="manage_accounts" size="sm" /> Quản lý người dùng
+                      </Link>
+                      <div className="my-2 border-t border-slate-50" />
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        to="/profile"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors font-medium"
+                      >
+                        <Icon name="person" size="sm" /> Thông tin cá nhân
+                      </Link>
+                      <Link
+                        to="/tickets"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors font-medium"
+                      >
+                        <Icon name="confirmation_number" size="sm" /> Vé của tôi
+                      </Link>
+                      <div className="my-2 border-t border-slate-50" />
+                    </>
+                  )}
                   <button
                     onClick={() => {
                       signOut();

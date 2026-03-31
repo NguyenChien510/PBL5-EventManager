@@ -1,4 +1,4 @@
-import { Icon, Avatar, StatCard, SearchInput } from '../components/ui'
+import { Icon, StatCard } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig'
 

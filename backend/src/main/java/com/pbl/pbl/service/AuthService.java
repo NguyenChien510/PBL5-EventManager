@@ -172,9 +172,21 @@ public class AuthService {
             throw DuplicateResourceException.email(request.getEmail());
         }
 
-        // Get default role
-        Role userRole = roleRepository.findByName("USER")
-                .orElseThrow(() -> ResourceNotFoundException.role("USER"));
+        // Determine role from request (default USER)
+        String roleName = request.getRole();
+        if (roleName == null || roleName.isBlank()) {
+            roleName = "USER";
+        }
+
+        final String normalizedRoleName = roleName.toUpperCase();
+
+        // Prevent registering as ADMIN via public signup
+        if ("ADMIN".equals(normalizedRoleName)) {
+            throw new InvalidCredentialsException();
+        }
+
+        Role userRole = roleRepository.findByName(normalizedRoleName)
+                .orElseThrow(() -> ResourceNotFoundException.role(normalizedRoleName));
                 
         // Create new user
         User newUser = User.builder()
