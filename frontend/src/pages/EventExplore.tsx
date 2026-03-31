@@ -1,70 +1,18 @@
 import { useState, useRef, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { useCategoryStore } from '../stores/useCategoryStore'
 import { useLocationStore } from '../stores/useLocationStore'
 import { Icon, Pagination } from '../components/ui'
 import { Navbar } from '../components/layout'
 import { EventCard } from '../components/domain'
-
-const events = [
-  {
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuApE_m_Gd_KRyYuWTES2LUgR5Rnhp5h2U15s-sNclVbmb8EHbXTWT9qG7sBCU0LqeQ_jvPWfy_oRFMgHFTHqf-Zr1izZqyCJYRv1EzbJv827rXQd0NBAxYshSBFqEHblTSZ9_DWvjvZbSBgqg9B2mU_oX_8F_f43SC4wi8AiFhElE68UcqOFFj4y3Crh93Ah7AEFud5lJ9StCF6htKxztl-Q4iDBjqh8m_PRYEBXYQUMe0P3XDAonsjZhRxfDYng6svCTMAKfXMFn8',
-    title: 'SƠN TÙNG M-TP: THE FIRST JOURNEY 2024',
-    date: '15 Th12, 2024', time: '20:00',
-    location: 'SVĐ Quân khu 7, TP.HCM',
-    price: '500.000đ', category: 'Âm nhạc',
-    categoryColor: 'bg-pink-100 text-pink-600',
-    rating: 4.9, ticketsLeft: 120, totalTickets: 800,
-  },
-  {
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD8uGa4mjJqgWx5lFfDdLFanomchIA51IL8c0cvb3MIvS4GBu7ELTNexbhcJEIciFGOrbVfUWEGrFk5mRHb_asax4cBD8ddZD6DCO2x-TFSGHMrGlb_3UzaAzSv-lol1Y13h0NCWx1bisS-1wiw9mM1Pk1uAuWn4ENmtn0bHrhfEN0_pXnmDQCY_Dx7HWH1bijivgY4hCUMU_lb4qGiw0i4ZqDGhPXEC97rUmzSAyfodwGiVLLxAAz2QaKrFMSGuRiEE4j49dJZMqw',
-    title: 'AI Innovation Summit 2024',
-    date: '28 Th11, 2024', time: '08:00',
-    location: 'Gem Center, Quận 1',
-    price: '800.000đ', category: 'Công nghệ',
-    categoryColor: 'bg-cyan-100 text-cyan-600',
-    rating: 4.7, ticketsLeft: 45, totalTickets: 200,
-  },
-  {
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBrnq1Yzgsd28u9RCJh3At5GShj32DcYi9T_WN8ctWilvGZn9VmfNHcOXN0PJVpwKNobaOeiLmwLHEdWBHMa0-lffiM-Lwoaqt5KkCR09eDjWJ-SCeEHoTwndxp4Nre5iCAhg4T1qbg7h75lD0xQbdhUfxGLICenIk71wCsX_N9LaLNhSBdHcgwT-D_-lV4s-BSw1EUi9YzTDRA_WzoNc9T9dOkYFrwkftJ5xX9JXksilQMRTFko1lYzpfcj_je9bmv6z9ywUt6AXg',
-    title: 'Artisan Market - Hội Chợ Thủ Công',
-    date: '10 Th01, 2025', time: '09:00',
-    location: 'Khu Phố Cổ, Hà Nội',
-    price: '150.000đ', category: 'Nghệ thuật',
-    categoryColor: 'bg-purple-100 text-purple-600',
-    rating: 4.5, ticketsLeft: 280, totalTickets: 500,
-  },
-  {
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuApE_m_Gd_KRyYuWTES2LUgR5Rnhp5h2U15s-sNclVbmb8EHbXTWT9qG7sBCU0LqeQ_jvPWfy_oRFMgHFTHqf-Zr1izZqyCJYRv1EzbJv827rXQd0NBAxYshSBFqEHblTSZ9_DWvjvZbSBgqg9B2mU_oX_8F_f43SC4wi8AiFhElE68UcqOFFj4y3Crh93Ah7AEFud5lJ9StCF6htKxztl-Q4iDBjqh8m_PRYEBXYQUMe0P3XDAonsjZhRxfDYng6svCTMAKfXMFn8',
-    title: 'Rock Festival Vietnam 2024',
-    date: '20 Th12, 2024', time: '18:00',
-    location: 'SVĐ Mỹ Đình, Hà Nội',
-    price: '350.000đ', category: 'Âm nhạc',
-    categoryColor: 'bg-pink-100 text-pink-600',
-    rating: 4.8, ticketsLeft: 350, totalTickets: 1000,
-  },
-  {
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD8uGa4mjJqgWx5lFfDdLFanomchIA51IL8c0cvb3MIvS4GBu7ELTNexbhcJEIciFGOrbVfUWEGrFk5mRHb_asax4cBD8ddZD6DCO2x-TFSGHMrGlb_3UzaAzSv-lol1Y13h0NCWx1bisS-1wiw9mM1Pk1uAuWn4ENmtn0bHrhfEN0_pXnmDQCY_Dx7HWH1bijivgY4hCUMU_lb4qGiw0i4ZqDGhPXEC97rUmzSAyfodwGiVLLxAAz2QaKrFMSGuRiEE4j49dJZMqw',
-    title: 'Startup Pitch Night #12',
-    date: '05 Th01, 2025', time: '19:00',
-    location: 'Dreamplex, Q1, TP.HCM',
-    price: 'Miễn phí', category: 'Công nghệ',
-    categoryColor: 'bg-cyan-100 text-cyan-600',
-    rating: 4.3, ticketsLeft: 15, totalTickets: 50,
-  },
-  {
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBrnq1Yzgsd28u9RCJh3At5GShj32DcYi9T_WN8ctWilvGZn9VmfNHcOXN0PJVpwKNobaOeiLmwLHEdWBHMa0-lffiM-Lwoaqt5KkCR09eDjWJ-SCeEHoTwndxp4Nre5iCAhg4T1qbg7h75lD0xQbdhUfxGLICenIk71wCsX_N9LaLNhSBdHcgwT-D_-lV4s-BSw1EUi9YzTDRA_WzoNc9T9dOkYFrwkftJ5xX9JXksilQMRTFko1lYzpfcj_je9bmv6z9ywUt6AXg',
-    title: 'Lễ hội Ẩm thực Hà Nội 2024',
-    date: '22 Th12, 2024', time: '10:00',
-    location: 'Ba Vì, Hà Nội',
-    price: '100.000đ', category: 'Ẩm thực',
-    categoryColor: 'bg-yellow-100 text-yellow-600',
-    rating: 4.6, ticketsLeft: 180, totalTickets: 300,
-  },
-]
+import { EventService } from '../services/eventService'
 
 const sorts = ['Mới nhất', 'Giá tăng dần', 'Giá giảm dần', 'Đánh giá cao']
 
 const EventExplore = () => {
+  const [eventsData, setEventsData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [minPrice, setMinPrice] = useState<number>(0);
   const [maxPrice, setMaxPrice] = useState<number>(3000000);
   
@@ -86,6 +34,18 @@ const EventExplore = () => {
     window.scrollTo(0, 0)
     fetchCategories()
     fetchProvinces()
+
+    const loadEvents = async () => {
+      try {
+        const data = await EventService.getUpcomingCardData();
+        setEventsData(data);
+      } catch (error) {
+        console.error("Failed to fetch events:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadEvents();
   }, [fetchCategories, fetchProvinces])
 
   const displayCategories = [
@@ -336,7 +296,7 @@ const EventExplore = () => {
           <div className="flex items-center justify-between mb-6 z-40 relative">
             <h2 className="text-2xl font-extrabold text-slate-900">Khám phá sự kiện</h2>
             <div className="flex items-center gap-4">
-              <span className="text-sm font-medium text-slate-500 hidden sm:block">{events.length} sự kiện</span>
+              <span className="text-sm font-medium text-slate-500 hidden sm:block">{eventsData.length} sự kiện</span>
               
               <div className="relative" ref={sortRef}>
                 <button 
@@ -369,13 +329,48 @@ const EventExplore = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
-            {events.map((event, i) => (
-              <EventCard key={i} {...event} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+            </div>
+          ) : eventsData.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+              {eventsData.map((evt) => {
+                const startDate = new Date(evt.startTime);
+                const dateStr = startDate.toLocaleDateString("vi-VN", { day: "2-digit", month: "short", year: "numeric" });
+                const timeStr = startDate.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+                const priceStr = evt.minPrice ? new Intl.NumberFormat("vi-VN").format(evt.minPrice) + "đ" : "Chưa cập nhật";
+                const locStr = evt.location ? `${evt.location}${evt.provinceName ? `, ${evt.provinceName}` : ""}` : (evt.provinceName || "Chưa cập nhật");
 
-          <Pagination current={1} total={5} label="Hiển thị 6 trong 120 sự kiện" />
+                return (
+                  <Link key={evt.id} to={`/event/${evt.id}`} className="block">
+                    <EventCard 
+                      image={evt.posterUrl || "https://lh3.googleusercontent.com/aida-public/AB6AXuApE_m_Gd_KRyYuWTES2LUgR5Rnhp5h2U15s-sNclVbmb8EHbXTWT9qG7sBCU0LqeQ_jvPWfy_oRFMgHFTHqf-Zr1izZqyCJYRv1EzbJv827rXQd0NBAxYshSBFqEHblTSZ9_DWvjvZbSBgqg9B2mU_oX_8F_f43SC4wi8AiFhElE68UcqOFFj4y3Crh93Ah7AEFud5lJ9StCF6htKxztl-Q4iDBjqh8m_PRYEBXYQUMe0P3XDAonsjZhRxfDYng6svCTMAKfXMFn8"}
+                      title={evt.title}
+                      date={dateStr}
+                      time={timeStr}
+                      location={locStr}
+                      price={priceStr}
+                      category={evt.categoryName || "Sự kiện"}
+                      categoryColor={evt.categoryColor}
+                      ticketsLeft={evt.ticketsLeft}
+                      totalTickets={evt.totalTickets}
+                    />
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-20 bg-white rounded-2xl border border-slate-100 shadow-sm">
+              <Icon name="event_busy" className="text-6xl text-slate-300 mb-4" />
+              <h3 className="text-lg font-bold text-slate-700">Không tìm thấy sự kiện nào</h3>
+              <p className="text-slate-500 mt-2">Hãy thử thay đổi bộ lọc tìm kiếm của bạn</p>
+            </div>
+          )}
+
+          {!loading && eventsData.length > 0 && (
+            <Pagination current={1} total={1} label={`Hiển thị ${eventsData.length} sự kiện`} />
+          )}
         </main>
       </div>
     </div>

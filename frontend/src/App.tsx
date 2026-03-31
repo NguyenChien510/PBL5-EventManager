@@ -145,6 +145,7 @@ function App() {
         <Route path="/" element={<Homepage />} />
         <Route path="/explore" element={<EventExplore />} />
         <Route path="/event-detail" element={<EventDetail />} />
+        <Route path="/event/:id" element={<EventDetail />} />
         <Route path="/event" element={<EventDetail />} />
         <Route path="/seat-selection" element={<SeatSelection />} />
         <Route path="/seats" element={<SeatSelection />} />

@@ -51,6 +51,12 @@ public class EventService {
     }
 
     @Transactional(readOnly = true)
+    public Event getEventById(Long id) {
+        return eventRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Event not found"));
+    }
+
+    @Transactional(readOnly = true)
     public List<UpcomingEventCardDTO> getUpcomingEventsForHomepage() {
         List<Event> events = eventRepository.findByStatusOrderByStartTimeAsc(EventStatus.upcoming);
         Map<Long, BigDecimal[]> minMaxByEventId = new HashMap<>();

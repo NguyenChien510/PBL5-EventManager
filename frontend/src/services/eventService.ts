@@ -1,0 +1,13 @@
+import { apiClient } from "@/utils/axios";
+
+export class EventService {
+  static async getEventById(id: string) {
+    const response = await apiClient.get(`/events/${id}`);
+    return response.data;
+  }
+
+  static async getUpcomingCardData() {
+    const response = await apiClient.get(`/events/upcoming-card-data`);
+    return response.data;
+  }
+}

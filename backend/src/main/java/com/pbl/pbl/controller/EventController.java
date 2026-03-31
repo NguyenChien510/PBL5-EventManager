@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import com.pbl.pbl.dto.EventRequestDTO;
 import com.pbl.pbl.dto.UpcomingEventCardDTO;
@@ -26,6 +27,11 @@ public class EventController {
     @GetMapping("/upcoming")
     public ResponseEntity<java.util.List<Event>> getUpcomingEvents() {
         return ResponseEntity.ok(eventService.getUpcomingEvents());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Event> getEventById(@PathVariable Long id) {
+        return ResponseEntity.ok(eventService.getEventById(id));
     }
 
     @GetMapping("/upcoming-card-data")

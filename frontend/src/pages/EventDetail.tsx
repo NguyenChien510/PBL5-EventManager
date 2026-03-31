@@ -1,4 +1,6 @@
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { EventService } from '../services/eventService'
 import { Icon } from '../components/ui'
 
 const artists = [
@@ -17,13 +19,53 @@ const timeline = [
 ]
 
 const EventDetail = () => {
+  const { id } = useParams<{ id: string }>();
+  const [event, setEvent] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchEvent = async () => {
+      try {
+        if (id) {
+          const data = await EventService.getEventById(id);
+          setEvent(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch event:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEvent();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background-light">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!event) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background-light font-display">
+        <div className="text-center">
+          <Icon name="error_outline" className="text-6xl text-slate-300 mb-4" />
+          <h2 className="text-2xl font-bold text-slate-700">Không tìm thấy sự kiện</h2>
+          <Link to="/explore" className="text-primary hover:underline mt-4 inline-block">Quay lại trang Explore</Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background-light font-display">
       {/* Hero */}
       <div className="relative h-[500px] overflow-hidden">
         <img
-          src="https://lh3.googleusercontent.com/aida-public/AB6AXuApE_m_Gd_KRyYuWTES2LUgR5Rnhp5h2U15s-sNclVbmb8EHbXTWT9qG7sBCU0LqeQ_jvPWfy_oRFMgHFTHqf-Zr1izZqyCJYRv1EzbJv827rXQd0NBAxYshSBFqEHblTSZ9_DWvjvZbSBgqg9B2mU_oX_8F_f43SC4wi8AiFhElE68UcqOFFj4y3Crh93Ah7AEFud5lJ9StCF6htKxztl-Q4iDBjqh8m_PRYEBXYQUMe0P3XDAonsjZhRxfDYng6svCTMAKfXMFn8"
-          alt="Event" className="w-full h-full object-cover"
+          src={event.posterUrl || "https://lh3.googleusercontent.com/aida-public/AB6AXuApE_m_Gd_KRyYuWTES2LUgR5Rnhp5h2U15s-sNclVbmb8EHbXTWT9qG7sBCU0LqeQ_jvPWfy_oRFMgHFTHqf-Zr1izZqyCJYRv1EzbJv827rXQd0NBAxYshSBFqEHblTSZ9_DWvjvZbSBgqg9B2mU_oX_8F_f43SC4wi8AiFhElE68UcqOFFj4y3Crh93Ah7AEFud5lJ9StCF6htKxztl-Q4iDBjqh8m_PRYEBXYQUMe0P3XDAonsjZhRxfDYng6svCTMAKfXMFn8"}
+          alt={event.title} className="w-full h-full object-cover"
         />
         <div className="hero-gradient absolute inset-0" />
         
@@ -48,12 +90,12 @@ const EventDetail = () => {
         <div className="absolute bottom-0 left-0 right-0 z-10 px-6 pb-10">
           <div className="max-w-7xl mx-auto">
             <span className="inline-flex items-center gap-2 px-3 py-1 bg-pink-500/80 backdrop-blur-md rounded-full text-xs font-bold text-white mb-4">
-              <Icon name="music_note" size="sm" /> Âm nhạc
+              <Icon name="music_note" size="sm" /> {event.category?.name || "Âm nhạc"}
             </span>
-            <h1 className="text-4xl font-extrabold text-white mb-3">SƠN TÙNG M-TP: THE FIRST JOURNEY 2024</h1>
+            <h1 className="text-4xl font-extrabold text-white mb-3">{event.title}</h1>
             <div className="flex flex-wrap items-center gap-6 text-white/80 text-sm">
-              <span className="flex items-center gap-2"><Icon name="calendar_today" size="sm" /> 15 Th12, 2024 • 20:00</span>
-              <span className="flex items-center gap-2"><Icon name="location_on" size="sm" /> SVĐ Quân khu 7, TP.HCM</span>
+              <span className="flex items-center gap-2"><Icon name="calendar_today" size="sm" /> {new Date(event.startTime).toLocaleDateString("vi-VN", {day: "2-digit", month: "short", year: "numeric"})} • {new Date(event.startTime).toLocaleTimeString("vi-VN", {hour: "2-digit", minute: "2-digit"})}</span>
+              <span className="flex items-center gap-2"><Icon name="location_on" size="sm" /> {event.location ? `${event.location}${event.province?.name ? `, ${event.province.name}` : ''}` : (event.province?.name || "SVĐ Quân khu 7, TP.HCM")}</span>
               <span className="flex items-center gap-2"><Icon name="star" size="sm" className="text-yellow-400" /> 4.9 (2,450 đánh giá)</span>
             </div>
           </div>
@@ -70,8 +112,8 @@ const EventDetail = () => {
               <h2 className="text-xl font-extrabold text-slate-900 mb-4 flex items-center gap-2">
                 <span className="w-1.5 h-6 bg-primary rounded-full" /> Giới thiệu
               </h2>
-              <p className="text-slate-600 leading-relaxed">
-                Đêm nhạc đặc biệt đánh dấu chặng đường âm nhạc của Sơn Tùng M-TP. Với hệ thống âm thanh, ánh sáng đẳng cấp quốc tế cùng dàn nghệ sĩ khách mời đặc biệt, hứa hẹn mang đến trải nghiệm không thể nào quên.
+              <p className="text-slate-600 leading-relaxed whitespace-pre-wrap">
+                {event.description}
               </p>
             </section>
 
