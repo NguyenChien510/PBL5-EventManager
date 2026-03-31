@@ -147,6 +147,7 @@ function App() {
         <Route path="/event-detail" element={<EventDetail />} />
         <Route path="/event/:id" element={<EventDetail />} />
         <Route path="/event" element={<EventDetail />} />
+        <Route path="/event/:id/seats" element={<SeatSelection />} />
         <Route path="/seat-selection" element={<SeatSelection />} />
         <Route path="/seats" element={<SeatSelection />} />
         <Route path="/profile" element={<UserProfile />} />

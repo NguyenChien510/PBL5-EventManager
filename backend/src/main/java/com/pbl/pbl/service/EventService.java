@@ -70,6 +70,20 @@ public class EventService {
     }
 
     @Transactional(readOnly = true)
+    public List<com.pbl.pbl.dto.SeatResponseDTO> getSeatsByEventId(Long eventId) {
+        return seatRepository.findByEventSession_Event_Id(eventId)
+            .stream()
+            .map(s -> com.pbl.pbl.dto.SeatResponseDTO.builder()
+                .id(s.getId())
+                .seatNumber(s.getSeatNumber())
+                .status(s.getStatus().name())
+                .ticketTypeName(s.getTicketType() != null ? s.getTicketType().getName() : "")
+                .price(s.getTicketType() != null ? s.getTicketType().getPrice() : BigDecimal.ZERO)
+                .build())
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<UpcomingEventCardDTO> getUpcomingEventsForHomepage() {
         List<Event> events = eventRepository.findByStatusOrderByStartTimeAsc(EventStatus.upcoming);
         Map<Long, BigDecimal[]> minMaxByEventId = new HashMap<>();

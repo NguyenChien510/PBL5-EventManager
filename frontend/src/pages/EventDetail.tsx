@@ -212,17 +212,38 @@ const EventDetail = () => {
                 <div className="space-y-3 mb-8">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Phân loại & Giá vé</p>
                   {ticketTypes.length > 0 ? ticketTypes.map((tt, idx) => {
-                    const colors = ['bg-slate-400', 'bg-primary', 'bg-yellow-500', 'bg-green-500', 'bg-pink-500'];
-                    const color = colors[idx % colors.length];
+                    const lowerName = tt.name.toLowerCase();
+                    let colorTheme = {
+                        dot: 'bg-slate-400',
+                        bg: 'bg-slate-50',
+                        border: 'border-slate-200',
+                        text: 'text-slate-700'
+                    };
+                    
+                    if (lowerName.includes('vip')) {
+                        colorTheme = { dot: 'bg-yellow-500', bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700' };
+                    } else if (lowerName.includes('diamond') || lowerName.includes('vvip')) {
+                        colorTheme = { dot: 'bg-pink-500', bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-700' };
+                    } else if (lowerName.includes('standard') || lowerName.includes('ga')) {
+                        colorTheme = { dot: 'bg-slate-400', bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-700' };
+                    } else {
+                        const palettes = [
+                            { dot: 'bg-primary', bg: 'bg-primary/5', border: 'border-primary/20', text: 'text-primary' },
+                            { dot: 'bg-green-500', bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700' },
+                            { dot: 'bg-purple-500', bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700' }
+                        ];
+                        colorTheme = palettes[idx % palettes.length];
+                    }
+
                     return (
-                      <div key={tt.id} className="flex items-center justify-between p-3 bg-white/20 rounded-xl border border-white/30 hover:bg-white/40 transition-colors">
+                      <div key={tt.id} className={`flex items-center justify-between p-3 rounded-xl border ${colorTheme.bg} ${colorTheme.border} hover:brightness-95 transition-all`}>
                         <div className="flex items-center gap-3">
-                          <div className={`w-2 h-2 rounded-full ${color} shadow-[0_0_8px_rgba(0,0,0,0.1)]`} />
-                          <span className="text-sm font-bold">{tt.name}</span>
+                          <div className={`w-3 h-3 rounded-md ${colorTheme.dot} shadow-sm`} />
+                          <span className={`text-sm font-bold ${colorTheme.text}`}>{tt.name}</span>
                         </div>
                         <div className="text-right">
-                          <p className="text-xs font-black text-slate-800">{new Intl.NumberFormat('vi-VN').format(tt.price)}đ</p>
-                          <p className="text-[9px] font-bold uppercase text-slate-500">{tt.totalQuantity} vé</p>
+                          <p className="text-sm font-black text-slate-800">{new Intl.NumberFormat('vi-VN').format(tt.price)}đ</p>
+                          <p className="text-[10px] font-bold uppercase text-slate-500 mt-0.5">{tt.totalQuantity} vé</p>
                         </div>
                       </div>
                     );
@@ -234,7 +255,7 @@ const EventDetail = () => {
                 </div>
 
                 <Link
-                  to="/seats"
+                  to={id ? `/event/${id}/seats` : "/seats"}
                   className="w-full flex items-center justify-center gap-3 bg-primary text-white py-5 rounded-[24px] font-black text-lg transition-all hover:shadow-2xl hover:shadow-primary/40 hover:-translate-y-1 active:scale-[0.97] group"
                 >
                   <Icon name="event_seat" className="text-xl group-hover:scale-110 transition-transform" />

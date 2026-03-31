@@ -11,6 +11,11 @@ export class EventService {
     return response.data;
   }
 
+  static async getEventSeats(id: string) {
+    const response = await apiClient.get(`/events/${id}/seats`);
+    return response.data;
+  }
+
   static async getUpcomingCardData() {
     const response = await apiClient.get(`/events/upcoming-card-data`);
     return response.data;

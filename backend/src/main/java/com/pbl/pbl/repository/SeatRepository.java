@@ -7,4 +7,5 @@ import com.pbl.pbl.entity.Seat;
 
 @Repository
 public interface SeatRepository extends JpaRepository<Seat, Long> {
+    java.util.List<Seat> findByEventSession_Event_Id(Long eventId);
 }
