@@ -85,36 +85,94 @@ public class EventService {
 
     @Transactional(readOnly = true)
     public List<UpcomingEventCardDTO> getUpcomingEventsForHomepage() {
+        return searchEvents("", null, "Tất cả khu vực", null, null, "Tất cả thời gian", "Mới nhất").stream().limit(3).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<UpcomingEventCardDTO> searchEvents(String keyword, Long categoryId, String province, 
+                                                   BigDecimal minPrice, BigDecimal maxPrice, 
+                                                   String dateFilter, String sortBy) {
         List<Event> events = eventRepository.findByStatusOrderByStartTimeAsc(EventStatus.upcoming);
+        
         Map<Long, BigDecimal[]> minMaxByEventId = new HashMap<>();
+        Map<Long, Integer> ticketsLeftByEventId = new HashMap<>();
+        Map<Long, Integer> totalTicketsByEventId = new HashMap<>();
+
         for (Object[] row : ticketTypeRepository.findMinMaxPriceGroupedByEventStatus(EventStatus.upcoming)) {
             Long eventId = ((Number) row[0]).longValue();
-            minMaxByEventId.put(eventId, new BigDecimal[] { (BigDecimal) row[1], (BigDecimal) row[2] });
+            minMaxByEventId.put(eventId, new BigDecimal[]{(BigDecimal) row[1], (BigDecimal) row[2]});
+            int totalQty = ((Number) row[3]).intValue();
+            ticketsLeftByEventId.put(eventId, totalQty); // Assuming no bookings yet for calculation
+            totalTicketsByEventId.put(eventId, totalQty);
         }
 
-        List<UpcomingEventCardDTO> result = new ArrayList<>();
-        for (Event event : events) {
-            BigDecimal[] mm = minMaxByEventId.get(event.getId());
-            result.add(
-                UpcomingEventCardDTO.builder()
-                    .id(event.getId())
-                    .title(event.getTitle())
-                    .location(event.getLocation())
-                    .startTime(event.getStartTime())
-                    .posterUrl(event.getPosterUrl())
-                    .ticketsLeft(event.getTicketsLeft())
-                    .totalTickets(event.getTotalTickets())
-                    .status(event.getStatus())
-                    .categoryName(event.getCategory() != null ? event.getCategory().getName() : null)
-                    .categoryColor(event.getCategory() != null ? event.getCategory().getColor() : null)
-                    .provinceName(event.getProvince() != null ? event.getProvince().getName() : null)
-                    .minPrice(mm != null ? mm[0] : null)
-                    .maxPrice(mm != null ? mm[1] : null)
-                    .build()
-            );
-        }
+        java.time.ZoneId vnZone = java.time.ZoneId.of("Asia/Ho_Chi_Minh");
+        java.time.LocalDate today = java.time.LocalDate.now(vnZone);
 
-        return result;
+        return events.stream()
+            .filter(e -> keyword == null || keyword.trim().isEmpty() || 
+                         e.getTitle().toLowerCase().contains(keyword.toLowerCase().trim()))
+            .filter(e -> categoryId == null || categoryId == -1L || 
+                         (e.getCategory() != null && e.getCategory().getId().equals(categoryId)))
+            .filter(e -> province == null || province.equals("Tất cả khu vực") || province.trim().isEmpty() || 
+                         (e.getProvince() != null && e.getProvince().getName().equalsIgnoreCase(province)))
+            .filter(e -> {
+                if (dateFilter == null || dateFilter.equals("Tất cả thời gian")) return true;
+                java.time.LocalDate eventDate = e.getStartTime().atZone(vnZone).toLocalDate();
+                if (dateFilter.equals("Hôm nay")) {
+                    return eventDate.isEqual(today);
+                } else if (dateFilter.equals("Ngày mai")) {
+                    return eventDate.isEqual(today.plusDays(1));
+                } else if (dateFilter.equals("Tháng này")) {
+                    return eventDate.getMonth() == today.getMonth() && eventDate.getYear() == today.getYear();
+                } else {
+                    try {
+                        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+                        java.time.LocalDate specificDate = java.time.LocalDate.parse(dateFilter, formatter);
+                        return eventDate.isEqual(specificDate);
+                    } catch (Exception ex) {
+                        return true; 
+                    }
+                }
+            })
+            .filter(e -> {
+                BigDecimal[] minMax = minMaxByEventId.get(e.getId());
+                if (minMax == null) return true; 
+                BigDecimal eventMin = minMax[0];
+                BigDecimal eventMax = minMax[1];
+                if (minPrice != null && eventMax.compareTo(minPrice) < 0) return false;
+                if (maxPrice != null && eventMin.compareTo(maxPrice) > 0) return false;
+                return true;
+            })
+            .map(e -> UpcomingEventCardDTO.builder()
+                .id(e.getId())
+                .title(e.getTitle())
+                .posterUrl(e.getPosterUrl())
+                .startTime(e.getStartTime())
+                .provinceName(e.getProvince() != null ? e.getProvince().getName() : "")
+                .location(e.getLocation())
+                .categoryName(e.getCategory() != null ? e.getCategory().getName() : "")
+                .categoryColor(e.getCategory() != null ? e.getCategory().getColor() : "bg-slate-400")
+                .minPrice(minMaxByEventId.containsKey(e.getId()) ? minMaxByEventId.get(e.getId())[0] : null)
+                .maxPrice(minMaxByEventId.containsKey(e.getId()) ? minMaxByEventId.get(e.getId())[1] : null)
+                .ticketsLeft(ticketsLeftByEventId.getOrDefault(e.getId(), 0))
+                .totalTickets(totalTicketsByEventId.getOrDefault(e.getId(), 0))
+                .build())
+            .sorted((e1, e2) -> {
+                if (sortBy == null || sortBy.equals("Mới nhất")) {
+                    return e2.getStartTime().compareTo(e1.getStartTime());
+                } else if (sortBy.equals("Giá tăng dần")) {
+                    BigDecimal p1 = e1.getMinPrice() != null ? e1.getMinPrice() : BigDecimal.ZERO;
+                    BigDecimal p2 = e2.getMinPrice() != null ? e2.getMinPrice() : BigDecimal.ZERO;
+                    return p1.compareTo(p2);
+                } else if (sortBy.equals("Giá giảm dần")) {
+                    BigDecimal p1 = e1.getMinPrice() != null ? e1.getMinPrice() : BigDecimal.ZERO;
+                    BigDecimal p2 = e2.getMinPrice() != null ? e2.getMinPrice() : BigDecimal.ZERO;
+                    return p2.compareTo(p1);
+                }
+                return e2.getStartTime().compareTo(e1.getStartTime());
+            })
+            .toList();
     }
 
     @Transactional

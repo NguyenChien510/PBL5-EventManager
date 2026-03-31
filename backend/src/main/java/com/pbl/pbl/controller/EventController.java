@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import com.pbl.pbl.dto.EventRequestDTO;
 import com.pbl.pbl.dto.UpcomingEventCardDTO;
@@ -42,6 +43,18 @@ public class EventController {
     @GetMapping("/{id}/seats")
     public ResponseEntity<java.util.List<com.pbl.pbl.dto.SeatResponseDTO>> getSeatsByEventId(@PathVariable Long id) {
         return ResponseEntity.ok(eventService.getSeatsByEventId(id));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<java.util.List<UpcomingEventCardDTO>> searchEvents(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String province,
+            @RequestParam(required = false) java.math.BigDecimal minPrice,
+            @RequestParam(required = false) java.math.BigDecimal maxPrice,
+            @RequestParam(required = false) String dateFilter,
+            @RequestParam(required = false) String sortBy) {
+        return ResponseEntity.ok(eventService.searchEvents(keyword, categoryId, province, minPrice, maxPrice, dateFilter, sortBy));
     }
 
     @GetMapping("/upcoming-card-data")

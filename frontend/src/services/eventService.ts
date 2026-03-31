@@ -20,4 +20,18 @@ export class EventService {
     const response = await apiClient.get(`/events/upcoming-card-data`);
     return response.data;
   }
+
+  static async searchEvents(params: any) {
+    const query = new URLSearchParams();
+    if (params.keyword) query.append('keyword', params.keyword);
+    if (params.categoryId && params.categoryId !== 'all') query.append('categoryId', params.categoryId.toString());
+    if (params.province && params.province !== 'Chọn khu vực' && params.province !== 'Tất cả khu vực') query.append('province', params.province);
+    if (params.minPrice !== undefined) query.append('minPrice', params.minPrice.toString());
+    if (params.maxPrice !== undefined) query.append('maxPrice', params.maxPrice.toString());
+    if (params.dateFilter && params.dateFilter !== 'Tất cả thời gian') query.append('dateFilter', params.dateFilter);
+    if (params.sortBy) query.append('sortBy', params.sortBy);
+
+    const response = await apiClient.get(`/events/search?${query.toString()}`);
+    return response.data;
+  }
 }

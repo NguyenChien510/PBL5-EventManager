@@ -29,34 +29,49 @@ const EventExplore = () => {
   const dateRef = useRef<HTMLDivElement>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
+  
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+  const [selectedSort, setSelectedSort] = useState(sorts[0]);
+  const sortRef = useRef<HTMLDivElement>(null);
+
+  const loadEvents = async () => {
+    setLoading(true);
+    try {
+      const data = await EventService.searchEvents({
+        keyword: searchQuery,
+        categoryId: selectedCategoryId,
+        province: selectedProvince,
+        minPrice,
+        maxPrice,
+        dateFilter: selectedDate,
+        sortBy: selectedSort
+      });
+      setEventsData(data);
+    } catch (error) {
+      console.error("Failed to fetch events:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     window.scrollTo(0, 0)
     fetchCategories()
     fetchProvinces()
-
-    const loadEvents = async () => {
-      try {
-        const data = await EventService.getUpcomingCardData();
-        setEventsData(data);
-      } catch (error) {
-        console.error("Failed to fetch events:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadEvents();
+    // initial fetch will be triggered by the debounce effect below
   }, [fetchCategories, fetchProvinces])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadEvents();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery, selectedCategoryId, selectedProvince, minPrice, maxPrice, selectedDate, selectedSort]);
 
   const displayCategories = [
     { id: 'all' as const, name: 'Tất cả', icon: 'apps' },
     ...categories
   ]
-
-
-  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
-  const [selectedSort, setSelectedSort] = useState(sorts[0]);
-  const sortRef = useRef<HTMLDivElement>(null);
 
   // Handle click outside for dropdowns
   useEffect(() => {
@@ -285,6 +300,7 @@ const EventExplore = () => {
                 </div>
 
                 <button
+                  onClick={() => loadEvents()}
                   className="mt-1 md:mt-0 md:ml-3 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-primary hover:bg-blue-600 text-sm font-black text-white whitespace-nowrap shadow-lg shadow-primary/25 transition-all hover:scale-105 active:scale-95"
                 >
                   <Icon name="search" size="sm" />

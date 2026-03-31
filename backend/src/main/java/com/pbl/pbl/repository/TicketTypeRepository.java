@@ -16,7 +16,7 @@ public interface TicketTypeRepository extends JpaRepository<TicketType, Long> {
     /**
      * One query for all min/max prices per event (avoids N+1 when listing homepage cards).
      */
-    @Query("select es.event.id, min(tt.price), max(tt.price) from TicketType tt join tt.eventSession es "
+    @Query("select es.event.id, min(tt.price), max(tt.price), sum(tt.totalQuantity) from TicketType tt join tt.eventSession es "
             + "where es.event.status = :status group by es.event.id")
     List<Object[]> findMinMaxPriceGroupedByEventStatus(@Param("status") EventStatus status);
 
