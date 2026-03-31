@@ -19,4 +19,6 @@ public interface TicketTypeRepository extends JpaRepository<TicketType, Long> {
     @Query("select es.event.id, min(tt.price), max(tt.price) from TicketType tt join tt.eventSession es "
             + "where es.event.status = :status group by es.event.id")
     List<Object[]> findMinMaxPriceGroupedByEventStatus(@Param("status") EventStatus status);
+
+    List<TicketType> findByEventSession_Event_Id(Long eventId);
 }

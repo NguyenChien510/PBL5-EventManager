@@ -21,14 +21,19 @@ const timeline = [
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
   const [event, setEvent] = useState<any>(null);
+  const [ticketTypes, setTicketTypes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchEvent = async () => {
       try {
         if (id) {
-          const data = await EventService.getEventById(id);
-          setEvent(data);
+          const [eventData, ticketsData] = await Promise.all([
+            EventService.getEventById(id),
+            EventService.getEventTicketTypes(id)
+          ]);
+          setEvent(eventData);
+          setTicketTypes(ticketsData);
         }
       } catch (error) {
         console.error('Failed to fetch event:', error);
@@ -182,38 +187,50 @@ const EventDetail = () => {
                   <div className="p-4 bg-white/40 backdrop-blur-sm rounded-2xl border border-white/50 shadow-sm">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tổng quy mô</p>
                     <div className="flex items-baseline gap-1">
-                      <span className="text-xl font-black">5.000</span>
+                      <span className="text-xl font-black">{event.totalTickets ? new Intl.NumberFormat('vi-VN').format(event.totalTickets) : '0'}</span>
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Chỗ</span>
                     </div>
                   </div>
                   <div className="p-4 bg-primary/10 backdrop-blur-sm rounded-2xl border border-primary/20 shadow-sm">
                     <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Đã đặt</p>
                     <div className="flex items-baseline gap-1">
-                      <span className="text-xl font-black text-primary">3.750</span>
-                      <span className="text-[10px] font-bold text-primary/60 uppercase">/ 75%</span>
+                      <span className="text-xl font-black text-primary">
+                        {event.totalTickets && event.ticketsLeft !== undefined 
+                          ? new Intl.NumberFormat('vi-VN').format(event.totalTickets - event.ticketsLeft)
+                          : '0'}
+                      </span>
+                      <span className="text-[10px] font-bold text-primary/60 uppercase">
+                        {event.totalTickets 
+                          ? `/ ${Math.round(((event.totalTickets - (event.ticketsLeft || 0)) / event.totalTickets) * 100)}%` 
+                          : '/ 0%'}
+                      </span>
                     </div>
                   </div>
                 </div>
 
                 {/* Ticket Categories */}
                 <div className="space-y-3 mb-8">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Phân loại & Khoảng giá</p>
-                  {[
-                    { type: 'Standard', color: 'bg-slate-400', range: '500k - 1.2M', status: 'Còn vé' },
-                    { type: 'VIP', color: 'bg-primary', range: '2.5M - 4.5M', status: 'Còn vé' },
-                    { type: 'Diamond', color: 'bg-yellow-500', range: '8.0M - 15M', status: 'Sắp hết' },
-                  ].map((cat) => (
-                    <div key={cat.type} className="flex items-center justify-between p-3 bg-white/20 rounded-xl border border-white/30 hover:bg-white/40 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${cat.color} shadow-[0_0_8px_rgba(0,0,0,0.1)]`} />
-                        <span className="text-sm font-bold">{cat.type}</span>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Phân loại & Giá vé</p>
+                  {ticketTypes.length > 0 ? ticketTypes.map((tt, idx) => {
+                    const colors = ['bg-slate-400', 'bg-primary', 'bg-yellow-500', 'bg-green-500', 'bg-pink-500'];
+                    const color = colors[idx % colors.length];
+                    return (
+                      <div key={tt.id} className="flex items-center justify-between p-3 bg-white/20 rounded-xl border border-white/30 hover:bg-white/40 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-2 h-2 rounded-full ${color} shadow-[0_0_8px_rgba(0,0,0,0.1)]`} />
+                          <span className="text-sm font-bold">{tt.name}</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-black text-slate-800">{new Intl.NumberFormat('vi-VN').format(tt.price)}đ</p>
+                          <p className="text-[9px] font-bold uppercase text-slate-500">{tt.totalQuantity} vé</p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xs font-black text-slate-800">{cat.range}</p>
-                        <p className={`text-[9px] font-bold uppercase ${cat.status === 'Sắp hết' ? 'text-red-500' : 'text-green-500'}`}>{cat.status}</p>
-                      </div>
+                    );
+                  }) : (
+                    <div className="p-3 text-center text-sm font-medium text-slate-500">
+                      Đang cập nhật hạng vé...
                     </div>
-                  ))}
+                  )}
                 </div>
 
                 <Link

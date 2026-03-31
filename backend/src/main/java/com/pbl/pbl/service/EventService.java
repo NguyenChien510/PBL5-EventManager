@@ -57,6 +57,19 @@ public class EventService {
     }
 
     @Transactional(readOnly = true)
+    public List<com.pbl.pbl.dto.TicketTypeResponseDTO> getTicketTypesByEventId(Long eventId) {
+        return ticketTypeRepository.findByEventSession_Event_Id(eventId)
+            .stream()
+            .map(tt -> com.pbl.pbl.dto.TicketTypeResponseDTO.builder()
+                .id(tt.getId())
+                .name(tt.getName())
+                .price(tt.getPrice())
+                .totalQuantity(tt.getTotalQuantity())
+                .build())
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<UpcomingEventCardDTO> getUpcomingEventsForHomepage() {
         List<Event> events = eventRepository.findByStatusOrderByStartTimeAsc(EventStatus.upcoming);
         Map<Long, BigDecimal[]> minMaxByEventId = new HashMap<>();

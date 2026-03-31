@@ -220,7 +220,7 @@ const Homepage = () => {
       ? nearbyMapEvents
       : nearbyMapEvents.filter(event => event.provinceName === selectedProvince)
 
-  const featuredEventsFromDb = upcomingEvents.slice(0, 6).map((event) => {
+  const featuredEventsFromDb = upcomingEvents.slice(0, 3).map((event) => {
     const dateObj = new Date(event.startTime)
     const validDate = !Number.isNaN(dateObj.getTime())
     const formatVnd = (value?: number) =>

@@ -34,6 +34,11 @@ public class EventController {
         return ResponseEntity.ok(eventService.getEventById(id));
     }
 
+    @GetMapping("/{id}/ticket-types")
+    public ResponseEntity<java.util.List<com.pbl.pbl.dto.TicketTypeResponseDTO>> getTicketTypesByEventId(@PathVariable Long id) {
+        return ResponseEntity.ok(eventService.getTicketTypesByEventId(id));
+    }
+
     @GetMapping("/upcoming-card-data")
     public ResponseEntity<java.util.List<UpcomingEventCardDTO>> getUpcomingCardData() {
         return ResponseEntity.ok(eventService.getUpcomingEventsForHomepage());
