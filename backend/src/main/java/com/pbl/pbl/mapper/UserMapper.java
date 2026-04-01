@@ -24,7 +24,6 @@ public class UserMapper {
 
         return UserDTO.builder()
                 .id(user.getId())
-                .username(user.getUsername())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .role(roleDto)
@@ -45,7 +44,6 @@ public class UserMapper {
 
         return User.builder()
                 .id(userDto.getId())
-                .username(userDto.getUsername())
                 .email(userDto.getEmail())
                 .fullName(userDto.getFullName())
                 .role(role)

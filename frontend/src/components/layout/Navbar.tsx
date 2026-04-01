@@ -21,7 +21,7 @@ const Navbar = () => {
   }, []);
 
   return (
-    <nav className="glass-nav sticky top-0 z-50 border-b border-slate-200/60 backdrop-blur-xl bg-white/70">
+    <nav className="glass-nav sticky top-0 z-[60] border-b border-slate-200/60 backdrop-blur-xl bg-white/70">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3 group">
           <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
@@ -47,7 +47,7 @@ const Navbar = () => {
                 className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100 transition-colors"
               >
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                  {user.fullName?.[0]?.toUpperCase() || user.username?.[0]?.toUpperCase() || 'U'}
+                  {user.fullName?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
                 </div>
                 <div className="hidden md:flex flex-col items-start text-xs">
                   <span className="text-slate-500 font-medium">Xin chào,</span>

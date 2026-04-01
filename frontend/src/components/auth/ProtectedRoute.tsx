@@ -2,8 +2,12 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { Navigate, Outlet } from "react-router-dom";
 import { Loader } from "@/components/ui/loader";
 
-export const ProtectedRoute = () => {
-  const { accessToken, isLoading } = useAuthStore();
+interface ProtectedRouteProps {
+  allowedRoles?: string[];
+}
+
+export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
+  const { accessToken, user, isLoading } = useAuthStore();
 
   if (isLoading) {
     return (
@@ -18,6 +22,15 @@ export const ProtectedRoute = () => {
 
   if (!accessToken) {
     return <Navigate to="/signin" replace />;
+  }
+
+  const roleName = (user?.role?.name ?? '').toUpperCase().replace('ROLE_', '');
+
+  if (allowedRoles && allowedRoles.length > 0) {
+    // ADMIN has full access, otherwise check if role is in allowedRoles
+    if (roleName !== 'ADMIN' && !allowedRoles.includes(roleName)) {
+      return <Navigate to="/" replace />;
+    }
   }
 
   return <Outlet />;

@@ -10,7 +10,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class SignInDTO {
     @NotBlank
-    private String username;
+    @jakarta.validation.constraints.Email
+    private String email;
 
     @NotBlank
     private String password;

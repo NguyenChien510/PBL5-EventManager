@@ -39,7 +39,7 @@ public class AuthController {
 
     @PostMapping("/signin")
     public ResponseEntity<TokenResponse> login(@Valid @RequestBody SignInDTO request) {
-        TokenResponse tokens = authService.login(request.getUsername(), request.getPassword());
+        TokenResponse tokens = authService.login(request.getEmail(), request.getPassword());
 
         ResponseCookie refreshCookie = CookieUtil.createRefreshCookie(
                 REFRESH_TOKEN_COOKIE,
@@ -53,9 +53,18 @@ public class AuthController {
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<SignUpDTO> signup(@Valid @RequestBody SignUpDTO request) {
-        SignUpDTO response = authService.signup(request);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<TokenResponse> signup(@Valid @RequestBody SignUpDTO request) {
+        TokenResponse tokens = authService.signup(request);
+
+        ResponseCookie refreshCookie = CookieUtil.createRefreshCookie(
+                REFRESH_TOKEN_COOKIE,
+                tokens.getRefreshToken(),
+                refreshExpirationMs / 1000,
+                refreshCookieSecure);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+                .body(tokens);
     }
 
     @PostMapping("/google")

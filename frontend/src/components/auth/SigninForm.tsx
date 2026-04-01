@@ -20,7 +20,7 @@ const getRedirectPathByRole = (roleName?: string | null) => {
 };
 
 const signInSchema = z.object({
-  username: z.string().min(1, "Username is required"),
+  email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
@@ -77,10 +77,7 @@ export const SigninForm = () => {
             <h2 className="text-xl font-bold tracking-tight">Event<span className="text-primary">Platform</span></h2>
           </Link>
           <div className="flex gap-4 items-center">
-            <span className="hidden md:inline-block text-sm font-medium text-slate-500 dark:text-slate-400">New to EventPlatform?</span>
-            <Link to="/signup" className="flex items-center justify-center rounded-lg h-10 px-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm">
-              Create account
-            </Link>
+            {/* Clean header, swap button moved to modal */}
           </div>
         </header>
 
@@ -94,6 +91,19 @@ export const SigninForm = () => {
 
             {/* Right Side: Login Form */}
             <div className="p-6 md:p-8 flex flex-col justify-center">
+              
+              {/* Form Swap Toggle */}
+              <div className="flex justify-center mb-8">
+                <div className="inline-flex rounded-full bg-slate-100/80 dark:bg-slate-800/50 p-1 backdrop-blur-md border border-slate-200/60 dark:border-slate-700/50">
+                  <Link to="/signin" className="w-32 flex items-center justify-center py-2 rounded-full bg-white dark:bg-slate-700 text-slate-900 dark:text-white font-semibold text-sm shadow-md shadow-slate-200/50 dark:shadow-none ring-1 ring-slate-900/5 dark:ring-white/10 transition-all">
+                    Sign In
+                  </Link>
+                  <Link to="/signup" className="w-32 flex items-center justify-center py-2 rounded-full text-slate-500 dark:text-slate-400 font-medium text-sm hover:text-slate-900 dark:hover:text-slate-200 transition-all">
+                    Sign Up
+                  </Link>
+                </div>
+              </div>
+
               <div className="mb-6">
                 <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">Welcome back</h2>
                 <p className="text-slate-500 dark:text-slate-400 font-medium text-sm md:text-base">Enter your credentials to access your workspace.</p>
@@ -108,17 +118,17 @@ export const SigninForm = () => {
 
               <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Username</label>
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Email</label>
                   <div className="relative group">
-                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">person</span>
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">mail</span>
                     <input 
-                      {...register("username")}
-                      className={`w-full pl-11 pr-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900 focus:ring-4 focus:ring-primary/10 transition-all outline-none text-slate-900 dark:text-white shadow-sm ${errors.username ? 'border-red-300 dark:border-red-500/50 focus:border-red-500' : 'border-slate-200 dark:border-slate-800 focus:border-primary'}`}
-                      placeholder="Enter your username" 
-                      type="text" 
+                      {...register("email")}
+                      className={`w-full pl-11 pr-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900 focus:ring-4 focus:ring-primary/10 transition-all outline-none text-slate-900 dark:text-white shadow-sm ${errors.email ? 'border-red-300 dark:border-red-500/50 focus:border-red-500' : 'border-slate-200 dark:border-slate-800 focus:border-primary'}`}
+                      placeholder="john@example.com" 
+                      type="email" 
                     />
                   </div>
-                  {errors.username && <p className="text-sm font-medium text-red-500">{errors.username.message}</p>}
+                  {errors.email && <p className="text-sm font-medium text-red-500">{errors.email.message}</p>}
                 </div>
 
                 <div className="space-y-2">
