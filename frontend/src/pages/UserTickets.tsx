@@ -1,4 +1,4 @@
-import { Icon, Pagination } from '../components/ui'
+import { Pagination } from '../components/ui'
 import { TicketCard } from '../components/domain'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { userSidebarConfig } from '../config/userSidebarConfig'

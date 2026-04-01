@@ -32,11 +32,12 @@ public class UserService {
             throw UnauthorizedException.notAuthenticated();
         }
 
-        String username = authentication.getName();
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UserNotFoundException(username, "username"));
+        // authentication.getName() now holds the email since we put email as the UserDetails username
+        String email = authentication.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException(email, "email"));
 
-        log.debug("Retrieved current user: {}", username);
+        log.debug("Retrieved current user: {}", email);
         return userMapper.toDto(user);
     }
 }

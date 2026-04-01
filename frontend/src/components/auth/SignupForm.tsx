@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -6,11 +7,32 @@ import { Link, useNavigate } from "react-router-dom";
 import { Loader } from "@/components/ui/loader";
 import { useGoogleLogin } from '@react-oauth/google';
 
+const getRedirectPathByRole = (roleName?: string | null) => {
+  const normalized = (roleName ?? "").toUpperCase().replace("ROLE_", "");
+  switch (normalized) {
+    case "ORGANIZER":
+      return "/organizer/dashboard";
+    case "ADMIN":
+      return "/admin/moderation";
+    case "USER":
+    default:
+      return "/";
+  }
+};
+
 const signUpSchema = z.object({
-  fullName: z.string().min(2, "Full name must be at least 2 characters"),
-  username: z.string().min(3, "Username must be at least 3 characters"),
+  fullName: z.string()
+    .min(2, "Full name must be at least 2 characters")
+    .regex(/^[\p{L}\s]+$/u, "Full name cannot contain numbers or special characters"),
   email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string()
+    .min(6, "Password must be at least 6 characters")
+    .regex(/^\S+$/, "Password cannot contain spaces"),
+  confirmPassword: z.string(),
+  role: z.enum(["USER", "ORGANIZER"]).default("USER"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
 });
 
 type SignUpFormData = z.infer<typeof signUpSchema>;
@@ -18,6 +40,8 @@ type SignUpFormData = z.infer<typeof signUpSchema>;
 export const SignupForm = () => {
   const { signUp, googleSignIn, isLoading, error } = useAuthStore();
   const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const {
     register,
@@ -29,8 +53,11 @@ export const SignupForm = () => {
 
   const onSubmit = async (data: SignUpFormData) => {
     try {
-      await signUp(data);
-      navigate("/");
+      const { confirmPassword, ...signupData } = data;
+      // @ts-ignore
+      await signUp(signupData);
+      const roleName = useAuthStore.getState().user?.role?.name;
+      navigate(getRedirectPathByRole(roleName));
     } catch (err) {
       console.error(err);
     }
@@ -41,7 +68,8 @@ export const SignupForm = () => {
       if (tokenResponse.access_token) {
         try {
           await googleSignIn(tokenResponse.access_token);
-          navigate("/");
+          const roleName = useAuthStore.getState().user?.role?.name;
+          navigate(getRedirectPathByRole(roleName));
         } catch (err) {
           console.error("Google sign up failed:", err);
         }
@@ -64,10 +92,7 @@ export const SignupForm = () => {
             <h2 className="text-xl font-bold tracking-tight">Event<span className="text-primary">Platform</span></h2>
           </Link>
           <div className="flex gap-4 items-center">
-            <span className="hidden md:inline-block text-sm font-medium text-slate-500 dark:text-slate-400">Already have an account?</span>
-            <Link to="/signin" className="flex items-center justify-center rounded-lg h-10 px-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm">
-              Log in
-            </Link>
+            {/* Clean header, swap button moved to modal */}
           </div>
         </header>
 
@@ -81,6 +106,19 @@ export const SignupForm = () => {
 
             {/* Right Side: Signup Form */}
             <div className="p-6 md:p-8 flex flex-col justify-center">
+
+              {/* Form Swap Toggle */}
+              <div className="flex justify-center mb-8">
+                <div className="inline-flex rounded-full bg-slate-100/80 dark:bg-slate-800/50 p-1 backdrop-blur-md border border-slate-200/60 dark:border-slate-700/50">
+                  <Link to="/signin" className="w-32 flex items-center justify-center py-2 rounded-full text-slate-500 dark:text-slate-400 font-medium text-sm hover:text-slate-900 dark:hover:text-slate-200 transition-all">
+                    Sign In
+                  </Link>
+                  <Link to="/signup" className="w-32 flex items-center justify-center py-2 rounded-full bg-white dark:bg-slate-700 text-slate-900 dark:text-white font-semibold text-sm shadow-md shadow-slate-200/50 dark:shadow-none ring-1 ring-slate-900/5 dark:ring-white/10 transition-all">
+                    Sign Up
+                  </Link>
+                </div>
+              </div>
+
               <div className="mb-4">
                 <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">Create Account</h2>
                 <p className="text-slate-500 dark:text-slate-400 font-medium text-sm md:text-base">Start organizing amazing events today.</p>
@@ -94,28 +132,16 @@ export const SignupForm = () => {
               )}
 
               <form className="space-y-3" onSubmit={handleSubmit(onSubmit)}>
-                {/* Full Name & Username Row */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">Full Name</label>
-                    <input 
-                      {...register("fullName")}
-                      className={`w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900 focus:ring-4 focus:ring-primary/10 transition-all outline-none text-slate-900 dark:text-white shadow-sm ${errors.fullName ? 'border-red-300 dark:border-red-500/50 focus:border-red-500' : 'border-slate-200 dark:border-slate-800 focus:border-primary'}`}
-                      placeholder="John Doe" 
-                      type="text" 
-                    />
-                    {errors.fullName && <p className="text-xs font-medium text-red-500">{errors.fullName.message}</p>}
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">Username</label>
-                    <input 
-                      {...register("username")}
-                      className={`w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900 focus:ring-4 focus:ring-primary/10 transition-all outline-none text-slate-900 dark:text-white shadow-sm ${errors.username ? 'border-red-300 dark:border-red-500/50 focus:border-red-500' : 'border-slate-200 dark:border-slate-800 focus:border-primary'}`}
-                      placeholder="johndoe" 
-                      type="text" 
-                    />
-                    {errors.username && <p className="text-xs font-medium text-red-500">{errors.username.message}</p>}
-                  </div>
+                {/* Full Name Row */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">Full Name</label>
+                  <input 
+                    {...register("fullName")}
+                    className={`w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900 focus:ring-4 focus:ring-primary/10 transition-all outline-none text-slate-900 dark:text-white shadow-sm ${errors.fullName ? 'border-red-300 dark:border-red-500/50 focus:border-red-500' : 'border-slate-200 dark:border-slate-800 focus:border-primary'}`}
+                    placeholder="John Doe" 
+                    type="text" 
+                  />
+                  {errors.fullName && <p className="text-xs font-medium text-red-500">{errors.fullName.message}</p>}
                 </div>
 
                 <div className="space-y-1.5">
@@ -138,15 +164,46 @@ export const SignupForm = () => {
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors text-lg">lock</span>
                     <input 
                       {...register("password")}
-                      className={`w-full pl-11 pr-12 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900 focus:ring-4 focus:ring-primary/10 transition-all outline-none text-slate-900 dark:text-white shadow-sm ${errors.password ? 'border-red-300 dark:border-red-500/50 focus:border-red-500' : 'border-slate-200 dark:border-slate-800 focus:border-primary'}`}
+                      className={`w-full pl-11 pr-12 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900 focus:ring-4 focus:ring-primary/10 transition-all outline-none text-slate-900 dark:text-white shadow-sm [&::-ms-reveal]:hidden [&::-ms-clear]:hidden ${errors.password ? 'border-red-300 dark:border-red-500/50 focus:border-red-500' : 'border-slate-200 dark:border-slate-800 focus:border-primary'}`}
                       placeholder="••••••••" 
-                      type="password" 
+                      type={showPassword ? "text" : "password"}
                     />
-                    <button className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20" type="button" aria-label="Toggle password visibility">
-                      <span className="material-symbols-outlined text-[18px]">visibility</span>
+                    <button 
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20" 
+                      type="button" 
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label="Toggle password visibility"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">
+                        {showPassword ? "visibility_off" : "visibility"}
+                      </span>
                     </button>
                   </div>
                   {errors.password && <p className="text-xs font-medium text-red-500">{errors.password.message}</p>}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">Confirm Password</label>
+                  <div className="relative group">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors text-lg">lock_reset</span>
+                    <input 
+                      {...register("confirmPassword")}
+                      className={`w-full pl-11 pr-12 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900 focus:ring-4 focus:ring-primary/10 transition-all outline-none text-slate-900 dark:text-white shadow-sm [&::-ms-reveal]:hidden [&::-ms-clear]:hidden ${errors.confirmPassword ? 'border-red-300 dark:border-red-500/50 focus:border-red-500' : 'border-slate-200 dark:border-slate-800 focus:border-primary'}`}
+                      placeholder="••••••••" 
+                      type={showConfirmPassword ? "text" : "password"}
+                    />
+                    <button 
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20" 
+                      type="button" 
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      aria-label="Toggle confirm password visibility"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">
+                        {showConfirmPassword ? "visibility_off" : "visibility"}
+                      </span>
+                    </button>
+                  </div>
+                  {errors.confirmPassword && <p className="text-xs font-medium text-red-500">{errors.confirmPassword.message}</p>}
                 </div>
 
                 {/* User Type Toggle */}
@@ -154,13 +211,24 @@ export const SignupForm = () => {
                   <span className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">I am an...</span>
                   <div className="flex items-center gap-3">
                     <label className="flex-1 cursor-pointer">
-                      <input defaultChecked className="peer sr-only" name="user-type" type="radio" value="attendee" />
+                      <input
+                        {...register("role")}
+                        className="peer sr-only"
+                        type="radio"
+                        value="USER"
+                        defaultChecked
+                      />
                       <div className="text-center px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-500 dark:text-slate-400 peer-checked:border-primary peer-checked:bg-primary/5 peer-checked:text-primary transition-all hover:bg-slate-50 dark:hover:bg-slate-800">
                         Attendee
                       </div>
                     </label>
                     <label className="flex-1 cursor-pointer">
-                      <input className="peer sr-only" name="user-type" type="radio" value="organizer" />
+                      <input
+                        {...register("role")}
+                        className="peer sr-only"
+                        type="radio"
+                        value="ORGANIZER"
+                      />
                       <div className="text-center px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-500 dark:text-slate-400 peer-checked:border-primary peer-checked:bg-primary/5 peer-checked:text-primary transition-all hover:bg-slate-50 dark:hover:bg-slate-800">
                         Organizer
                       </div>

@@ -9,9 +9,6 @@ public class DuplicateResourceException extends BaseException {
               HttpStatus.CONFLICT, "DUPLICATE_RESOURCE");
     }
 
-    public static DuplicateResourceException username(String username) {
-        return new DuplicateResourceException("User", "username", username);
-    }
 
     public static DuplicateResourceException email(String email) {
         return new DuplicateResourceException("User", "email", email);

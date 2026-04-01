@@ -6,47 +6,7 @@ import { EventCard, EventMap } from '../components/domain'
 import { useCategoryStore } from '../stores/useCategoryStore'
 import { useLocationStore } from '../stores/useLocationStore'
 
-const featuredEvents = [
-  {
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuApE_m_Gd_KRyYuWTES2LUgR5Rnhp5h2U15s-sNclVbmb8EHbXTWT9qG7sBCU0LqeQ_jvPWfy_oRFMgHFTHqf-Zr1izZqyCJYRv1EzbJv827rXQd0NBAxYshSBFqEHblTSZ9_DWvjvZbSBgqg9B2mU_oX_8F_f43SC4wi8AiFhElE68UcqOFFj4y3Crh93Ah7AEFud5lJ9StCF6htKxztl-Q4iDBjqh8m_PRYEBXYQUMe0P3XDAonsjZhRxfDYng6svCTMAKfXMFn8',
-    title: 'SƠN TÙNG M-TP: THE FIRST JOURNEY 2024',
-    date: '15 Th12, 2024',
-    time: '20:00',
-    location: 'SVĐ Quân khu 7, TP.HCM',
-    price: '500.000đ',
-    category: 'Âm nhạc',
-    categoryColor: 'bg-pink-100 text-pink-600',
-    rating: 4.9,
-    ticketsLeft: 120,
-    totalTickets: 800,
-  },
-  {
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD8uGa4mjJqgWx5lFfDdLFanomchIA51IL8c0cvb3MIvS4GBu7ELTNexbhcJEIciFGOrbVfUWEGrFk5mRHb_asax4cBD8ddZD6DCO2x-TFSGHMrGlb_3UzaAzSv-lol1Y13h0NCWx1bisS-1wiw9mM1Pk1uAuWn4ENmtn0bHrhfEN0_pXnmDQCY_Dx7HWH1bijivgY4hCUMU_lb4qGiw0i4ZqDGhPXEC97rUmzSAyfodwGiVLLxAAz2QaKrFMSGuRiEE4j49dJZMqw',
-    title: 'AI Innovation Summit 2024',
-    date: '28 Th11, 2024',
-    time: '08:00',
-    location: 'Gem Center, Quận 1, TP.HCM',
-    price: '800.000đ',
-    category: 'Công nghệ',
-    categoryColor: 'bg-cyan-100 text-cyan-600',
-    rating: 4.7,
-    ticketsLeft: 45,
-    totalTickets: 200,
-  },
-  {
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBrnq1Yzgsd28u9RCJh3At5GShj32DcYi9T_WN8ctWilvGZn9VmfNHcOXN0PJVpwKNobaOeiLmwLHEdWBHMa0-lffiM-Lwoaqt5KkCR09eDjWJ-SCeEHoTwndxp4Nre5iCAhg4T1qbg7h75lD0xQbdhUfxGLICenIk71wCsX_N9LaLNhSBdHcgwT-D_-lV4s-BSw1EUi9YzTDRA_WzoNc9T9dOkYFrwkftJ5xX9JXksilQMRTFko1lYzpfcj_je9bmv6z9ywUt6AXg',
-    title: 'Artisan Market - Hội Chợ Thủ Công',
-    date: '10 Th01, 2025',
-    time: '09:00',
-    location: 'Khu Phố Cổ, Hà Nội',
-    price: '150.000đ',
-    category: 'Nghệ thuật',
-    categoryColor: 'bg-purple-100 text-purple-600',
-    rating: 4.5,
-    ticketsLeft: 280,
-    totalTickets: 500,
-  },
-]
+// Feature events removed (using real database only)
 
 interface UpcomingEvent {
   id: number
@@ -232,6 +192,7 @@ const Homepage = () => {
     const priceDisplay = low && high ? (low === high ? low : `${low} - ${high}`) : (low || high || 'Đang cập nhật')
 
     return {
+      id: event.id,
       image: event.posterUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200&auto=format&fit=crop',
       title: event.title,
       date: validDate ? dateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'Sắp cập nhật',
@@ -246,7 +207,7 @@ const Homepage = () => {
     }
   })
 
-  const visibleFeaturedEvents = featuredEventsFromDb.length > 0 ? featuredEventsFromDb : featuredEvents
+  const visibleFeaturedEvents = featuredEventsFromDb;
 
   return (
     <div className="min-h-screen bg-background-light font-display">
@@ -437,9 +398,17 @@ const Homepage = () => {
           </Link>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {visibleFeaturedEvents.map((event, i) => (
-            <EventCard key={i} {...event} />
-          ))}
+          {visibleFeaturedEvents.length > 0 ? (
+            visibleFeaturedEvents.map((event, i) => (
+              <Link key={event.id || i} to={`/event/${event.id}`}>
+                <EventCard {...event} />
+              </Link>
+            ))
+          ) : (
+            <div className="col-span-1 md:col-span-2 lg:col-span-3 h-48 flex items-center justify-center text-slate-500 bg-white rounded-3xl border border-slate-100 italic">
+              Đang tải danh sách sự kiện nổi bật...
+            </div>
+          )}
         </div>
       </section>
 

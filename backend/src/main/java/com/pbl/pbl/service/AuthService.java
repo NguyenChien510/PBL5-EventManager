@@ -77,15 +77,15 @@ public class AuthService {
     private String googleClientId;
 
     @Transactional
-    public TokenResponse login(String username, String password) {
+    public TokenResponse login(String email, String password) {
         try {
             // Verify user exists
-            User user = userRepository.findByUsername(username)
+            User user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new InvalidCredentialsException());
 
-            // Authenticate
+            // Authenticate (Spring Security uses the string passed to UserDetailsService)
             Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(username, password)
+                    new UsernamePasswordAuthenticationToken(email, password)
             );
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
@@ -128,7 +128,7 @@ public class AuthService {
         
         // Generate new tokens
         UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
-                .username(user.getUsername())
+                .username(user.getEmail())
                 .password(user.getPassword())
                 .authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority(
                     user.getRole().getName()))
@@ -161,24 +161,30 @@ public class AuthService {
     }
 
     @Transactional
-    public SignUpDTO signup(SignUpDTO request) {
-        // Check for duplicate username
-        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
-            throw DuplicateResourceException.username(request.getUsername());
-        }
-
+    public TokenResponse signup(SignUpDTO request) {
         // Check for duplicate email
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             throw DuplicateResourceException.email(request.getEmail());
         }
 
-        // Get default role
-        Role userRole = roleRepository.findByName("USER")
-                .orElseThrow(() -> ResourceNotFoundException.role("USER"));
+        // Determine role from request (default USER)
+        String roleName = request.getRole();
+        if (roleName == null || roleName.isBlank()) {
+            roleName = "USER";
+        }
+
+        final String normalizedRoleName = roleName.toUpperCase();
+
+        // Prevent registering as ADMIN via public signup
+        if ("ADMIN".equals(normalizedRoleName)) {
+            throw new InvalidCredentialsException();
+        }
+
+        Role userRole = roleRepository.findByName(normalizedRoleName)
+                .orElseThrow(() -> ResourceNotFoundException.role(normalizedRoleName));
                 
         // Create new user
         User newUser = User.builder()
-                .username(request.getUsername())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .fullName(request.getFullName())
@@ -187,10 +193,29 @@ public class AuthService {
 
         userRepository.save(newUser);
 
-        return SignUpDTO.builder()
-                .username(newUser.getUsername())
-                .email(newUser.getEmail())
-                .fullName(newUser.getFullName())
+        // Generate tokens for auto-login
+        UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
+                .username(newUser.getEmail())
+                .password(newUser.getPassword())
+                .authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority(
+                    newUser.getRole().getName()))
+                .build();
+
+        String accessToken = tokenProvider.generateAccessToken(userDetails);
+        String refreshTokenValue = tokenProvider.generateRefreshToken();
+
+        // Save refresh token
+        RefreshToken refreshToken = RefreshToken.builder()
+                .token(refreshTokenValue)
+                .user(newUser)
+                .expiresAt(Instant.now().plusSeconds(refreshExpiration / 1000))
+                .build();
+        refreshTokenRepository.save(refreshToken);
+
+        return TokenResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshTokenValue)
+                .user(userMapper.toDto(newUser))
                 .build();
     }
 
@@ -241,9 +266,8 @@ public class AuthService {
                 Role userRole = roleRepository.findByName("USER")
                         .orElseThrow(() -> ResourceNotFoundException.role("USER"));
 
-                // Create a new user with default random password and username
+                // Create a new user with default random password
                 User newUser = User.builder()
-                        .username("google_" + UUID.randomUUID().toString().substring(0, 8))
                         .email(email)
                         .password(passwordEncoder.encode(UUID.randomUUID().toString()))
                         .fullName(name != null ? name : "Google User")
@@ -255,7 +279,7 @@ public class AuthService {
 
             // Generate tokens
             UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
-                    .username(user.getUsername())
+                    .username(user.getEmail())
                     .password(user.getPassword())
                     .authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority(
                         user.getRole().getName()))

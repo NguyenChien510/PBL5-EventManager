@@ -28,61 +28,76 @@ import Homepage from './pages/Homepage'
 import SignInPage from './pages/SignInPage'
 import SignUpPage from './pages/SignUpPage'
 import Chatbot from './components/ui/Chatbot'
+import { useAuthStore } from './stores/useAuthStore'
+import { ProtectedRoute } from './components/auth/ProtectedRoute'
+import { GuestRoute } from './components/auth/GuestRoute'
 
 function App() {
   const [navOpen, setNavOpen] = useState(false)
   const location = useLocation()
+  const { user } = useAuthStore()
+  const roleName = (user?.role?.name ?? '').toUpperCase().replace('ROLE_', '')
 
   // Global scroll to top on route change
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
+  const publicSection = {
+    title: '🎫 Trang công khai',
+    links: [
+      { to: '/', label: 'Trang chủ', icon: 'home' },
+      { to: '/explore', label: 'Khám phá sự kiện', icon: 'explore' },
+      { to: '/event-detail', label: 'Chi tiết sự kiện', icon: 'event' },
+      { to: '/seat-selection', label: 'Chọn chỗ & Thanh toán', icon: 'event_seat' },
+    ],
+  };
+
+  const userSection = {
+    title: '👤 Người dùng',
+    links: [
+      { to: '/profile', label: 'Hồ sơ cá nhân', icon: 'person' },
+      { to: '/tickets', label: 'Vé của tôi', icon: 'confirmation_number' },
+      { to: '/history', label: 'Sự kiện đã tham gia', icon: 'history' },
+      { to: '/vouchers', label: 'Ưu đãi & Quà tặng', icon: 'redeem' },
+      { to: '/reviews', label: 'Đánh giá sự kiện', icon: 'rate_review' },
+      { to: '/settings', label: 'Cài đặt', icon: 'settings' },
+    ],
+  };
+
+  const organizerSection = {
+    title: '🏢 Organizer',
+    links: [
+      { to: '/organizer/dashboard', label: 'Trung tâm điều hành', icon: 'dashboard' },
+      { to: '/organizer/events', label: 'Quản lý sự kiện', icon: 'event_note' },
+      { to: '/organizer/create-event', label: 'Tạo sự kiện', icon: 'add_circle' },
+      { to: '/organizer/guests', label: 'Khách mời & Check-in', icon: 'groups' },
+      { to: '/organizer/timeline', label: 'Kịch bản & Timeline', icon: 'timeline' },
+      { to: '/organizer/hr', label: 'Nhân sự & KPI', icon: 'badge' },
+      { to: '/organizer/finance', label: 'Quyết toán tài chính', icon: 'account_balance' },
+      { to: '/organizer/feedback', label: 'Phản hồi khách mời', icon: 'feedback' },
+      { to: '/organizer/profile', label: 'Hồ sơ doanh nghiệp', icon: 'business' },
+    ],
+  };
+
+  const adminSection = {
+    title: '🛡️ Admin',
+    links: [
+      { to: '/admin/moderation', label: 'Kiểm duyệt sự kiện', icon: 'verified_user' },
+      { to: '/admin/review', label: 'Duyệt & Phản hồi', icon: 'fact_check' },
+      { to: '/admin/users', label: 'Quản lý người dùng', icon: 'manage_accounts' },
+      { to: '/admin/finance', label: 'Cấu hình tài chính', icon: 'settings' },
+    ],
+  };
+
   const navSections = [
     {
-      title: '🎫 Trang công khai',
-      links: [
-        { to: '/', label: 'Trang chủ', icon: 'home' },
-        { to: '/explore', label: 'Khám phá sự kiện', icon: 'explore' },
-        { to: '/event-detail', label: 'Chi tiết sự kiện', icon: 'event' },
-        { to: '/seat-selection', label: 'Chọn chỗ & Thanh toán', icon: 'event_seat' },
-      ]
+      ...publicSection,
     },
-    {
-      title: '👤 Người dùng',
-      links: [
-        { to: '/profile', label: 'Hồ sơ cá nhân', icon: 'person' },
-        { to: '/tickets', label: 'Vé của tôi', icon: 'confirmation_number' },
-        { to: '/history', label: 'Sự kiện đã tham gia', icon: 'history' },
-        { to: '/vouchers', label: 'Ưu đãi & Quà tặng', icon: 'redeem' },
-        { to: '/reviews', label: 'Đánh giá sự kiện', icon: 'rate_review' },
-        { to: '/settings', label: 'Cài đặt', icon: 'settings' },
-      ]
-    },
-    {
-      title: '🏢 Organizer',
-      links: [
-        { to: '/organizer/dashboard', label: 'Trung tâm điều hành', icon: 'dashboard' },
-        { to: '/organizer/events', label: 'Quản lý sự kiện', icon: 'event_note' },
-        { to: '/organizer/create-event', label: 'Tạo sự kiện', icon: 'add_circle' },
-        { to: '/organizer/guests', label: 'Khách mời & Check-in', icon: 'groups' },
-        { to: '/organizer/timeline', label: 'Kịch bản & Timeline', icon: 'timeline' },
-        { to: '/organizer/hr', label: 'Nhân sự & KPI', icon: 'badge' },
-        { to: '/organizer/finance', label: 'Quyết toán tài chính', icon: 'account_balance' },
-        { to: '/organizer/feedback', label: 'Phản hồi khách mời', icon: 'feedback' },
-        { to: '/organizer/profile', label: 'Hồ sơ doanh nghiệp', icon: 'business' },
-      ]
-    },
-    {
-      title: '🛡️ Admin',
-      links: [
-        { to: '/admin/moderation', label: 'Kiểm duyệt sự kiện', icon: 'verified_user' },
-        { to: '/admin/review', label: 'Duyệt & Phản hồi', icon: 'fact_check' },
-        { to: '/admin/users', label: 'Quản lý người dùng', icon: 'manage_accounts' },
-        { to: '/admin/finance', label: 'Cấu hình tài chính', icon: 'settings' },
-      ]
-    }
-  ]
+    ...(roleName === 'USER' ? [userSection] : []),
+    ...(roleName === 'ORGANIZER' ? [organizerSection] : []),
+    ...(roleName === 'ADMIN' ? [adminSection] : []),
+  ];
 
   return (
     <div className="min-h-screen bg-background-light">
@@ -142,36 +157,53 @@ function App() {
 
       {/* Routes */}
       <Routes>
+        {/* Guest Only Routes */}
+        <Route element={<GuestRoute />}>
+          <Route path="/signin" element={<SignInPage />} />
+          <Route path="/signup" element={<SignUpPage />} />
+        </Route>
+
+        {/* Public Routes */}
         <Route path="/" element={<Homepage />} />
         <Route path="/explore" element={<EventExplore />} />
         <Route path="/event-detail" element={<EventDetail />} />
         <Route path="/event/:id" element={<EventDetail />} />
         <Route path="/event" element={<EventDetail />} />
-        <Route path="/event/:id/seats" element={<SeatSelection />} />
-        <Route path="/seat-selection" element={<SeatSelection />} />
-        <Route path="/seats" element={<SeatSelection />} />
-        <Route path="/profile" element={<UserProfile />} />
-        <Route path="/tickets" element={<UserTickets />} />
-        <Route path="/history" element={<UserHistory />} />
-        <Route path="/settings" element={<UserSettings />} />
-        <Route path="/vouchers" element={<VouchersRewards />} />
-        <Route path="/reviews" element={<EventReviews />} />
-        <Route path="/organizer/dashboard" element={<OrganizerDashboard />} />
-        <Route path="/organizer/events" element={<OrganizerEventList />} />
-        <Route path="/organizer/create-event" element={<OrganizerEventCreate />} />
-        <Route path="/organizer/create" element={<OrganizerEventCreate />} />
-        <Route path="/organizer/guests" element={<OrganizerGuests />} />
-        <Route path="/organizer/timeline" element={<OrganizerTimeline />} />
-        <Route path="/organizer/hr" element={<OrganizerHR />} />
-        <Route path="/organizer/finance" element={<OrganizerFinance />} />
-        <Route path="/organizer/feedback" element={<OrganizerFeedback />} />
-        <Route path="/organizer/profile" element={<OrganizerProfile />} />
-        <Route path="/admin/moderation" element={<AdminEventModeration />} />
-        <Route path="/admin/review" element={<AdminEventReview />} />
-        <Route path="/admin/users" element={<AdminUserManagement />} />
-        <Route path="/admin/finance" element={<AdminFinanceConfig />} />
-        <Route path="/signin" element={<SignInPage />} />
-        <Route path="/signup" element={<SignUpPage />} />
+
+        {/* Protected Routes: USER and above */}
+        <Route element={<ProtectedRoute allowedRoles={['USER', 'ORGANIZER']} />}>
+          <Route path="/event/:id/seats" element={<SeatSelection />} />
+          <Route path="/seat-selection" element={<SeatSelection />} />
+          <Route path="/seats" element={<SeatSelection />} />
+          <Route path="/profile" element={<UserProfile />} />
+          <Route path="/tickets" element={<UserTickets />} />
+          <Route path="/history" element={<UserHistory />} />
+          <Route path="/settings" element={<UserSettings />} />
+          <Route path="/vouchers" element={<VouchersRewards />} />
+          <Route path="/reviews" element={<EventReviews />} />
+        </Route>
+
+        {/* Protected Routes: ORGANIZER only */}
+        <Route element={<ProtectedRoute allowedRoles={['ORGANIZER']} />}>
+          <Route path="/organizer/dashboard" element={<OrganizerDashboard />} />
+          <Route path="/organizer/events" element={<OrganizerEventList />} />
+          <Route path="/organizer/create-event" element={<OrganizerEventCreate />} />
+          <Route path="/organizer/create" element={<OrganizerEventCreate />} />
+          <Route path="/organizer/guests" element={<OrganizerGuests />} />
+          <Route path="/organizer/timeline" element={<OrganizerTimeline />} />
+          <Route path="/organizer/hr" element={<OrganizerHR />} />
+          <Route path="/organizer/finance" element={<OrganizerFinance />} />
+          <Route path="/organizer/feedback" element={<OrganizerFeedback />} />
+          <Route path="/organizer/profile" element={<OrganizerProfile />} />
+        </Route>
+
+        {/* Protected Routes: ADMIN only */}
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+          <Route path="/admin/moderation" element={<AdminEventModeration />} />
+          <Route path="/admin/review" element={<AdminEventReview />} />
+          <Route path="/admin/users" element={<AdminUserManagement />} />
+          <Route path="/admin/finance" element={<AdminFinanceConfig />} />
+        </Route>
       </Routes>
       {/* Chatbot */}
       <Chatbot />

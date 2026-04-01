@@ -1,4 +1,4 @@
-import { Icon, Avatar, StatCard } from '../components/ui'
+import { Icon, Avatar } from '../components/ui'
 import { TicketCard, TransactionItem } from '../components/domain'
 import { DashboardLayout } from '../components/layout'
 import { userSidebarConfig } from '../config/userSidebarConfig'

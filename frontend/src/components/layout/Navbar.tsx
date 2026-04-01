@@ -5,6 +5,7 @@ import { useAuthStore } from '../../stores/useAuthStore'
 
 const Navbar = () => {
   const { user, signOut } = useAuthStore()
+  const roleName = (user?.role?.name ?? '').toUpperCase().replace('ROLE_', '')
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -20,7 +21,7 @@ const Navbar = () => {
   }, []);
 
   return (
-    <nav className="glass-nav sticky top-0 z-50 border-b border-slate-200/60 backdrop-blur-xl bg-white/70">
+    <nav className="glass-nav sticky top-0 z-[60] border-b border-slate-200/60 backdrop-blur-xl bg-white/70">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3 group">
           <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
@@ -46,7 +47,7 @@ const Navbar = () => {
                 className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100 transition-colors"
               >
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                  {user.fullName?.[0]?.toUpperCase() || user.username?.[0]?.toUpperCase() || 'U'}
+                  {user.fullName?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
                 </div>
                 <div className="hidden md:flex flex-col items-start text-xs">
                   <span className="text-slate-500 font-medium">Xin chào,</span>
@@ -60,21 +61,61 @@ const Navbar = () => {
                   <div className="px-4 py-2 mb-2 border-b border-slate-50">
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tài khoản cá nhân</p>
                   </div>
-                  <Link 
-                    to="/profile" 
-                    onClick={() => setIsUserMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors font-medium"
-                  >
-                    <Icon name="person" size="sm" /> Thông tin cá nhân
-                  </Link>
-                  <Link 
-                    to="/my-tickets" 
-                    onClick={() => setIsUserMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors font-medium"
-                  >
-                    <Icon name="confirmation_number" size="sm" /> Vé của tôi
-                  </Link>
-                  <div className="my-2 border-t border-slate-50" />
+                  {roleName === 'ORGANIZER' ? (
+                    <>
+                      <Link
+                        to="/organizer/dashboard"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors font-medium"
+                      >
+                        <Icon name="dashboard" size="sm" /> Trung tâm điều hành
+                      </Link>
+                      <Link
+                        to="/organizer/profile"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors font-medium"
+                      >
+                        <Icon name="business" size="sm" /> Hồ sơ doanh nghiệp
+                      </Link>
+                      <div className="my-2 border-t border-slate-50" />
+                    </>
+                  ) : roleName === 'ADMIN' ? (
+                    <>
+                      <Link
+                        to="/admin/moderation"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors font-medium"
+                      >
+                        <Icon name="verified_user" size="sm" /> Kiểm duyệt sự kiện
+                      </Link>
+                      <Link
+                        to="/admin/users"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors font-medium"
+                      >
+                        <Icon name="manage_accounts" size="sm" /> Quản lý người dùng
+                      </Link>
+                      <div className="my-2 border-t border-slate-50" />
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        to="/profile"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors font-medium"
+                      >
+                        <Icon name="person" size="sm" /> Thông tin cá nhân
+                      </Link>
+                      <Link
+                        to="/tickets"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors font-medium"
+                      >
+                        <Icon name="confirmation_number" size="sm" /> Vé của tôi
+                      </Link>
+                      <div className="my-2 border-t border-slate-50" />
+                    </>
+                  )}
                   <button
                     onClick={() => {
                       signOut();

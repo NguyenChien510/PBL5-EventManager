@@ -13,10 +13,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 public class SignUpDTO {
-    @NotBlank(message = "Username is required")
-    @Size(min = 3, max = 50, message = "Username must be between 3 and 50 characters")
-    private String username;
-
     @NotBlank(message = "Email is required")
     @Email(message = "Email should be valid")
     private String email;
@@ -28,4 +24,7 @@ public class SignUpDTO {
     @NotBlank(message = "Full name is required")
     @Size(min = 2, max = 120, message = "Full name must be between 2 and 120 characters")
     private String fullName;
+
+    // USER hoặc ORGANIZER, nếu không gửi sẽ mặc định USER ở service
+    private String role;
 }

@@ -1,7 +1,6 @@
 // Auth Types
 export interface User {
   id: string;
-  username: string;
   email: string;
   fullName: string;
   avatar?: string;
@@ -13,15 +12,15 @@ export interface User {
 }
 
 export interface SignInPayload {
-  username: string;
+  email: string;
   password: string;
 }
 
 export interface SignUpPayload {
-  username: string;
   password: string;
   email: string;
   fullName: string;
+  role: "USER" | "ORGANIZER";
 }
 
 export interface AuthResponse {

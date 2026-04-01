@@ -1,4 +1,4 @@
-import { Icon, StatCard, SearchInput, Pagination, StatusBadge, Avatar } from '../components/ui'
+import { Icon, StatCard, Pagination, StatusBadge } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { adminSidebarConfig } from '../config/adminSidebarConfig'
 
