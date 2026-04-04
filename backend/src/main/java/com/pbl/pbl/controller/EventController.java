@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -31,8 +32,8 @@ public class EventController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Event> getEventById(@PathVariable Long id) {
-        return ResponseEntity.ok(eventService.getEventById(id));
+    public ResponseEntity<com.pbl.pbl.dto.EventResponseDTO> getEventById(@PathVariable Long id) {
+        return ResponseEntity.ok(eventService.getEventResponseById(id));
     }
 
     @GetMapping("/{id}/ticket-types")
@@ -66,5 +67,15 @@ public class EventController {
     public ResponseEntity<Event> createEvent(@RequestBody EventRequestDTO request) {
         System.out.println(">>> CREATE EVENT REQUEST RECEIVED: " + request.getTitle());
         return ResponseEntity.ok(eventService.createEvent(request));
+    }
+
+    @GetMapping("/admin/all")
+    public ResponseEntity<java.util.List<com.pbl.pbl.dto.EventResponseDTO>> getAllEventsForAdmin() {
+        return ResponseEntity.ok(eventService.getAllEventsForAdmin());
+    }
+
+    @PatchMapping("/admin/{id}/status")
+    public ResponseEntity<Event> updateEventStatus(@PathVariable Long id, @RequestParam com.pbl.pbl.entity.EventStatus status) {
+        return ResponseEntity.ok(eventService.updateEventStatus(id, status));
     }
 }

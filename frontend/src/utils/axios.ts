@@ -53,10 +53,7 @@ const createApiClient = (): AxiosInstance => {
       const status = error.response?.status;
       originalRequest._retryCount = originalRequest._retryCount || 0;
 
-      if (
-        (status === 401 || status === 403) &&
-        originalRequest._retryCount < 3
-      ) {
+      if (status === 401 && originalRequest._retryCount < 3) {
         originalRequest._retryCount += 1;
 
         try {

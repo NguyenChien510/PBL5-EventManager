@@ -2,7 +2,6 @@ package com.pbl.pbl.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +53,26 @@ public class EventService {
     public Event getEventById(Long id) {
         return eventRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Event not found"));
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.pbl.pbl.dto.EventResponseDTO> getAllEventsForAdmin() {
+        return eventRepository.findAllByOrderByStartTimeDesc()
+                .stream()
+                .map(this::convertToResponseDTO)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public com.pbl.pbl.dto.EventResponseDTO getEventResponseById(Long id) {
+        return convertToResponseDTO(getEventById(id));
+    }
+
+    @Transactional
+    public Event updateEventStatus(Long id, EventStatus status) {
+        Event event = getEventById(id);
+        event.setStatus(status);
+        return eventRepository.save(event);
     }
 
     @Transactional(readOnly = true)
@@ -288,5 +307,33 @@ public class EventService {
             index = (index / 26) - 1;
         }
         return row.toString();
+    }
+
+    private com.pbl.pbl.dto.EventResponseDTO convertToResponseDTO(Event event) {
+        return com.pbl.pbl.dto.EventResponseDTO.builder()
+                .id(event.getId())
+                .title(event.getTitle())
+                .description(event.getDescription())
+                .location(event.getLocation())
+                .startTime(event.getStartTime())
+                .endTime(event.getEndTime())
+                .posterUrl(event.getPosterUrl())
+                .status(event.getStatus())
+                .createdAt(event.getCreatedAt())
+                .category(event.getCategory() != null ? com.pbl.pbl.dto.EventResponseDTO.CategoryDTO.builder()
+                        .id(event.getCategory().getId())
+                        .name(event.getCategory().getName())
+                        .color(event.getCategory().getColor())
+                        .build() : null)
+                .province(event.getProvince() != null ? com.pbl.pbl.dto.EventResponseDTO.ProvinceDTO.builder()
+                        .id(event.getProvince().getId())
+                        .name(event.getProvince().getName())
+                        .build() : null)
+                .organizer(event.getOrganizer() != null ? com.pbl.pbl.dto.EventResponseDTO.OrganizerInfoDTO.builder()
+                        .id(event.getOrganizer().getId())
+                        .fullName(event.getOrganizer().getFullName())
+                        .email(event.getOrganizer().getEmail())
+                        .build() : null)
+                .build();
     }
 }

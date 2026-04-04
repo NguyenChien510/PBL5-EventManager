@@ -40,4 +40,10 @@ public class UserService {
         log.debug("Retrieved current user: {}", email);
         return userMapper.toDto(user);
     }
+
+    public java.util.List<UserDTO> getAllUsers() {
+        return userRepository.findAll().stream()
+                .map(userMapper::toDto)
+                .toList();
+    }
 }

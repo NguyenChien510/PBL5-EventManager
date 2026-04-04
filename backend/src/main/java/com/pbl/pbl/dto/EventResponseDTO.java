@@ -1,0 +1,60 @@
+package com.pbl.pbl.dto;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+import com.pbl.pbl.entity.EventStatus;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class EventResponseDTO {
+    private Long id;
+    private String title;
+    private String description;
+    private String location;
+    private LocalDateTime startTime;
+    private LocalDateTime endTime;
+    private String posterUrl;
+    private EventStatus status;
+    private LocalDateTime createdAt;
+    
+    private CategoryDTO category;
+    private ProvinceDTO province;
+    private OrganizerInfoDTO organizer;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class CategoryDTO {
+        private Long id;
+        private String name;
+        private String color;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ProvinceDTO {
+        private Long id;
+        private String name;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class OrganizerInfoDTO {
+        private UUID id;
+        private String fullName;
+        private String email;
+    }
+}

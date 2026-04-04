@@ -4,5 +4,7 @@ public enum EventStatus {
     pending,
     sold_out,
     ended,
-    upcoming
+    upcoming,
+    rejected,
+    editing
 }

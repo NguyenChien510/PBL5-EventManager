@@ -12,6 +12,9 @@ import com.pbl.pbl.entity.EventStatus;
 @Repository
 public interface EventRepository extends JpaRepository<Event, Long> {
 
-    @EntityGraph(attributePaths = { "category", "province" })
+    @EntityGraph(attributePaths = { "category", "province", "organizer" })
     List<Event> findByStatusOrderByStartTimeAsc(EventStatus status);
+
+    @EntityGraph(attributePaths = { "category", "province", "organizer" })
+    List<Event> findAllByOrderByStartTimeDesc();
 }

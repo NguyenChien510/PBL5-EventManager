@@ -131,7 +131,7 @@ public class AuthService {
                 .username(user.getEmail())
                 .password(user.getPassword())
                 .authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority(
-                    user.getRole().getName()))
+                    "ROLE_" + user.getRole().getName().toUpperCase().replace("ROLE_", "")))
                 .build();
 
         String newAccessToken = tokenProvider.generateAccessToken(userDetails);
@@ -198,7 +198,7 @@ public class AuthService {
                 .username(newUser.getEmail())
                 .password(newUser.getPassword())
                 .authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority(
-                    newUser.getRole().getName()))
+                    "ROLE_" + newUser.getRole().getName().toUpperCase().replace("ROLE_", "")))
                 .build();
 
         String accessToken = tokenProvider.generateAccessToken(userDetails);
@@ -282,7 +282,7 @@ public class AuthService {
                     .username(user.getEmail())
                     .password(user.getPassword())
                     .authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority(
-                        user.getRole().getName()))
+                        "ROLE_" + user.getRole().getName().toUpperCase().replace("ROLE_", "")))
                     .build();
 
             String accessToken = tokenProvider.generateAccessToken(userDetails);

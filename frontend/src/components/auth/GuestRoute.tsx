@@ -1,18 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
-
-const getRedirectPathByRole = (roleName?: string | null) => {
-  const normalized = (roleName ?? "").toUpperCase().replace("ROLE_", "");
-  switch (normalized) {
-    case "ORGANIZER":
-      return "/organizer/dashboard";
-    case "ADMIN":
-      return "/admin/moderation";
-    case "USER":
-    default:
-      return "/";
-  }
-};
+import { getRedirectPathByRole } from '@/utils/redirect';
 
 export const GuestRoute = () => {
   const { accessToken, user } = useAuthStore();

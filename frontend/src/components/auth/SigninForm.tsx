@@ -5,19 +5,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { Link, useNavigate } from "react-router-dom";
 import { Loader } from "@/components/ui/loader";
 import { useGoogleLogin } from '@react-oauth/google';
-
-const getRedirectPathByRole = (roleName?: string | null) => {
-  const normalized = (roleName ?? "").toUpperCase().replace("ROLE_", "");
-  switch (normalized) {
-    case "ORGANIZER":
-      return "/organizer/dashboard";
-    case "ADMIN":
-      return "/admin/moderation";
-    case "USER":
-    default:
-      return "/";
-  }
-};
+import { getRedirectPathByRole } from "@/utils/redirect";
 
 const signInSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -40,9 +28,8 @@ export const SigninForm = () => {
 
   const onSubmit = async (data: SignInFormData) => {
     try {
-      await signIn(data);
-      const roleName = useAuthStore.getState().user?.role?.name;
-      navigate(getRedirectPathByRole(roleName));
+      const user = await signIn(data);
+      navigate(getRedirectPathByRole(user?.role?.name));
     } catch (err) {
       console.error(err);
     }
@@ -52,9 +39,8 @@ export const SigninForm = () => {
     onSuccess: async (tokenResponse) => {
       if (tokenResponse.access_token) {
         try {
-          await googleSignIn(tokenResponse.access_token);
-          const roleName = useAuthStore.getState().user?.role?.name;
-          navigate(getRedirectPathByRole(roleName));
+          const user = await googleSignIn(tokenResponse.access_token);
+          navigate(getRedirectPathByRole(user?.role?.name));
         } catch (err) {
           console.error("Google sign in failed:", err);
         }

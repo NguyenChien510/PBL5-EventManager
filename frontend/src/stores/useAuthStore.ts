@@ -12,9 +12,9 @@ import { AuthService } from "@/services/authService";
 import { REFRESH_TOKEN_STORAGE_KEY, USER_STORAGE_KEY } from "@/constants";
 
 interface AuthStore extends AuthState {
-  signIn: (payload: SignInPayload) => Promise<void>;
-  googleSignIn: (credential: string) => Promise<void>;
-  signUp: (payload: SignUpPayload) => Promise<void>;
+  signIn: (payload: SignInPayload) => Promise<User>;
+  googleSignIn: (credential: string) => Promise<User>;
+  signUp: (payload: SignUpPayload) => Promise<User>;
   signOut: () => Promise<void>;
   clearError: () => void;
   setUser: (user: User) => void;
@@ -47,7 +47,7 @@ export const useAuthStore = create<AuthStore>()(
       isLoading: false,
       error: null,
 
-      signIn: async (payload: SignInPayload) => {
+      signIn: async (payload: SignInPayload): Promise<User> => {
         set({ isLoading: true, error: null });
         try {
           const response = await AuthService.signIn(payload);
@@ -62,6 +62,7 @@ export const useAuthStore = create<AuthStore>()(
             user: response.user,
             isLoading: false,
           });
+          return response.user;
         } catch (error) {
           const message = getErrorMessage(error, "Sign in failed");
           set({ error: message, isLoading: false });
@@ -69,7 +70,7 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
-      googleSignIn: async (credential: string) => {
+      googleSignIn: async (credential: string): Promise<User> => {
         set({ isLoading: true, error: null });
         try {
           const response = await AuthService.googleSignIn(credential);
@@ -84,6 +85,7 @@ export const useAuthStore = create<AuthStore>()(
             user: response.user,
             isLoading: false,
           });
+          return response.user;
         } catch (error) {
           const message = getErrorMessage(error, "Google sign in failed");
           set({ error: message, isLoading: false });
@@ -91,7 +93,7 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
-      signUp: async (payload: SignUpPayload) => {
+      signUp: async (payload: SignUpPayload): Promise<User> => {
         set({ isLoading: true, error: null });
         try {
           const response = await AuthService.signUp(payload);
@@ -106,6 +108,7 @@ export const useAuthStore = create<AuthStore>()(
             user: response.user,
             isLoading: false,
           });
+          return response.user;
         } catch (error) {
           const message = getErrorMessage(error, "Sign up failed");
           set({ error: message, isLoading: false });

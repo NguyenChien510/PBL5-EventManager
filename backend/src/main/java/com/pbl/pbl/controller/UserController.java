@@ -4,7 +4,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
 import com.pbl.pbl.dto.UserDTO;
 import com.pbl.pbl.service.UserService;
 
@@ -22,4 +21,10 @@ public class UserController {
         UserDTO user = userService.getCurrentUser();
         return ResponseEntity.ok(user);
     }
+
+    @GetMapping("/all")
+    public ResponseEntity<java.util.List<UserDTO>> getAllUsers() {
+        return ResponseEntity.ok(userService.getAllUsers());
+    }
+
 }

@@ -34,4 +34,14 @@ export class EventService {
     const response = await apiClient.get(`/events/search?${query.toString()}`);
     return response.data;
   }
+  
+  static async getAllAdminEvents() {
+    const response = await apiClient.get('/events/admin/all');
+    return response.data;
+  }
+
+  static async updateEventStatus(id: number | string, status: string) {
+    const response = await apiClient.patch(`/events/admin/${id}/status?status=${status}`);
+    return response.data;
+  }
 }

@@ -1,4 +1,5 @@
-import { Routes, Route, Link, useLocation } from 'react-router-dom'
+import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
 import { useState, useEffect } from 'react'
 
 // Page imports
@@ -84,7 +85,6 @@ function App() {
     title: '🛡️ Admin',
     links: [
       { to: '/admin/moderation', label: 'Kiểm duyệt sự kiện', icon: 'verified_user' },
-      { to: '/admin/review', label: 'Duyệt & Phản hồi', icon: 'fact_check' },
       { to: '/admin/users', label: 'Quản lý người dùng', icon: 'manage_accounts' },
       { to: '/admin/finance', label: 'Cấu hình tài chính', icon: 'settings' },
     ],
@@ -185,6 +185,7 @@ function App() {
 
         {/* Protected Routes: ORGANIZER only */}
         <Route element={<ProtectedRoute allowedRoles={['ORGANIZER']} />}>
+          <Route path="/organizer" element={<Navigate to="/organizer/dashboard" replace />} />
           <Route path="/organizer/dashboard" element={<OrganizerDashboard />} />
           <Route path="/organizer/events" element={<OrganizerEventList />} />
           <Route path="/organizer/create-event" element={<OrganizerEventCreate />} />
@@ -199,14 +200,16 @@ function App() {
 
         {/* Protected Routes: ADMIN only */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+          <Route path="/admin" element={<Navigate to="/admin/moderation" replace />} />
           <Route path="/admin/moderation" element={<AdminEventModeration />} />
-          <Route path="/admin/review" element={<AdminEventReview />} />
+          <Route path="/admin/review/:id" element={<AdminEventReview />} />
           <Route path="/admin/users" element={<AdminUserManagement />} />
           <Route path="/admin/finance" element={<AdminFinanceConfig />} />
         </Route>
       </Routes>
       {/* Chatbot */}
       <Chatbot />
+      <Toaster position="top-center" />
     </div>
   )
 }
