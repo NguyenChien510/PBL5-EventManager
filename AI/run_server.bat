@@ -1,4 +1,8 @@
 @echo off
 echo Starting EventPlatform AI Assistant...
-pip install -r requirements.txt
+
+call conda activate event-ai
+
 uvicorn main:app --reload --port 8000
+
+pause

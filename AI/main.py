@@ -1,7 +1,6 @@
 import os
 import logging
 import traceback
-import chromadb
 import psycopg2
 from typing import List
 from fastapi import FastAPI, HTTPException
@@ -12,9 +11,8 @@ from psycopg2.extras import RealDictCursor
 
 # Updated LangChain Imports for v0.3+
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
-from langchain_chroma import Chroma
+from langchain_postgres.vectorstores import PGVector
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -39,12 +37,7 @@ app.add_middleware(
 
 # Configuration
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-CHROMA_CLOUD_API_KEY = os.getenv("CHROMA_CLOUD_API_KEY")
-CHROMA_TENANT = os.getenv("CHROMA_TENANT")
-CHROMA_DATABASE = os.getenv("CHROMA_DATABASE", "EVENT")
-CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "event_platform")
-DATA_PATH = os.getenv("DATA_PATH", "./data")
-
+COLLECTION_NAME = os.getenv("COLLECTION_NAME", "event_platform")
 # DB Config
 DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT")
@@ -78,13 +71,8 @@ async def list_models():
 
 @app.get("/inspect-db")
 async def inspect_db():
-    """Kiểm tra số lượng bản ghi trong ChromaDB."""
-    try:
-        vs = get_vectorstore()
-        count = vs._collection.count()
-        return {"total_records": count, "collection_name": CHROMA_COLLECTION}
-    except Exception as e:
-        return {"error": str(e)}
+    """Kiểm tra DB đã chuyển sang Supabase."""
+    return {"message": "Using Supabase vector database.", "collection_name": COLLECTION_NAME}
 
 # Global vectorstore reference
 vectorstore = None
@@ -92,15 +80,12 @@ vectorstore = None
 def get_vectorstore():
     global vectorstore
     if vectorstore is None:
-        client = chromadb.CloudClient(
-            api_key=CHROMA_CLOUD_API_KEY,
-            tenant=CHROMA_TENANT,
-            database=CHROMA_DATABASE
-        )
-        vectorstore = Chroma(
-            client=client,
-            collection_name=CHROMA_COLLECTION,
-            embedding_function=embeddings
+        CONNECTION_STRING = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        vectorstore = PGVector(
+            collection_name=COLLECTION_NAME,
+            connection=CONNECTION_STRING,
+            embeddings=embeddings,
+            use_jsonb=True,
         )
     return vectorstore
 
@@ -134,7 +119,10 @@ QUY TẮC TRÌNH BÀY:
    - 🏷️ Thể loại
 4. Nếu không có thông tin, hãy xin lỗi lịch sự.
 
-Kiến thức căn cứ:
+Danh sách TẤT CẢ sự kiện trong hệ thống (Dùng để trả lời các câu hỏi thống kê số lượng, đếm tháng, liệt kê tổng quan):
+{all_events_summary}
+
+Thông tin chi tiết tìm thấy cho câu hỏi (Dùng để trả lời chi tiết về 1 sự kiện cụ thể):
 {context}
 
 Câu hỏi của người dùng: {question}
@@ -143,9 +131,26 @@ Câu trả lời của trợ lý:"""
     
     prompt = ChatPromptTemplate.from_template(template)
 
+    # Lấy tổng hợp tất cả sự kiện từ Database để AI có bức tranh toàn cảnh
+    try:
+        conn = psycopg2.connect(
+            host=DB_HOST, port=DB_PORT, database=DB_NAME, user=DB_USER, password=DB_PASSWORD
+        )
+        cur = conn.cursor()
+        cur.execute("SELECT title, start_time FROM events")
+        rows = cur.fetchall()
+        all_events_summary_str = "\n".join([f"- Tên: {r[0]} | Thời gian: {r[1]}" for r in rows])
+        if not all_events_summary_str:
+            all_events_summary_str = "Hiện chưa có sự kiện nào trong cơ sở dữ liệu."
+        cur.close()
+        conn.close()
+    except Exception as e:
+        logger.error(f"Error fetching all events summary: {e}")
+        all_events_summary_str = "Không thể lấy danh sách tổng hợp sự kiện."
+
     # Building the chain (LCEL)
     chain = (
-        {"context": retriever, "question": RunnablePassthrough()}
+        {"context": retriever, "question": RunnablePassthrough(), "all_events_summary": lambda x: all_events_summary_str}
         | prompt
         | llm
         | StrOutputParser()
@@ -163,29 +168,6 @@ Câu trả lời của trợ lý:"""
     except Exception as e:
         logger.error(f"Error in /chat: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/ingest")
-async def ingest_documents():
-    try:
-        if not os.path.exists(DATA_PATH):
-            os.makedirs(DATA_PATH)
-            return {"message": "Data path created. Please add TXT files."}
-
-        loader = DirectoryLoader(DATA_PATH, glob="**/*.txt", loader_cls=TextLoader)
-        documents = loader.load()
-        if not documents:
-            return {"message": "No documents found."}
-
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-        texts = text_splitter.split_documents(documents)
-
-        vs = get_vectorstore()
-        vs.add_documents(texts)
-        
-        return {"message": f"Successfully ingested {len(texts)} chunks."}
-    except Exception as e:
-        logger.error(f"Error in /ingest: {traceback.format_exc()}")
-        return {"error": str(e)}
 
 @app.post("/sync-db")
 async def sync_database():

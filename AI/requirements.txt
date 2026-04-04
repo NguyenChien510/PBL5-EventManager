@@ -2,9 +2,10 @@ fastapi
 uvicorn
 python-dotenv
 langchain-core
-langchain-community
 langchain-google-genai
-langchain-chroma
+langchain-postgres
+pgvector
+sqlalchemy
 langchain-text-splitters
 pydantic
 python-multipart
