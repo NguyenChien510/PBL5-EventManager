@@ -28,8 +28,8 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
-		<mapstruct.version>1.5.5.Final</mapstruct.version>
 		<lombok.version>1.18.30</lombok.version>
+		<!-- MapStruct đã gỡ: CategoryMapper/UserMapper là class thường. Không thêm org.mapstruct nếu chưa khai báo phiên bản. -->
 	</properties>
 	<dependencies>
 
@@ -120,13 +120,6 @@
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
 
-		<!-- MAPSTRUCT -->
-		<dependency>
-			<groupId>org.mapstruct</groupId>
-			<artifactId>mapstruct</artifactId>
-			<version>${mapstruct.version}</version>
-		</dependency>
-
 		<!-- SPRING BOOT STARTER LOGGING -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -162,20 +155,7 @@
 							<artifactId>lombok</artifactId>
 							<version>${lombok.version}</version>
 						</path>
-						<path>
-							<groupId>org.mapstruct</groupId>
-							<artifactId>mapstruct-processor</artifactId>
-							<version>${mapstruct.version}</version>
-						</path>
-						<path>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok-mapstruct-binding</artifactId>
-							<version>0.2.0</version>
-						</path>
 					</annotationProcessorPaths>
-					<compilerArgs>
-						<arg>-Amapstruct.defaultComponentModel=spring</arg>
-					</compilerArgs>
 				</configuration>
 			</plugin>
 			<plugin>

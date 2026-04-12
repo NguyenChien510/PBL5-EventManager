@@ -43,10 +43,6 @@ const UserProfilePage = () => {
             <p className={valueClass}>{user.fullName}</p>
           </div>
           <div>
-            <p className={labelClass}>Username</p>
-            <p className={valueClass}>{user.username}</p>
-          </div>
-          <div>
             <p className={labelClass}>Email</p>
             <p className={valueClass}>{user.email}</p>
           </div>

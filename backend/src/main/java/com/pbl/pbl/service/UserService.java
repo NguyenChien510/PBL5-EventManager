@@ -40,4 +40,17 @@ public class UserService {
         log.debug("Retrieved current user: {}", email);
         return userMapper.toDto(user);
     }
+
+    public User getCurrentUserEntity() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            log.warn("Attempt to load current user entity without authentication");
+            throw UnauthorizedException.notAuthenticated();
+        }
+
+        String email = authentication.getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException(email, "email"));
+    }
 }

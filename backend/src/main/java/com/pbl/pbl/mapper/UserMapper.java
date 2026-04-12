@@ -1,9 +1,14 @@
 package com.pbl.pbl.mapper;
 
+import java.time.ZoneId;
+
 import org.springframework.stereotype.Component;
 
 import com.pbl.pbl.dto.RoleDTO;
 import com.pbl.pbl.dto.UserDTO;
+import java.math.BigDecimal;
+
+import com.pbl.pbl.entity.MembershipTier;
 import com.pbl.pbl.entity.Role;
 import com.pbl.pbl.entity.User;
 
@@ -22,10 +27,22 @@ public class UserMapper {
                     .build();
         }
 
+        Integer joinYear = null;
+        if (user.getCreatedAt() != null) {
+            joinYear = user.getCreatedAt().atZone(ZoneId.of("Asia/Ho_Chi_Minh")).getYear();
+        }
+
+        String tierName = user.getMembershipTier() != null ? user.getMembershipTier().name() : null;
+
         return UserDTO.builder()
                 .id(user.getId())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
+                .avatarUrl(user.getAvatarUrl())
+                .loyaltyPoints(user.getLoyaltyPoints())
+                .membershipTier(tierName)
+                .joinYear(joinYear)
+                .createdAt(user.getCreatedAt())
                 .role(roleDto)
                 .build();
     }
@@ -46,6 +63,10 @@ public class UserMapper {
                 .id(userDto.getId())
                 .email(userDto.getEmail())
                 .fullName(userDto.getFullName())
+                .avatarUrl(userDto.getAvatarUrl())
+                .loyaltyPoints(userDto.getLoyaltyPoints() != null ? userDto.getLoyaltyPoints() : 0)
+                .membershipTier(MembershipTier.STANDARD)
+                .walletBalance(BigDecimal.ZERO)
                 .role(role)
                 .build();
     }

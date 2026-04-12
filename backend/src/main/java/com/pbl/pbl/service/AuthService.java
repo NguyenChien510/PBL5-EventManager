@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -46,6 +47,9 @@ import com.pbl.pbl.repository.RefreshTokenRepository;
 import com.pbl.pbl.repository.RoleRepository;
 import com.pbl.pbl.repository.UserRepository;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 public class AuthService {
 
@@ -222,44 +226,11 @@ public class AuthService {
     @Transactional
     public TokenResponse googleLogin(String credential) {
         try {
-            String email;
-            String name;
-
-            if (credential.startsWith("ya29.")) {
-                RestTemplate restTemplate = new RestTemplate();
-                HttpHeaders headers = new HttpHeaders();
-                headers.setBearerAuth(credential);
-                HttpEntity<String> entity = new HttpEntity<>("", headers);
-                ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                        "https://www.googleapis.com/oauth2/v3/userinfo", 
-                        HttpMethod.GET, 
-                        entity, 
-                        new ParameterizedTypeReference<Map<String, Object>>() {}
-                );
-                
-                if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                    Map<String, Object> userInfo = response.getBody();
-                    email = (String) userInfo.get("email");
-                    name = (String) userInfo.get("name");
-                } else {
-                    throw new InvalidCredentialsException();
-                }
-            } else {
-                GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
-                        new NetHttpTransport(), new GsonFactory())
-                        .setAudience(Collections.singletonList(googleClientId))
-                        .build();
-
-                GoogleIdToken idToken = verifier.verify(credential);
-                if (idToken == null) {
-                    throw new InvalidCredentialsException();
-                }
-
-                Payload payload = idToken.getPayload();
-                email = payload.getEmail();
-                name = (String) payload.get("name");
-            }
-
+            GoogleProfile profile = resolveGoogleProfile(credential.trim());
+            String email = profile.email();
+            String name = profile.name();
+            String picture = profile.picture();
+            final String avatarFromGoogle = picture;
             // Look up the user by email
             User user = userRepository.findByEmail(email).orElseGet(() -> {
                 // Get default role
@@ -271,6 +242,7 @@ public class AuthService {
                         .email(email)
                         .password(passwordEncoder.encode(UUID.randomUUID().toString()))
                         .fullName(name != null ? name : "Google User")
+                        .avatarUrl(avatarFromGoogle)
                         .role(userRole)
                         .build();
 
@@ -302,8 +274,92 @@ public class AuthService {
                     .user(userMapper.toDto(user))
                     .build();
 
+        } catch (InvalidCredentialsException ex) {
+            throw ex;
         } catch (Exception e) {
+            log.warn("Google login failed: {}", e.getMessage());
             throw new InvalidCredentialsException();
         }
+    }
+
+    /**
+     * FE (@react-oauth/google useGoogleLogin) gửi OAuth2 access_token. Một số token không bắt đầu bằng
+     * {@code ya29.} nên không được nhận diện — luôn thử userinfo trước, sau đó mới verify ID token (JWT).
+     */
+    private GoogleProfile resolveGoogleProfile(String credential) throws Exception {
+        Optional<GoogleProfile> fromUserInfo = fetchGoogleProfileViaUserInfo(credential);
+        if (fromUserInfo.isPresent()) {
+            return fromUserInfo.get();
+        }
+
+        if (isLikelyJwt(credential)) {
+            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
+                    new NetHttpTransport(), new GsonFactory())
+                    .setAudience(Collections.singletonList(googleClientId))
+                    .build();
+
+            GoogleIdToken idToken = verifier.verify(credential);
+            if (idToken == null) {
+                throw new InvalidCredentialsException();
+            }
+
+            Payload payload = idToken.getPayload();
+            String email = payload.getEmail();
+            String name = (String) payload.get("name");
+            Object pic = payload.get("picture");
+            String picture = pic instanceof String ? (String) pic : null;
+            return validateEmailPresent(email, name, picture);
+        }
+
+        throw new InvalidCredentialsException();
+    }
+
+    private Optional<GoogleProfile> fetchGoogleProfileViaUserInfo(String accessToken) {
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(accessToken);
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    "https://www.googleapis.com/oauth2/v3/userinfo",
+                    HttpMethod.GET,
+                    entity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {});
+
+            if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                return Optional.empty();
+            }
+            Map<String, Object> userInfo = response.getBody();
+            String email = (String) userInfo.get("email");
+            String name = (String) userInfo.get("name");
+            String picture = userInfo.get("picture") instanceof String
+                    ? (String) userInfo.get("picture")
+                    : null;
+            if (email == null || email.isBlank()) {
+                return Optional.empty();
+            }
+            return Optional.of(new GoogleProfile(email.trim(), name, picture));
+        } catch (Exception ex) {
+            log.debug("Google userinfo with Bearer token failed: {}", ex.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    private static boolean isLikelyJwt(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        String[] parts = value.split("\\.");
+        return parts.length >= 3;
+    }
+
+    private GoogleProfile validateEmailPresent(String email, String name, String picture) {
+        if (email == null || email.isBlank()) {
+            throw new InvalidCredentialsException();
+        }
+        return new GoogleProfile(email.trim(), name, picture);
+    }
+
+    private record GoogleProfile(String email, String name, String picture) {
     }
 }

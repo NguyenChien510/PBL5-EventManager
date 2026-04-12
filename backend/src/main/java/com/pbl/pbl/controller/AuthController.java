@@ -6,16 +6,19 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.pbl.pbl.dto.TokenResponse;
+import com.pbl.pbl.dto.UserDTO;
 import com.pbl.pbl.dto.SignInDTO;
 import com.pbl.pbl.dto.SignUpDTO;
 import com.pbl.pbl.dto.GoogleLoginDTO;
 import com.pbl.pbl.service.AuthService;
+import com.pbl.pbl.service.UserService;
 import com.pbl.pbl.util.CookieUtil;
 
 import jakarta.validation.Valid;
@@ -28,6 +31,7 @@ import lombok.RequiredArgsConstructor;
 public class AuthController {
 
     private final AuthService authService;
+    private final UserService userService;
 
     private static final String REFRESH_TOKEN_COOKIE = "refreshToken";
 
@@ -36,6 +40,11 @@ public class AuthController {
 
     @Value("${app.security.refresh-cookie-secure:false}")
     private boolean refreshCookieSecure;
+
+    @GetMapping("/me")
+    public ResponseEntity<UserDTO> getCurrentUser() {
+        return ResponseEntity.ok(userService.getCurrentUser());
+    }
 
     @PostMapping("/signin")
     public ResponseEntity<TokenResponse> login(@Valid @RequestBody SignInDTO request) {

@@ -4,11 +4,35 @@ export interface User {
   email: string;
   fullName: string;
   avatar?: string;
+  avatarUrl?: string;
+  loyaltyPoints?: number;
+  membershipTier?: string;
+  joinYear?: number;
   createdAt?: string;
   updatedAt?: string;
   role?: {
     name: string;
   };
+}
+
+/** GET /users/me/overview */
+export interface UserProfileOverview {
+  profile: User;
+  stats: {
+    eventsAttendedCount: number;
+    activeTicketsCount: number;
+  };
+  wallet: {
+    balance: number;
+    cardLastFour: string | null;
+  };
+  recentTickets: Array<{
+    id: number;
+    code: string;
+    eventTitle: string;
+    ticketTierLabel: string;
+    purchaseDate: string;
+  }>;
 }
 
 export interface SignInPayload {

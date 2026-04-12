@@ -19,7 +19,8 @@ spring:
 
 jwt:
   secret: MyVerySecureJWTSecretKeyThatIsAtLeast32BytesLongForHMACSHA256Algorithm2024
-  access-token-expiration: 1000 # 1 giay
+  # milliseconds (900000 = 15 phút)
+  access-token-expiration: 900000
   refresh-token-expiration: 604800000 # 7 ngay
 
 app:
