@@ -25,9 +25,11 @@ import AdminEventModeration from './pages/AdminEventModeration'
 import AdminEventReview from './pages/AdminEventReview'
 import AdminUserManagement from './pages/AdminUserManagement'
 import AdminFinanceConfig from './pages/AdminFinanceConfig'
+import AdminPaymentHistory from './pages/AdminPaymentHistory'
 import Homepage from './pages/Homepage'
 import SignInPage from './pages/SignInPage'
 import SignUpPage from './pages/SignUpPage'
+import PaymentResult from './pages/PaymentResult'
 import Chatbot from './components/ui/Chatbot'
 import { useAuthStore } from './stores/useAuthStore'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
@@ -87,6 +89,7 @@ function App() {
       { to: '/admin/moderation', label: 'Kiểm duyệt sự kiện', icon: 'verified_user' },
       { to: '/admin/users', label: 'Quản lý người dùng', icon: 'manage_accounts' },
       { to: '/admin/finance', label: 'Cấu hình tài chính', icon: 'settings' },
+      { to: '/admin/payments', label: 'Lịch sử giao dịch', icon: 'payments' },
     ],
   };
 
@@ -175,6 +178,7 @@ function App() {
           <Route path="/event/:id/seats" element={<SeatSelection />} />
           <Route path="/seat-selection" element={<SeatSelection />} />
           <Route path="/seats" element={<SeatSelection />} />
+          <Route path="/payment-result" element={<PaymentResult />} />
           <Route path="/profile" element={<UserProfile />} />
           <Route path="/tickets" element={<UserTickets />} />
           <Route path="/history" element={<UserHistory />} />
@@ -205,6 +209,7 @@ function App() {
           <Route path="/admin/review/:id" element={<AdminEventReview />} />
           <Route path="/admin/users" element={<AdminUserManagement />} />
           <Route path="/admin/finance" element={<AdminFinanceConfig />} />
+          <Route path="/admin/payments" element={<AdminPaymentHistory />} />
         </Route>
       </Routes>
       {/* Chatbot */}

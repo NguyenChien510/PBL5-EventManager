@@ -31,3 +31,10 @@ WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Thể thao');
 INSERT INTO categories (name, icon, color) 
 SELECT 'Ẩm thực', 'restaurant', 'bg-yellow-500'
 WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Ẩm thực');
+
+ALTER TABLE tickets DROP CONSTRAINT IF EXISTS tickets_status_check;
+ALTER TABLE seats DROP CONSTRAINT IF EXISTS seats_status_check;
+ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check;
+
+-- Drop constraints that might cause conflicts with new schema
+ALTER TABLE users ALTER COLUMN username DROP NOT NULL;

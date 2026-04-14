@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Icon } from '../components/ui'
 import { EventService } from '../services/eventService'
+import { apiClient } from '../utils/axios'
+import { useAuthStore } from '../stores/useAuthStore'
+import { toast } from 'react-hot-toast'
 
 const paymentMethods = [
   { id: 'momo', label: 'Ví MoMo', icon: 'MoMo', color: 'bg-accent-pink'},
-  { id: 'zalopay', label: 'ZaloPay', icon: 'Zalo', color: 'bg-[#00e04b]'},
-  { id: 'visa', label: 'Thẻ Quốc tế', icon: 'VISA', color: 'bg-slate-900'},
+  { id: 'vnpay', label: 'VNPay', icon: 'VNPay', color: 'bg-[#005ba6]'},
 ]
 
 const SeatSelection = () => {
@@ -14,7 +16,9 @@ const SeatSelection = () => {
   const [event, setEvent] = useState<any>(null);
   const [seats, setSeats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
 
+  const { user } = useAuthStore();
   const [selectedSeats, setSelectedSeats] = useState<string[]>([])
   const [activePayment, setActivePayment] = useState('momo')
 
@@ -56,6 +60,37 @@ const SeatSelection = () => {
   const totalTicketPrice = selectedSeatObjects.reduce((sum, s) => sum + s.price, 0);
   const systemFee = selectedSeats.length > 0 ? 25000 : 0
   const totalPrice = totalTicketPrice > 0 ? totalTicketPrice + systemFee : 0;
+
+  const handlePayment = async () => {
+    if (selectedSeatObjects.length === 0) return;
+    
+    setIsProcessing(true);
+    try {
+      if (activePayment === 'vnpay' || activePayment === 'momo') {
+        const payload = {
+          amount: totalPrice,
+          orderInfo: `Thanh toan ve ${event?.title?.substring(0, 50) || 'su kien'}`,
+          userId: user?.id,
+          seatIds: selectedSeatObjects.map(s => s.id),
+          paymentMethod: activePayment
+        };
+
+        const response = await apiClient.post('/payment/create', payload);
+        if (response.data && response.data.url) {
+          window.location.href = response.data.url;
+        } else {
+          toast.error("Hệ thống không kích hoạt được cổng thanh toán");
+        }
+      } else {
+        toast.success(`Đang xử lý ${activePayment}... Dịch vụ chưa mở!`);
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.error || "Có lỗi xảy ra khi tạo mã giao dịch");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background-light font-display">
@@ -252,9 +287,13 @@ const SeatSelection = () => {
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider text-right">Đã bao gồm thuế VAT</p>
                 </div>
 
-                <button className="w-full bg-primary text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-primary/25 hover:shadow-primary/40 transition-all active:scale-[0.98] mb-4 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" disabled={selectedSeats.length === 0}>
-                  Xác nhận Thanh toán
-                  <Icon name="arrow_forward" />
+                <button 
+                  onClick={handlePayment}
+                  className="w-full bg-primary text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-primary/25 hover:shadow-primary/40 transition-all active:scale-[0.98] mb-4 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" 
+                  disabled={selectedSeats.length === 0 || isProcessing}
+                >
+                  {isProcessing ? 'Đang tạo giao dịch...' : 'Xác nhận Thanh toán'}
+                  {!isProcessing && <Icon name="arrow_forward" />}
                 </button>
                 <p className="text-[11px] text-center text-slate-400 font-medium px-4 leading-relaxed">
                   Bằng việc nhấn "Xác nhận", bạn đồng ý với <a href="#" className="text-primary hover:underline font-bold">Điều khoản & Điều kiện</a> của EventPlatform.

@@ -46,6 +46,11 @@ public class EventController {
         return ResponseEntity.ok(eventService.getSeatsByEventId(id));
     }
 
+    @GetMapping("/sessions/{id}/seats")
+    public ResponseEntity<java.util.List<com.pbl.pbl.dto.SeatResponseDTO>> getSeatsBySessionId(@PathVariable Long id) {
+        return ResponseEntity.ok(eventService.getSeatsBySessionId(id));
+    }
+
     @GetMapping("/search")
     public ResponseEntity<java.util.List<UpcomingEventCardDTO>> searchEvents(
             @RequestParam(required = false) String keyword,

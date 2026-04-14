@@ -29,3 +29,19 @@ app:
 google:
   client:
     id: 286951222811-de805r44tl8ut7mck43tlqao2spjlj18.apps.googleusercontent.com
+
+vnpay:
+  tmnCode: "6OA3DYF3"
+  hashSecret: "358D3BILHTPN4C0JUXFNF5046YEGTM0X"
+  url: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
+  returnUrl: "http://localhost:8080/api/public/payment/vnpay-return"
+
+momo:
+  partnerCode: "MOMO"
+  accessKey: "MOMO"
+  secretKey: "MOMO"
+  url: "https://test-payment.momo.vn/v2/gateway/api/create"
+  redirectUrl: "http://localhost:8080/api/public/payment/momo-return"
+  ipnUrl: "http://localhost:8080/api/public/payment/momo-ipn"
+
+

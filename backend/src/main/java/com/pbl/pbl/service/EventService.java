@@ -103,6 +103,20 @@ public class EventService {
     }
 
     @Transactional(readOnly = true)
+    public List<com.pbl.pbl.dto.SeatResponseDTO> getSeatsBySessionId(Long sessionId) {
+        return seatRepository.findByEventSessionId(sessionId)
+            .stream()
+            .map(s -> com.pbl.pbl.dto.SeatResponseDTO.builder()
+                .id(s.getId())
+                .seatNumber(s.getSeatNumber())
+                .status(s.getStatus().name())
+                .ticketTypeName(s.getTicketType() != null ? s.getTicketType().getName() : "")
+                .price(s.getTicketType() != null ? s.getTicketType().getPrice() : BigDecimal.ZERO)
+                .build())
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<UpcomingEventCardDTO> getUpcomingEventsForHomepage() {
         return searchEvents("", null, "Tất cả khu vực", null, null, "Tất cả thời gian", "Mới nhất").stream().limit(3).toList();
     }

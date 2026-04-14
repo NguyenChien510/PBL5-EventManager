@@ -1,7 +1,7 @@
 package com.pbl.pbl.entity;
 
-public enum TicketStatus {
+public enum OrderStatus {
     PENDING,
-    PAID,
+    COMPLETED,
     CANCELLED
 }
