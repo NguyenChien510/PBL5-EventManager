@@ -128,19 +128,22 @@ const EventDetail = () => {
                 <span className="w-1.5 h-6 bg-primary rounded-full" /> Lịch trình sự kiện
               </h2>
               <div className="space-y-0">
-                {timeline.map((item, idx) => (
-                  <div key={item.time} className="flex gap-4">
+                {(event.schedules && event.schedules.length > 0 ? event.schedules : timeline).map((item: any, idx: number, arr: any[]) => {
+                  const displayTime = item.startTime ? String(item.startTime).substring(0, 5) : item.time;
+                  const displayTitle = item.activity || item.title;
+                  return (
+                  <div key={idx} className="flex gap-4">
                     {/* Left: time label */}
                     <div className="w-14 shrink-0 text-right pt-4">
-                      <span className="text-sm font-bold text-slate-500">{item.time}</span>
+                      <span className="text-sm font-bold text-slate-500">{displayTime}</span>
                     </div>
 
                     {/* Center: dot + connector line */}
                     <div className="flex flex-col items-center shrink-0">
-                      <div className={`w-8 h-8 rounded-full ${item.color} flex items-center justify-center z-10 shadow-md`}>
-                        <Icon name={item.icon} size="sm" className="text-white text-[14px]" />
+                      <div className={`w-8 h-8 rounded-full ${item.color || 'bg-primary'} flex items-center justify-center z-10 shadow-md`}>
+                        <Icon name={item.icon || 'adjust'} size="sm" className="text-white text-[14px]" />
                       </div>
-                      {idx < timeline.length - 1 && (
+                      {idx < arr.length - 1 && (
                         <div className="w-0.5 flex-1 bg-slate-200 my-0" />
                       )}
                     </div>
@@ -148,11 +151,11 @@ const EventDetail = () => {
                     {/* Right: content card */}
                     <div className="flex-1 pb-6">
                       <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                        <p className="text-sm font-semibold text-slate-800">{item.title}</p>
+                        <p className="text-sm font-semibold text-slate-800">{displayTitle}</p>
                       </div>
                     </div>
                   </div>
-                ))}
+                )})}
               </div>
             </section>
 

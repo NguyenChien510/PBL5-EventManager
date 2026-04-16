@@ -12,10 +12,13 @@ import org.springframework.transaction.annotation.Transactional;
 import com.pbl.pbl.dto.EventRequestDTO;
 import com.pbl.pbl.dto.EventSessionRequestDTO;
 import com.pbl.pbl.dto.TicketTypeRequestDTO;
+import com.pbl.pbl.dto.EventScheduleRequestDTO;
+import com.pbl.pbl.dto.EventScheduleResponseDTO;
 import com.pbl.pbl.dto.UpcomingEventCardDTO;
 import com.pbl.pbl.entity.Category;
 import com.pbl.pbl.entity.Event;
 import com.pbl.pbl.entity.EventSession;
+import com.pbl.pbl.entity.EventSchedule;
 import com.pbl.pbl.entity.EventStatus;
 import com.pbl.pbl.entity.Province;
 import com.pbl.pbl.entity.Seat;
@@ -25,6 +28,7 @@ import com.pbl.pbl.entity.Ward;
 import com.pbl.pbl.repository.CategoryRepository;
 import com.pbl.pbl.repository.EventRepository;
 import com.pbl.pbl.repository.EventSessionRepository;
+import com.pbl.pbl.repository.EventScheduleRepository;
 import com.pbl.pbl.repository.ProvinceRepository;
 import com.pbl.pbl.repository.SeatRepository;
 import com.pbl.pbl.repository.TicketTypeRepository;
@@ -43,6 +47,7 @@ public class EventService {
     private final CategoryRepository categoryRepository;
     private final ProvinceRepository provinceRepository;
     private final WardRepository wardRepository;
+    private final EventScheduleRepository eventScheduleRepository;
 
     @Transactional(readOnly = true)
     public List<Event> getUpcomingEvents() {
@@ -246,6 +251,18 @@ public class EventService {
 
         event = eventRepository.save(event);
 
+        if (request.getSchedules() != null) {
+            for (EventScheduleRequestDTO schedReq : request.getSchedules()) {
+                EventSchedule schedule = EventSchedule.builder()
+                    .event(event)
+                    .startTime(schedReq.getStartTime())
+                    .activity(schedReq.getActivity())
+                    .build();
+                eventScheduleRepository.save(schedule);
+                event.getSchedules().add(schedule);
+            }
+        }
+
         for (EventSessionRequestDTO sessionReq : request.getSessions()) {
             EventSession session = EventSession.builder()
                 .event(event)
@@ -348,6 +365,13 @@ public class EventService {
                         .fullName(event.getOrganizer().getFullName())
                         .email(event.getOrganizer().getEmail())
                         .build() : null)
+                .schedules(event.getSchedules() != null ? event.getSchedules().stream()
+                        .map(s -> com.pbl.pbl.dto.EventScheduleResponseDTO.builder()
+                                .id(s.getId())
+                                .startTime(s.getStartTime())
+                                .activity(s.getActivity())
+                                .build())
+                        .toList() : new java.util.ArrayList<>())
                 .build();
     }
 }

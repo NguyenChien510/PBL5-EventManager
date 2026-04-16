@@ -1,6 +1,7 @@
 package com.pbl.pbl.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import com.pbl.pbl.entity.EventStatus;
@@ -28,6 +29,8 @@ public class EventResponseDTO {
     private CategoryDTO category;
     private ProvinceDTO province;
     private OrganizerInfoDTO organizer;
+    
+    private List<EventScheduleResponseDTO> schedules;
 
     @Data
     @Builder

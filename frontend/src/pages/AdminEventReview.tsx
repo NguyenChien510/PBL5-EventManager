@@ -160,6 +160,27 @@ const AdminEventReview = () => {
               </p>
             </div>
 
+            {/* Schedule */}
+            {event.schedules && event.schedules.length > 0 && (
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="font-bold mb-4 flex items-center gap-2">
+                  <Icon name="event_note" className="text-primary" /> Lịch trình sự kiện
+                </h3>
+                <div className="space-y-4">
+                  {event.schedules.map((item: any, idx: number) => (
+                    <div key={idx} className="flex gap-4 items-center">
+                      <div className="w-16 shrink-0 text-sm font-bold text-slate-500">
+                        {item.startTime ? String(item.startTime).substring(0, 5) : item.time}
+                      </div>
+                      <div className="flex-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <p className="text-sm font-semibold text-slate-800">{item.activity || item.title}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Map Integration */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm overflow-hidden min-h-[450px]">
               <h3 className="font-bold mb-4 flex items-center gap-2">

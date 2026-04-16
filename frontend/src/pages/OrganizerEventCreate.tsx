@@ -40,8 +40,9 @@ function MapUpdater({ center }: { center: L.LatLngExpression }) {
 const steps = [
   { id: 1, title: 'Thông tin cơ bản' },
   { id: 2, title: 'Thời gian & Địa điểm' },
-  { id: 3, title: 'Loại vé & Giá' },
-  { id: 4, title: 'Hoàn tất' }
+  { id: 3, title: 'Lịch trình sự kiện' },
+  { id: 4, title: 'Loại vé & Giá' },
+  { id: 5, title: 'Hoàn tất' }
 ];
 
 const OrganizerEventCreate = () => {
@@ -50,23 +51,23 @@ const OrganizerEventCreate = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [mapCenter, setMapCenter] = useState<L.LatLngExpression>([10.762622, 106.660172]); // default HCMC
   const [pendingWardName, setPendingWardName] = useState<string | null>(null);
-  
+
   const { categories, fetchCategories } = useCategoryStore()
   const { provinces, fetchProvinces, wards, fetchWards } = useLocationStore()
-  
+
   // Custom dropdown state
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<any>(null);
-  
+
   const [isProvinceOpen, setIsProvinceOpen] = useState(false);
   const [selectedProvince, setSelectedProvince] = useState<any>(null);
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isWardOpen, setIsWardOpen] = useState(false);
   const [selectedWard, setSelectedWard] = useState<any>(null);
   const [activeRowDropdown, setActiveRowDropdown] = useState<number | null>(null);
-  
+
   // Ticket & Seat Map State
   const [ticketTypes, setTicketTypes] = useState([
     { id: 1, name: 'Vé Thường', price: 500000, color: 'bg-blue-500', totalQuantity: 100 },
@@ -89,11 +90,17 @@ const OrganizerEventCreate = () => {
     { id: 1, sessionDate: '', startTime: '', endTime: '', name: 'Phiên 1' }
   ]);
 
+  // Schedule State
+  const [schedules, setSchedules] = useState([
+    { id: 1, startTime: '08:00', activity: 'Đón khách' }
+  ]);
+
+
   // Keep wizard UX consistent: each step starts from top
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [currentStep]);
-  
+
   useEffect(() => {
     fetchCategories()
     fetchProvinces()
@@ -162,7 +169,7 @@ const OrganizerEventCreate = () => {
         const normalizedWard = normalizeLocationName(w.name);
         return normalizedPending.includes(normalizedWard) || normalizedWard.includes(normalizedPending);
       });
-      
+
       if (matchedWard) {
         setSelectedWard(matchedWard);
         setPendingWardName(null);
@@ -194,10 +201,10 @@ const OrganizerEventCreate = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-  
+
   const updateLocationDetails = (address: any) => {
     if (!address) return;
-    
+
     // Extract province/city name
     const cityName = address.city || address.province || address.state || address.state_district;
     // Extract ward/suburb name
@@ -209,7 +216,7 @@ const OrganizerEventCreate = () => {
         const normalizedP = normalizeLocationName(p.name);
         return normalizedCity.includes(normalizedP) || normalizedP.includes(normalizedCity);
       });
-      
+
       if (matchedProvince) {
         setSelectedProvince(matchedProvince);
         if (wardName) {
@@ -222,7 +229,7 @@ const OrganizerEventCreate = () => {
   const searchLocation = async () => {
     if (!searchQuery) return;
     try {
-      const query = searchQuery; 
+      const query = searchQuery;
       const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1`);
       const data = await res.json();
       if (data && data.length > 0) {
@@ -231,7 +238,7 @@ const OrganizerEventCreate = () => {
         const newPos = new L.LatLng(parseFloat(lat), parseFloat(lon));
         setMapPosition(newPos);
         setMapCenter(newPos);
-        
+
         if (first.address) {
           updateLocationDetails(first.address);
         }
@@ -294,6 +301,11 @@ const OrganizerEventCreate = () => {
         setCurrentStep(2);
         return;
       }
+      if (schedules.some(s => !s.startTime || !s.activity.trim())) {
+        alert("Vui lòng điền đầy đủ thông tin lịch trình sự kiện");
+        setCurrentStep(2);
+        return;
+      }
       if (ticketTypes.length === 0 || ticketTypes.some(t => !t.name?.trim())) {
         alert("Vui lòng tạo ít nhất 1 hạng vé hợp lệ");
         setCurrentStep(3);
@@ -314,6 +326,10 @@ const OrganizerEventCreate = () => {
           startTime: s.startTime,
           endTime: s.endTime,
           name: s.name
+        })),
+        schedules: schedules.map(s => ({
+          startTime: s.startTime + ':00', // ensure HH:mm:ss for backend
+          activity: s.activity
         })),
         ticketTypes: ticketTypes.map(t => ({
           name: t.name,
@@ -336,7 +352,7 @@ const OrganizerEventCreate = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      
+
       if (res.ok) {
         setIsSubmitted(true);
       } else {
@@ -360,7 +376,7 @@ const OrganizerEventCreate = () => {
     <DashboardLayout sidebarProps={organizerSidebarConfig}>
       <PageHeader title="Tạo Sự Kiện Mới" breadcrumb={['Sự kiện', 'Tạo sự kiện mới']} />
       <div className="p-8 max-w-5xl mx-auto">
-        
+
         {isSubmitted ? (
           <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-16 text-center animate-in fade-in zoom-in-95 duration-700 ease-out fill-mode-both">
             <div className="flex justify-center mb-8">
@@ -370,17 +386,17 @@ const OrganizerEventCreate = () => {
             </div>
             <h2 className="text-3xl font-extrabold text-slate-900 mb-4">Chúc mừng! Sự kiện đã được đăng</h2>
             <p className="text-slate-500 max-w-xl mx-auto mb-12 text-lg font-medium leading-relaxed">
-              Sự kiện của bạn đã được gửi thành công và đang được chuyển tới ban quản trị để phê duyệt. 
+              Sự kiện của bạn đã được gửi thành công và đang được chuyển tới ban quản trị để phê duyệt.
               Bạn có thể theo dõi trạng thái tại bảng điều khiển.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <button 
+              <button
                 onClick={() => window.location.reload()}
                 className="w-full sm:w-auto px-10 py-4 bg-primary text-white rounded-2xl font-bold hover:bg-blue-600 transition-all shadow-lg shadow-primary/25"
               >
                 Tạo thêm sự kiện mới
               </button>
-              <button 
+              <button
                 onClick={() => window.location.href = '/organizer/dashboard'}
                 className="w-full sm:w-auto px-10 py-4 bg-slate-50 text-slate-700 rounded-2xl font-bold hover:bg-slate-100 transition-all border border-slate-200"
               >
@@ -391,19 +407,19 @@ const OrganizerEventCreate = () => {
         ) : (
           <>
             {/* Progress Bar */}
-            <div className="mb-14 mt-4 px-2 sm:px-10">
-              <div className="flex w-full relative z-0">
-                <div className="absolute top-5 h-1 bg-slate-200 rounded-full -z-10" style={{ left: '12.5%', right: '12.5%' }}></div>
-                <div 
-                  className="absolute top-5 h-1 bg-gradient-to-r from-primary to-blue-400 rounded-full -z-10 transition-all duration-700 ease-in-out" 
-                  style={{ left: '12.5%', width: `calc(75% * ${(currentStep - 1) / 3})` }}
+            <div className="mb-14 mt-2 overflow-x-auto custom-scrollbar pt-6 pb-8 -mx-4 px-4 sm:mx-0 sm:px-0">
+              <div className="flex w-full min-w-[750px] relative z-0">
+                <div className="absolute top-5 h-1 bg-slate-200 rounded-full -z-10" style={{ left: '10%', right: '10%' }}></div>
+                <div
+                  className="absolute top-5 h-1 bg-gradient-to-r from-primary to-blue-400 rounded-full -z-10 transition-all duration-700 ease-in-out"
+                  style={{ left: '10%', width: `calc(80% * ${(currentStep - 1) / 4})` }}
                 ></div>
                 {steps.map(step => (
                   <div key={step.id} className="flex-1 flex flex-col items-center relative z-10">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-500 ease-out ${currentStep >= step.id ? 'bg-primary text-white shadow-lg shadow-primary/40 scale-110' : 'bg-white border-2 border-slate-200 text-slate-400 scale-100 delay-100'}`}>
                       {currentStep > step.id ? <Icon name="check" size="sm" /> : step.id}
                     </div>
-                    <span className={`absolute top-12 left-1/2 -translate-x-1/2 w-max text-center text-xs font-bold transition-all duration-500 ${currentStep >= step.id ? 'text-slate-800' : 'text-slate-400'}`}>
+                    <span className={`absolute top-12 left-1/2 -translate-x-1/2 w-max text-center text-[13px] font-bold transition-all duration-500 ${currentStep >= step.id ? 'text-slate-800' : 'text-slate-400'}`}>
                       {step.title}
                     </span>
                   </div>
@@ -484,6 +500,7 @@ const OrganizerEventCreate = () => {
                       </div>
                     ))}
                   </div>
+
                   <div className="h-px bg-slate-200 w-full my-8" />
                   <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -496,7 +513,7 @@ const OrganizerEventCreate = () => {
                           </button>
                           {isProvinceOpen && (
                             <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200 max-h-60 overflow-y-auto shadow-sky-900/10">
-                              {provinces.map((p) => ( <button key={p.id} onClick={() => { setSelectedProvince(p); setIsProvinceOpen(false); }} className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${selectedProvince?.id === p.id ? 'bg-primary/5 text-primary font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'}`}>{p.name}</button> ))}
+                              {provinces.map((p) => (<button key={p.id} onClick={() => { setSelectedProvince(p); setIsProvinceOpen(false); }} className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${selectedProvince?.id === p.id ? 'bg-primary/5 text-primary font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'}`}>{p.name}</button>))}
                             </div>
                           )}
                         </div>
@@ -510,7 +527,7 @@ const OrganizerEventCreate = () => {
                           </button>
                           {isWardOpen && (
                             <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200 max-h-60 overflow-y-auto shadow-sky-900/10">
-                              {wards.map((w) => ( <button key={w.id} onClick={() => { setSelectedWard(w); setIsWardOpen(false); }} className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${selectedWard?.id === w.id ? 'bg-primary/5 text-primary font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'}`}>{w.name}</button> ))}
+                              {wards.map((w) => (<button key={w.id} onClick={() => { setSelectedWard(w); setIsWardOpen(false); }} className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${selectedWard?.id === w.id ? 'bg-primary/5 text-primary font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'}`}>{w.name}</button>))}
                             </div>
                           )}
                         </div>
@@ -535,6 +552,35 @@ const OrganizerEventCreate = () => {
               )}
 
               {currentStep === 3 && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500 ease-out fill-mode-both">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h2 className="text-2xl font-extrabold text-slate-900">Lịch trình sự kiện</h2>
+                      <p className="text-sm text-slate-500 font-medium">Chi tiết các hoạt động diễn ra trong cùng một sự kiện</p>
+                    </div>
+                    <button onClick={() => setSchedules([...schedules, { id: Date.now(), startTime: '', activity: '' }])} className="px-4 py-2 bg-primary/10 text-primary font-bold rounded-xl hover:bg-primary/20 transition-colors flex items-center gap-2 text-sm">
+                      <Icon name="add" size="sm" /> Thêm hoạt động
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    {schedules.map((sched, index) => (
+                      <div key={sched.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl relative group flex flex-col md:flex-row gap-4 items-start md:items-center">
+                        <div className="w-full md:w-1/4">
+                          <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">Thời gian</label>
+                          <input type="time" value={sched.startTime} onChange={(e) => { const newSchedules = [...schedules]; newSchedules[index].startTime = e.target.value; setSchedules(newSchedules); }} className={smoothFieldClass + " py-2"} />
+                        </div>
+                        <div className="flex-1 w-full relative">
+                          <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">Hoạt động</label>
+                          <input type="text" placeholder="VD: Đón khách và Check-in..." value={sched.activity} onChange={(e) => { const newSchedules = [...schedules]; newSchedules[index].activity = e.target.value; setSchedules(newSchedules); }} className={smoothFieldClass + " py-2 pr-10"} />
+                        </div>
+                        {schedules.length > 1 && <button onClick={() => setSchedules(schedules.filter(s => s.id !== sched.id))} className="absolute -top-3 -right-3 w-8 h-8 bg-white border border-slate-200 text-red-400 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all shadow-sm opacity-0 group-hover:opacity-100"><Icon name="close" size="sm" /></button>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {currentStep === 4 && (
                 <div className="space-y-10 animate-in fade-in slide-in-from-right-8 duration-500 ease-out fill-mode-both">
                   <div className="flex items-center justify-between">
                     <div><h2 className="text-2xl font-extrabold text-slate-900">1. Các loại vé</h2><p className="text-sm text-slate-500 font-medium">Định nghĩa các hạng vé và mức giá của bạn</p></div>
@@ -584,23 +630,25 @@ const OrganizerEventCreate = () => {
                         </div>
                         <div className="space-y-3">
                           <label className="text-sm font-bold text-slate-700 mb-2 block">Gán hạng vé theo hàng</label>
-                          <div className={`max-h-[300px] pr-2 space-y-2 custom-scrollbar ${activeRowDropdown !== null ? 'overflow-visible' : 'overflow-y-auto'}`}>
-                            {Array.from({ length: rowCount }, (_, i) => i + 1).map(rowIdx => (
-                              <div key={rowIdx} className={`flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 ${activeRowDropdown === rowIdx ? 'relative z-[60]' : 'relative z-10'}`}>
-                                <span className="w-8 h-8 flex items-center justify-center bg-white rounded-lg text-xs font-black shadow-sm border border-slate-100">{getRowLetter(rowIdx)}</span>
+                          <div className="max-h-[300px] pr-2 space-y-2 custom-scrollbar overflow-y-auto pb-4">
+                            {Array.from({ length: rowCount }, (_, i) => i + 1).map(rowIdx => {
+                              const shouldFlipUp = rowCount > 3 && rowIdx >= rowCount - 2;
+                              return (
+                              <div key={rowIdx} className={`flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 relative ${activeRowDropdown === rowIdx ? 'z-50' : 'z-10'}`}>
+                                <span className={`w-8 h-8 flex items-center justify-center bg-white rounded-lg text-xs font-black shadow-sm border ${activeRowDropdown === rowIdx ? 'border-primary text-primary' : 'border-slate-100 text-slate-700'}`}>{getRowLetter(rowIdx)}</span>
                                 <div className="relative flex-1" data-row-assignment-dropdown="true">
                                   <button
                                     type="button"
                                     onClick={() => setActiveRowDropdown(activeRowDropdown === rowIdx ? null : rowIdx)}
-                                    className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none transition-all shadow-sm hover:border-slate-300 focus:border-slate-300 focus:ring-4 focus:ring-slate-200/60"
+                                    className={`w-full flex items-center justify-between px-4 py-3 border rounded-xl text-sm font-bold outline-none transition-all shadow-sm ${activeRowDropdown === rowIdx ? 'bg-white border-primary ring-4 ring-primary/10 text-slate-800' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'}`}
                                   >
                                     <span>
                                       {ticketTypes.find(t => t.id === (rowAssignments[rowIdx] || ticketTypes[0].id))?.name || 'Chọn hạng vé'}
                                     </span>
-                                    <Icon name={activeRowDropdown === rowIdx ? "expand_less" : "expand_more"} className="text-slate-400" />
+                                    <Icon name={activeRowDropdown === rowIdx ? "expand_less" : "expand_more"} className={activeRowDropdown === rowIdx ? 'text-primary' : 'text-slate-400'} />
                                   </button>
                                   {activeRowDropdown === rowIdx && (
-                                    <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200 shadow-sky-900/10">
+                                    <div className={`absolute z-[100] left-0 w-full bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in duration-200 ${shouldFlipUp ? 'bottom-[calc(100%+8px)] slide-in-from-bottom-2' : 'top-[calc(100%+8px)] slide-in-from-top-2'}`}>
                                       {ticketTypes.map(t => (
                                         <button
                                           key={t.id}
@@ -609,20 +657,22 @@ const OrganizerEventCreate = () => {
                                             setRowAssignments({ ...rowAssignments, [rowIdx]: t.id });
                                             setActiveRowDropdown(null);
                                           }}
-                                          className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                                            (rowAssignments[rowIdx] || ticketTypes[0].id) === t.id
-                                              ? 'bg-primary/5 text-primary font-bold'
-                                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
-                                          }`}
+                                          className={`w-full flex justify-between items-center px-4 py-2.5 text-sm transition-colors ${(rowAssignments[rowIdx] || ticketTypes[0].id) === t.id
+                                            ? 'bg-slate-50 text-slate-900 font-bold'
+                                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
+                                            }`}
                                         >
-                                          {t.name}
+                                          <span>{t.name}</span>
+                                          {(rowAssignments[rowIdx] || ticketTypes[0].id) === t.id && (
+                                            <Icon name="check" size="sm" className="text-primary" />
+                                          )}
                                         </button>
                                       ))}
                                     </div>
                                   )}
                                 </div>
                               </div>
-                            ))}
+                            )})}
                           </div>
                         </div>
                       </div>
@@ -632,7 +682,7 @@ const OrganizerEventCreate = () => {
                           {Array.from({ length: rowCount }, (_, i) => i + 1).map(rowIdx => {
                             const ttId = rowAssignments[rowIdx] || ticketTypes[0].id;
                             const tt = ticketTypes.find(t => t.id === ttId);
-                            return ( <div key={rowIdx} className="flex gap-1.5 items-center"> <span className="text-[10px] font-bold text-slate-600 w-4 text-center">{getRowLetter(rowIdx)}</span> <div className="flex gap-1"> {Array.from({ length: seatsPerRow }, (_, j) => j + 1).map(colIdx => ( <div key={colIdx} className={`w-3.5 h-3.5 rounded-sm ${tt?.color || 'bg-slate-700'} opacity-80 hover:opacity-100 transition-opacity cursor-default`} title={`${getRowLetter(rowIdx)}${colIdx} - ${tt?.name}`} /> ))} </div> </div> );
+                            return (<div key={rowIdx} className="flex gap-1.5 items-center"> <span className="text-[10px] font-bold text-slate-600 w-4 text-center">{getRowLetter(rowIdx)}</span> <div className="flex gap-1"> {Array.from({ length: seatsPerRow }, (_, j) => j + 1).map(colIdx => (<div key={colIdx} className={`w-3.5 h-3.5 rounded-sm ${tt?.color || 'bg-slate-700'} opacity-80 hover:opacity-100 transition-opacity cursor-default`} title={`${getRowLetter(rowIdx)}${colIdx} - ${tt?.name}`} />))} </div> </div>);
                           })}
                         </div>
                       </div>
@@ -641,7 +691,7 @@ const OrganizerEventCreate = () => {
                 </div>
               )}
 
-              {currentStep === 4 && (
+              {currentStep === 5 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500 ease-out fill-mode-both max-w-2xl mx-auto text-center py-8">
                   <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6"><Icon name="check_circle" className="text-green-500 text-5xl" /></div>
                   <h2 className="text-3xl font-extrabold text-slate-900">Hoàn tất thiết lập!</h2>
@@ -656,7 +706,7 @@ const OrganizerEventCreate = () => {
                 <Icon name="arrow_back" size="sm" /> Quay lại
               </button>
               <div className="flex gap-3">
-                {currentStep < 4 ? (
+                {currentStep < 5 ? (
                   <button onClick={nextStep} className="px-8 py-3 bg-primary text-white font-bold rounded-xl hover:bg-blue-600 transition-all shadow-lg shadow-primary/30 flex items-center gap-2"> Tiếp tục <Icon name="arrow_forward" size="sm" /> </button>
                 ) : (
                   <button onClick={handleCreateEvent} disabled={isSubmitting} className="px-8 py-3 bg-green-500 text-white font-bold rounded-xl hover:bg-green-600 transition-all shadow-lg shadow-green-500/30 flex items-center gap-2 disabled:opacity-50">

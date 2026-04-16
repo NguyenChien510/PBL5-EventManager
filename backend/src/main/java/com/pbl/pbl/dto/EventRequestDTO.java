@@ -16,4 +16,5 @@ public class EventRequestDTO {
     private List<EventSessionRequestDTO> sessions;
     private SeatMapConfigRequestDTO seatMapConfig;
     private List<TicketTypeRequestDTO> ticketTypes;
+    private List<EventScheduleRequestDTO> schedules;
 }
