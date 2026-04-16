@@ -11,7 +11,6 @@ const sidebarConfig = adminSidebarConfig
 const recentActivities = [
   { icon: 'check', iconBg: 'bg-green-100', iconColor: 'text-green-600', title: 'Đã duyệt "Music Night"', by: 'Admin Nguyễn', time: '5 phút trước' },
   { icon: 'close', iconBg: 'bg-red-100', iconColor: 'text-red-600', title: 'Từ chối "Seminar Crypto"', by: 'Admin Trần', time: '12 phút trước' },
-  { icon: 'edit', iconBg: 'bg-blue-100', iconColor: 'text-blue-600', title: 'Yêu cầu sửa "Startup Pitch"', by: 'Admin Nguyễn', time: '45 phút trước' },
 ]
 
 const AdminEventModeration = () => {
@@ -39,15 +38,13 @@ const AdminEventModeration = () => {
 
   const filteredEvents = events.filter(evt => {
     if (activeTab === 'Danh sách chờ duyệt') return evt.status === 'pending'
-    if (activeTab === 'Đã duyệt') return evt.status === 'upcoming' || evt.status === 'rejected'
-    if (activeTab === 'Đang chỉnh sửa') return evt.status === 'editing'
+    if (activeTab === 'Lịch sử xử lý') return evt.status === 'upcoming' || evt.status === 'rejected'
     return true
   })
 
   const stats = {
     pending: events.filter(e => e.status === 'pending').length,
-    approved: events.filter(e => e.status === 'upcoming' || e.status === 'rejected').length,
-    editing: events.filter(e => e.status === 'editing').length
+    processed: events.filter(e => e.status === 'upcoming' || e.status === 'rejected').length,
   }
   return (
     <DashboardLayout sidebarProps={sidebarConfig}>
@@ -55,17 +52,16 @@ const AdminEventModeration = () => {
 
       <div className="p-8 space-y-8">
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <StatCard label="Danh sách chờ duyệt" value={stats.pending} icon="pending_actions" iconBg="bg-primary/10" iconColor="text-primary" />
-          <StatCard label="Đã duyệt" value={stats.approved} icon="check_circle" iconBg="bg-green-100" iconColor="text-green-600" />
-          <StatCard label="Đang chỉnh sửa" value={stats.editing} icon="edit_note" iconBg="bg-blue-100" iconColor="text-blue-500" />
+          <StatCard label="Lịch sử xử lý" value={stats.processed} icon="history" iconBg="bg-green-100" iconColor="text-green-600" />
         </div>
 
         {/* Tabs */}
         <div className="space-y-4">
           <div className="flex items-center justify-between border-b border-slate-200">
             <div className="flex gap-8">
-              {[`Danh sách chờ duyệt (${stats.pending})`, `Đã duyệt (${stats.approved})`, `Đang chỉnh sửa (${stats.editing})`].map((tab) => (
+              {[`Danh sách chờ duyệt (${stats.pending})`, `Lịch sử xử lý (${stats.processed})`].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab.split(' (')[0])}

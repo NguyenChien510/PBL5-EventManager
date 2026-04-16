@@ -40,8 +40,12 @@ export class EventService {
     return response.data;
   }
 
-  static async updateEventStatus(id: number | string, status: string) {
-    const response = await apiClient.patch(`/events/admin/${id}/status?status=${status}`);
+  static async updateEventStatus(id: number | string, status: string, rejectReason?: string) {
+    let url = `/events/admin/${id}/status?status=${status}`;
+    if (rejectReason) {
+      url += `&rejectReason=${encodeURIComponent(rejectReason)}`;
+    }
+    const response = await apiClient.patch(url);
     return response.data;
   }
 }

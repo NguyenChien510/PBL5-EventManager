@@ -80,7 +80,7 @@ public class EventController {
     }
 
     @PatchMapping("/admin/{id}/status")
-    public ResponseEntity<Event> updateEventStatus(@PathVariable Long id, @RequestParam com.pbl.pbl.entity.EventStatus status) {
-        return ResponseEntity.ok(eventService.updateEventStatus(id, status));
+    public ResponseEntity<Event> updateEventStatus(@PathVariable Long id, @RequestParam com.pbl.pbl.entity.EventStatus status, @RequestParam(required = false) String rejectReason) {
+        return ResponseEntity.ok(eventService.updateEventStatus(id, status, rejectReason));
     }
 }

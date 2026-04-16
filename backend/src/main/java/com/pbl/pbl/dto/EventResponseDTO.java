@@ -24,6 +24,7 @@ public class EventResponseDTO {
     private LocalDateTime endTime;
     private String posterUrl;
     private EventStatus status;
+    private String rejectReason;
     private LocalDateTime createdAt;
     
     private CategoryDTO category;

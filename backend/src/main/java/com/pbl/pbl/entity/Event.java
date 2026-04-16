@@ -91,4 +91,7 @@ public class Event {
     @Builder.Default
     private List<EventSchedule> schedules = new ArrayList<>();
 
+    @Column(columnDefinition = "TEXT")
+    private String rejectReason;
+
 }

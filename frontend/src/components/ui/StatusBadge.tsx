@@ -1,7 +1,7 @@
 import React from 'react'
 
 interface StatusBadgeProps {
-  status: 'active' | 'inactive' | 'pending' | 'rejected' | 'locked' | 'editing' | 'approved'
+  status: 'active' | 'inactive' | 'pending' | 'rejected' | 'locked' | 'approved'
   label?: string
   className?: string
 }
@@ -10,7 +10,6 @@ const statusStyles: Record<string, { bg: string; text: string; dot: string; defa
   active: { bg: '', text: 'text-green-600', dot: 'bg-green-500', defaultLabel: 'Hoạt động' },
   approved: { bg: '', text: 'text-green-600', dot: 'bg-green-500', defaultLabel: 'Đã duyệt' },
   pending: { bg: '', text: 'text-orange-500', dot: 'bg-orange-500 animate-pulse', defaultLabel: 'Chờ duyệt' },
-  editing: { bg: '', text: 'text-blue-500', dot: 'bg-blue-500', defaultLabel: 'Đang sửa lại' },
   rejected: { bg: '', text: 'text-red-500', dot: 'bg-red-500', defaultLabel: 'Bị từ chối' },
   locked: { bg: '', text: 'text-red-500', dot: 'bg-red-500', defaultLabel: 'Bị khóa' },
   inactive: { bg: '', text: 'text-slate-400', dot: 'bg-slate-400', defaultLabel: 'Không hoạt động' },

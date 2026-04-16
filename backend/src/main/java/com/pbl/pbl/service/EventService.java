@@ -74,8 +74,18 @@ public class EventService {
     }
 
     @Transactional
-    public Event updateEventStatus(Long id, EventStatus status) {
+    public Event updateEventStatus(Long id, EventStatus status, String rejectReason) {
         Event event = getEventById(id);
+        
+        if (status == EventStatus.rejected) {
+            if (rejectReason == null || rejectReason.trim().isEmpty()) {
+                throw new IllegalArgumentException("Lý do từ chối không được để trống");
+            }
+            event.setRejectReason(rejectReason);
+        } else {
+            event.setRejectReason(null); // Clear reason if it's no longer rejected
+        }
+        
         event.setStatus(status);
         return eventRepository.save(event);
     }
@@ -350,6 +360,7 @@ public class EventService {
                 .endTime(event.getEndTime())
                 .posterUrl(event.getPosterUrl())
                 .status(event.getStatus())
+                .rejectReason(event.getRejectReason())
                 .createdAt(event.getCreatedAt())
                 .category(event.getCategory() != null ? com.pbl.pbl.dto.EventResponseDTO.CategoryDTO.builder()
                         .id(event.getCategory().getId())
