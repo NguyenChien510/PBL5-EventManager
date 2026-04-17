@@ -7,7 +7,8 @@ import lombok.Data;
 public class EventRequestDTO {
     private String title;
     private Long categoryId;
-    private String artists;
+    private List<String> artists;
+
     private String description;
     private String location;
     private Long provinceId;

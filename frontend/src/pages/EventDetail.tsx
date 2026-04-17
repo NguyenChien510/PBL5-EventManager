@@ -165,15 +165,17 @@ const EventDetail = () => {
                 <span className="w-1.5 h-6 bg-primary rounded-full" /> Nghệ sĩ biểu diễn
               </h2>
               <div className="grid grid-cols-3 gap-4">
-                {artists.map((artist) => (
+                {(event.artists || []).map((artist: any) => (
                   <div key={artist.name} className="bg-white rounded-2xl border border-slate-100 p-4 text-center hover:shadow-lg transition-all">
-                    <img src={artist.avatar} alt={artist.name} className="w-20 h-20 rounded-full mx-auto mb-3 object-cover" />
-                    <p className="font-bold text-sm">{artist.name}</p>
-                    <p className="text-xs text-slate-500">{artist.role}</p>
+                    <img src={artist.avatar} alt={artist.name} className="w-20 h-20 rounded-full mx-auto mb-3 object-cover shadow-sm" />
+                    <p className="font-bold text-sm text-slate-800">{artist.name}</p>
+                    <p className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1 opacity-80">Nghệ sĩ</p>
                   </div>
                 ))}
               </div>
             </section>
+
+
           </div>
 
           {/* Sidebar */}

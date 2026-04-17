@@ -48,6 +48,8 @@ public class EventService {
     private final ProvinceRepository provinceRepository;
     private final WardRepository wardRepository;
     private final EventScheduleRepository eventScheduleRepository;
+    private final ArtistService artistService;
+
 
     @Transactional(readOnly = true)
     public List<Event> getUpcomingEvents() {
@@ -245,12 +247,18 @@ public class EventService {
             .map(s -> LocalDateTime.of(s.getSessionDate(), s.getEndTime()))
             .max(LocalDateTime::compareTo).orElse(LocalDateTime.now());
 
+        List<com.pbl.pbl.entity.Artist> artists = request.getArtists() != null 
+            ? request.getArtists().stream()
+                .map(artistService::getOrCreateArtist)
+                .toList()
+            : new java.util.ArrayList<>();
+
         Event event = Event.builder()
             .title(request.getTitle())
             .category(category)
             .province(province)
             .ward(ward)
-            .artists(request.getArtists())
+            .artists(artists)
             .description(request.getDescription())
             .location(request.getLocation())
             .startTime(eventStart)
@@ -258,6 +266,7 @@ public class EventService {
             .posterUrl(request.getPosterUrl())
             .status(EventStatus.pending)
             .build();
+
 
         event = eventRepository.save(event);
 
@@ -362,6 +371,10 @@ public class EventService {
                 .status(event.getStatus())
                 .rejectReason(event.getRejectReason())
                 .createdAt(event.getCreatedAt())
+                .artists(event.getArtists().stream()
+                        .map(artistService::convertToDTO)
+                        .toList())
+
                 .category(event.getCategory() != null ? com.pbl.pbl.dto.EventResponseDTO.CategoryDTO.builder()
                         .id(event.getCategory().getId())
                         .name(event.getCategory().getName())

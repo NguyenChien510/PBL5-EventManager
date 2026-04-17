@@ -42,7 +42,9 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/api/locations/**").permitAll()
                         .requestMatchers("/api/events/**").permitAll()
+                        .requestMatchers("/api/artists/**").permitAll()
                         .requestMatchers("/api/payment/**").permitAll()
+
                         .requestMatchers("/events/**").permitAll()
                         .anyRequest().authenticated()
                 )

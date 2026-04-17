@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useCategoryStore } from '../stores/useCategoryStore';
 import { useLocationStore } from '../stores/useLocationStore';
 import { Icon } from '../components/ui';
+import { ArtistService } from '../services/artistService';
+
 import { DashboardLayout, PageHeader } from '../components/layout';
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
@@ -81,8 +83,12 @@ const OrganizerEventCreate = () => {
 
   // Basic Info State
   const [title, setTitle] = useState('');
-  const [artists, setArtists] = useState('');
+  const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
+  const [artistQuery, setArtistQuery] = useState('');
+  const [artistSuggestions, setArtistSuggestions] = useState<any[]>([]);
+  const [isArtistDropdownOpen, setIsArtistDropdownOpen] = useState(false);
   const [description, setDescription] = useState('');
+
   const [posterUrl, setPosterUrl] = useState('https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&auto=format&fit=crop');
 
   // Time State
@@ -105,6 +111,19 @@ const OrganizerEventCreate = () => {
     fetchCategories()
     fetchProvinces()
   }, [fetchCategories, fetchProvinces])
+
+  // Smart Backend-driven Search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      ArtistService.search(artistQuery, selectedArtists)
+        .then(setArtistSuggestions)
+        .catch(console.error);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [artistQuery, selectedArtists]);
+
+
 
   useEffect(() => {
     if (categories.length > 0 && !selectedCategory) {
@@ -180,6 +199,8 @@ const OrganizerEventCreate = () => {
   const categoryRef = useRef<HTMLDivElement>(null);
   const provinceRef = useRef<HTMLDivElement>(null);
   const wardRef = useRef<HTMLDivElement>(null);
+  const artistRef = useRef<HTMLDivElement>(null);
+
 
   // Handle click outside for dropdowns
   useEffect(() => {
@@ -194,6 +215,10 @@ const OrganizerEventCreate = () => {
       if (wardRef.current && !wardRef.current.contains(event.target as Node)) {
         setIsWardOpen(false);
       }
+      if (artistRef.current && !artistRef.current.contains(event.target as Node)) {
+        setIsArtistDropdownOpen(false);
+      }
+
       if (!target.closest('[data-row-assignment-dropdown="true"]')) {
         setActiveRowDropdown(null);
       }
@@ -201,6 +226,19 @@ const OrganizerEventCreate = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const addArtist = (name: string) => {
+    if (name.trim() && !selectedArtists.includes(name.trim())) {
+      setSelectedArtists([...selectedArtists, name.trim()]);
+    }
+    setArtistQuery('');
+    setIsArtistDropdownOpen(false);
+  };
+
+  const removeArtist = (name: string) => {
+    setSelectedArtists(selectedArtists.filter(a => a !== name));
+  };
+
 
   const updateLocationDetails = (address: any) => {
     if (!address) return;
@@ -315,8 +353,9 @@ const OrganizerEventCreate = () => {
       const payload = {
         title,
         categoryId: selectedCategory?.id,
-        artists,
+        artists: selectedArtists,
         description,
+
         location: searchQuery,
         provinceId: selectedProvince?.id,
         wardId: selectedWard?.id,
@@ -369,13 +408,68 @@ const OrganizerEventCreate = () => {
 
   const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 4));
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
-  const smoothFieldClass = "w-full px-4 py-3 bg-slate-50 border border-slate-200 outline-none transition-all rounded-xl shadow-sm focus:border-slate-300 focus:ring-4 focus:ring-slate-200/60";
-  const smoothDropdownClass = "w-full flex items-center justify-between px-4 py-3 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl text-left outline-none transition-all focus:border-slate-300 focus:ring-4 focus:ring-slate-200/60";
+  const getStepColor = () => {
+    return {
+      border: 'focus:border-blue-400',
+      ring: 'focus:ring-blue-100/60',
+      text: 'text-blue-600',
+      bg: 'bg-blue-50/50',
+      gradient: 'bg-gradient-to-r from-blue-600 to-indigo-600'
+    };
+  };
+
+  const stepColor = getStepColor();
+  const smoothFieldClass = `w-full px-4 py-3 bg-slate-50 border border-slate-200 outline-none transition-all rounded-xl shadow-sm ${stepColor.border} focus:ring-4 ${stepColor.ring}`;
+  const smoothDropdownClass = `w-full flex items-center justify-between px-4 py-3 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl text-left outline-none transition-all ${stepColor.border} focus:ring-4 ${stepColor.ring}`;
+
+  const compactProgressBar = (
+    <div className="flex items-center gap-2 w-full max-w-2xl">
+      {steps.map((step, idx) => {
+        const isActive = currentStep === step.id;
+        const isCompleted = currentStep > step.id;
+        return (
+          <div key={step.id} className="flex items-center flex-1 last:flex-none group">
+            <div className="flex flex-col items-center relative">
+              <div
+                className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black transition-all duration-500 ${isActive
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-200 scale-110'
+                  : isCompleted
+                    ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                    : 'bg-slate-50 text-slate-400 border border-slate-100'
+                  }`}
+              >
+                {isCompleted ? <Icon name="check" size="xs" /> : step.id}
+              </div>
+              <span className={`absolute -bottom-6 text-[10px] font-bold uppercase tracking-tight transition-all duration-300 w-max ${isActive ? 'text-blue-600' : 'text-slate-400'}`}>
+                {step.title}
+              </span>
+            </div>
+            {idx < steps.length - 1 && (
+              <div className={`h-0.5 flex-1 mx-1.5 rounded-full transition-all duration-700 ${isCompleted ? 'bg-blue-600' : 'bg-slate-100'}`} />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  );
+
 
   return (
     <DashboardLayout sidebarProps={organizerSidebarConfig}>
-      <PageHeader title="Tạo Sự Kiện Mới" breadcrumb={['Sự kiện', 'Tạo sự kiện mới']} />
-      <div className="p-8 max-w-5xl mx-auto">
+      <PageHeader
+        title="Tạo Sự Kiện Mới"
+        breadcrumb={['Sự kiện', 'Tạo sự kiện mới']}
+        centerContent={compactProgressBar}
+      />
+
+      <div className={`p-6 mx-auto transition-all duration-500 ${currentStep === 1 ? 'max-w-5xl' :
+          currentStep === 3 ? 'max-w-[1700px]' :
+            'max-w-7xl'
+        }`}>
+
+
+
+
 
         {isSubmitted ? (
           <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-16 text-center animate-in fade-in zoom-in-95 duration-700 ease-out fill-mode-both">
@@ -406,40 +500,28 @@ const OrganizerEventCreate = () => {
           </div>
         ) : (
           <>
-            {/* Progress Bar */}
-            <div className="mb-14 mt-2 overflow-x-auto custom-scrollbar pt-6 pb-8 -mx-4 px-4 sm:mx-0 sm:px-0">
-              <div className="flex w-full min-w-[750px] relative z-0">
-                <div className="absolute top-5 h-1 bg-slate-200 rounded-full -z-10" style={{ left: '10%', right: '10%' }}></div>
-                <div
-                  className="absolute top-5 h-1 bg-gradient-to-r from-primary to-blue-400 rounded-full -z-10 transition-all duration-700 ease-in-out"
-                  style={{ left: '10%', width: `calc(80% * ${(currentStep - 1) / 4})` }}
-                ></div>
-                {steps.map(step => (
-                  <div key={step.id} className="flex-1 flex flex-col items-center relative z-10">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-500 ease-out ${currentStep >= step.id ? 'bg-primary text-white shadow-lg shadow-primary/40 scale-110' : 'bg-white border-2 border-slate-200 text-slate-400 scale-100 delay-100'}`}>
-                      {currentStep > step.id ? <Icon name="check" size="sm" /> : step.id}
-                    </div>
-                    <span className={`absolute top-12 left-1/2 -translate-x-1/2 w-max text-center text-[13px] font-bold transition-all duration-500 ${currentStep >= step.id ? 'text-slate-800' : 'text-slate-400'}`}>
-                      {step.title}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+
 
             {/* Content Area */}
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 min-h-[400px]">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 min-h-[400px]">
+
               {currentStep === 1 && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500 ease-out fill-mode-both">
-                  <h2 className="text-2xl font-extrabold text-slate-900 mb-6">Thông tin sự kiện</h2>
-                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                    <div className="lg:col-span-2 space-y-5">
+                <div className="space-y-4 w-full animate-in fade-in slide-in-from-right-8 duration-500 ease-out fill-mode-both">
+                  <h2 className={`text-xl font-extrabold mb-4 ${stepColor.text}`}>Thông tin sự kiện</h2>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start w-full">
+
+
+
+                    <div className="space-y-4 w-full">
+
+
                       <div>
-                        <label className="text-sm font-bold text-slate-700 mb-2 block">Tên sự kiện *</label>
+                        <label className={`text-sm font-bold mb-2 block ${stepColor.text}`}>Tên sự kiện *</label>
                         <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Nhập tên sự kiện..." className={smoothFieldClass} />
                       </div>
                       <div>
-                        <label className="text-sm font-bold text-slate-700 mb-2 block">Thể loại *</label>
+                        <label className={`text-sm font-bold mb-2 block ${stepColor.text}`}>Thể loại *</label>
+
                         <div className="relative" ref={categoryRef}>
                           <button onClick={() => setIsCategoryOpen(!isCategoryOpen)} className={smoothDropdownClass}>
                             <span className="font-semibold text-slate-700">{selectedCategory?.name || 'Chọn thể loại'}</span>
@@ -455,17 +537,79 @@ const OrganizerEventCreate = () => {
                         </div>
                       </div>
                       <div>
-                        <label className="text-sm font-bold text-slate-700 mb-2 block">Nghệ sĩ biểu diễn</label>
-                        <input type="text" value={artists} onChange={(e) => setArtists(e.target.value)} placeholder="Tên các nghệ sĩ..." className={smoothFieldClass} />
+                        <label className={`text-sm font-bold mb-2 block ${stepColor.text}`}>Nghệ sĩ biểu diễn (Multi-Tag Selection)</label>
+                        <div className="relative" ref={artistRef}>
+
+                          <div className={`flex flex-wrap gap-2 p-2 min-h-[50px] max-h-32 overflow-y-auto w-full px-4 py-3 bg-slate-50 border border-slate-200 outline-none transition-all rounded-xl shadow-sm ${stepColor.border} focus:ring-4 ${stepColor.ring}`}>
+                            {selectedArtists.map((artist) => (
+                              <span key={artist} className={`inline-flex items-center gap-1.5 px-2.5 py-1 ${stepColor.bg} ${stepColor.text} text-[11px] font-bold rounded-lg border border-current/20 animate-in zoom-in-95 duration-200 h-fit`}>
+                                {artist}
+                                <button type="button" onClick={() => removeArtist(artist)} className="hover:text-red-500 transition-colors flex items-center">
+                                  <Icon name="close" size="xs" />
+                                </button>
+                              </span>
+                            ))}
+
+                            <input
+                              type="text"
+                              value={artistQuery}
+                              onFocus={() => setIsArtistDropdownOpen(true)}
+                              onChange={(e) => setArtistQuery(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  addArtist(artistQuery);
+                                }
+                              }}
+                              placeholder={selectedArtists.length === 0 ? "Tìm kiếm hoặc nhập nghệ sĩ..." : ""}
+                              className="flex-1 bg-transparent border-none outline-none text-sm min-w-[140px] self-center"
+                            />
+                          </div>
+
+
+                          {isArtistDropdownOpen && (
+
+                            <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200 shadow-sky-900/10 max-h-48 overflow-y-auto">
+                              {artistSuggestions.length > 0 ? (
+                                artistSuggestions.map(a => (
+                                  <button
+                                    key={a.id}
+                                    onClick={() => addArtist(a.name)}
+                                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 font-medium text-slate-600 transition-colors"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <img src={a.avatar} alt={a.name} className="w-6 h-6 rounded-full object-cover" />
+                                      {a.name}
+                                    </div>
+                                  </button>
+                                ))
+                              ) : (
+                                !artistQuery && <div className="px-4 py-2.5 text-xs text-slate-400 italic">Bắt đầu nhập để tìm kiếm nghệ sĩ...</div>
+                              )}
+
+                              <button
+                                onClick={() => addArtist(artistQuery)}
+                                className="w-full text-left px-4 py-2.5 text-xs italic text-primary hover:bg-primary/5 font-bold transition-colors border-t border-slate-50"
+                              >
+                                + Thêm nghệ sĩ mới: "{artistQuery}"
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
+
                       <div>
-                        <label className="text-sm font-bold text-slate-700 mb-2 block">Mô tả chi tiết *</label>
-                        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Mô tả trải nghiệm sự kiện..." className={`${smoothFieldClass} min-h-[160px]`} />
+                        <label className={`text-sm font-bold mb-2 block ${stepColor.text}`}>Mô tả chi tiết *</label>
+                        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Mô tả trải nghiệm sự kiện..." className={`${smoothFieldClass} min-h-[120px]`} />
+
                       </div>
+
                     </div>
-                    <div className="lg:col-span-3 flex flex-col">
-                      <label className="text-sm font-bold text-slate-700 mb-2 block">Ảnh bìa (Cover Image)</label>
-                      <div className="flex-1 w-full bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all group min-h-[300px] overflow-hidden relative">
+                    <div className="flex flex-col">
+                      <label className={`text-sm font-bold mb-2 block ${stepColor.text}`}>Ảnh bìa (Cover Image)</label>
+                      <div className={`flex-1 w-full bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center cursor-pointer hover:border-blue-400/50 hover:bg-blue-50/10 transition-all group min-h-[220px] overflow-hidden relative`}>
+
+
                         {posterUrl ? <img src={posterUrl} alt="Preview" className="w-full h-full object-cover" /> : (
                           <>
                             <div className="w-20 h-20 bg-white rounded-full shadow-sm flex items-center justify-center mb-5 group-hover:scale-110 transition-transform"><Icon name="cloud_upload" className="text-primary text-3xl" /></div>
@@ -481,94 +625,142 @@ const OrganizerEventCreate = () => {
               )}
 
               {currentStep === 2 && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500 ease-out fill-mode-both">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-extrabold text-slate-900">Thời gian & Địa điểm</h2>
-                    <button onClick={() => setSessions([...sessions, { id: Date.now(), sessionDate: '', startTime: '', endTime: '', name: `Phiên ${sessions.length + 1}` }])} className="px-4 py-2 bg-primary/10 text-primary font-bold rounded-xl hover:bg-primary/20 transition-colors flex items-center gap-2 text-sm">
-                      <Icon name="add" size="sm" /> Thêm phiên
-                    </button>
-                  </div>
-                  <div className="space-y-6">
-                    {sessions.map((session, index) => (
-                      <div key={session.id} className="p-6 bg-slate-50 border border-slate-200 rounded-2xl relative group">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                          <div><label className="text-xs font-bold text-slate-400 mb-1 block uppercase tracking-wider">{session.name} - Ngày diễn ra</label><input type="date" value={session.sessionDate} onChange={(e) => { const newSessions = [...sessions]; newSessions[index].sessionDate = e.target.value; setSessions(newSessions); }} className={smoothFieldClass} /></div>
-                          <div><label className="text-xs font-bold text-slate-400 mb-1 block uppercase tracking-wider">Giờ bắt đầu</label><input type="time" value={session.startTime} onChange={(e) => { const newSessions = [...sessions]; newSessions[index].startTime = e.target.value; setSessions(newSessions); }} className={smoothFieldClass} /></div>
-                          <div><label className="text-xs font-bold text-slate-400 mb-1 block uppercase tracking-wider">Giờ kết thúc</label><input type="time" value={session.endTime} onChange={(e) => { const newSessions = [...sessions]; newSessions[index].endTime = e.target.value; setSessions(newSessions); }} className={smoothFieldClass} /></div>
-                        </div>
-                        {sessions.length > 1 && <button onClick={() => setSessions(sessions.filter(s => s.id !== session.id))} className="absolute -top-3 -right-3 w-8 h-8 bg-white border border-slate-200 text-red-400 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all shadow-sm opacity-0 group-hover:opacity-100"><Icon name="close" size="sm" /></button>}
-                      </div>
-                    ))}
-                  </div>
+                <div className="space-y-6 w-full animate-in fade-in slide-in-from-right-8 duration-500 ease-out fill-mode-both">
+                  <h2 className={`text-2xl font-extrabold mb-2 ${stepColor.text}`}>Thời gian & Địa điểm</h2>
+                  <div className="grid grid-cols-1 lg:grid-cols-10 gap-8 items-start">
 
-                  <div className="h-px bg-slate-200 w-full my-8" />
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="text-sm font-bold text-slate-700 mb-2 block">Tỉnh / Thành phố *</label>
-                        <div className="relative" ref={provinceRef}>
-                          <button onClick={() => setIsProvinceOpen(!isProvinceOpen)} className={smoothDropdownClass}>
-                            <span className="font-semibold text-slate-700">{selectedProvince?.name || 'Chọn tỉnh thành'}</span>
-                            <Icon name={isProvinceOpen ? "expand_less" : "expand_more"} className="text-slate-400" />
-                          </button>
-                          {isProvinceOpen && (
-                            <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200 max-h-60 overflow-y-auto shadow-sky-900/10">
-                              {provinces.map((p) => (<button key={p.id} onClick={() => { setSelectedProvince(p); setIsProvinceOpen(false); }} className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${selectedProvince?.id === p.id ? 'bg-primary/5 text-primary font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'}`}>{p.name}</button>))}
-                            </div>
-                          )}
-                        </div>
+
+
+                    {/* Left Column: Sessions */}
+                    <div className="lg:col-span-4 space-y-5">
+
+
+
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Phiên diễn sự kiện</h3>
+                        <button
+                          onClick={() => {
+                            const firstSession = sessions[0];
+                            setSessions([...sessions, {
+                              id: Date.now(),
+                              sessionDate: '',
+                              startTime: firstSession ? firstSession.startTime : '',
+                              endTime: firstSession ? firstSession.endTime : '',
+                              name: `Phiên ${sessions.length + 1}`
+                            }]);
+                          }}
+                          className={`px-4 py-2 ${stepColor.gradient} text-white font-bold rounded-xl hover:brightness-110 transition-all flex items-center gap-1.5 text-sm shadow-md shadow-blue-200/50`}
+                        >
+                          <Icon name="add" size="xs" /> Thêm phiên
+                        </button>
+
+
                       </div>
-                      <div>
-                        <label className="text-sm font-bold text-slate-700 mb-2 block">Phường / Xã *</label>
-                        <div className="relative" ref={wardRef}>
-                          <button onClick={() => setIsWardOpen(!isWardOpen)} disabled={!selectedProvince} className={`${smoothDropdownClass} disabled:opacity-50`}>
-                            <span className="font-semibold text-slate-700">{selectedWard?.name || 'Chọn phường xã'}</span>
-                            <Icon name={isWardOpen ? "expand_less" : "expand_more"} className="text-slate-400" />
-                          </button>
-                          {isWardOpen && (
-                            <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200 max-h-60 overflow-y-auto shadow-sky-900/10">
-                              {wards.map((w) => (<button key={w.id} onClick={() => { setSelectedWard(w); setIsWardOpen(false); }} className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${selectedWard?.id === w.id ? 'bg-primary/5 text-primary font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'}`}>{w.name}</button>))}
+                      <div className="space-y-4 max-h-[650px] overflow-y-auto pr-2 custom-scrollbar">
+                        {sessions.map((session, index) => (
+                          <div key={session.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl relative group hover:border-primary/20 transition-colors">
+                            <div className="space-y-3">
+
+                              <div>
+                                <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">{session.name} - Ngày diễn ra</label>
+                                <input type="date" value={session.sessionDate} onChange={(e) => { const newSessions = [...sessions]; newSessions[index].sessionDate = e.target.value; setSessions(newSessions); }} className={smoothFieldClass} />
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div><label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">Bắt đầu</label><input type="time" value={session.startTime} onChange={(e) => { const newSessions = [...sessions]; newSessions[index].startTime = e.target.value; setSessions(newSessions); }} className={`${smoothFieldClass} px-2.5`} /></div>
+                                <div><label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">Kết thúc</label><input type="time" value={session.endTime} onChange={(e) => { const newSessions = [...sessions]; newSessions[index].endTime = e.target.value; setSessions(newSessions); }} className={`${smoothFieldClass} px-2.5`} /></div>
+                              </div>
+
                             </div>
-                          )}
-                        </div>
+                            {sessions.length > 1 && <button onClick={() => setSessions(sessions.filter(s => s.id !== session.id))} className="absolute -top-2 -right-2 w-7 h-7 bg-white border border-slate-200 text-red-400 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all shadow-sm opacity-0 group-hover:opacity-100"><Icon name="close" size="xs" /></button>}
+                          </div>
+                        ))}
                       </div>
                     </div>
-                    <div>
-                      <label className="text-sm font-bold text-slate-700 mb-2 block">Địa chỉ chi tiết & Bản đồ *</label>
-                      <div className="flex gap-2 w-full mb-4">
-                        <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') searchLocation(); }} placeholder="Nhập số nhà, tên đường hoặc gợi ý địa chỉ..." className={`flex-1 ${smoothFieldClass} text-base font-medium`} />
-                        <button onClick={searchLocation} className="px-6 bg-primary text-white rounded-xl font-bold hover:bg-blue-600 transition-all shadow-md flex items-center gap-2"><Icon name="search" size="sm" /> Tìm kiếm</button>
+
+
+
+
+                    {/* Right Column: Location & Map */}
+                    <div className="lg:col-span-6 space-y-6 pt-1">
+
+
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className={`text-sm font-bold mb-2 block ${stepColor.text}`}>Tỉnh / Thành phố *</label>
+                          <div className="relative" ref={provinceRef}>
+
+                            <button onClick={() => setIsProvinceOpen(!isProvinceOpen)} className={smoothDropdownClass}>
+                              <span className="font-semibold text-slate-700">{selectedProvince?.name || 'Chọn tỉnh thành'}</span>
+                              <Icon name={isProvinceOpen ? "expand_less" : "expand_more"} className="text-slate-400" />
+                            </button>
+                            {isProvinceOpen && (
+                              <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200 max-h-60 overflow-y-auto shadow-sky-900/10">
+                                {provinces.map((p) => (<button key={p.id} onClick={() => { setSelectedProvince(p); setIsProvinceOpen(false); }} className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${selectedProvince?.id === p.id ? 'bg-primary/5 text-primary font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'}`}>{p.name}</button>))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <label className={`text-sm font-bold mb-2 block ${stepColor.text}`}>Quận / Huyện *</label>
+                          <div className="relative" ref={wardRef}>
+                            <button onClick={() => setIsWardOpen(!isWardOpen)} disabled={!selectedProvince} className={`${smoothDropdownClass} disabled:opacity-50`}>
+                              <span className="font-semibold text-slate-700">{selectedWard?.name || 'Chọn quận huyện'}</span>
+                              <Icon name={isWardOpen ? "expand_less" : "expand_more"} className="text-slate-400" />
+                            </button>
+                            {isWardOpen && (
+                              <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200 max-h-60 overflow-y-auto shadow-sky-900/10">
+                                {wards.map((w) => (<button key={w.id} onClick={() => { setSelectedWard(w); setIsWardOpen(false); }} className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${selectedWard?.id === w.id ? 'bg-primary/5 text-primary font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'}`}>{w.name}</button>))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="w-full h-[400px] bg-slate-100 rounded-3xl overflow-hidden border-2 border-slate-200 relative z-0 shadow-sm">
-                        <MapContainer center={mapCenter} zoom={13} scrollWheelZoom={true} className="h-full w-full z-0">
-                          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                          <MapUpdater center={mapCenter} />
-                          <LocationPicker position={mapPosition} onPositionChange={handleMapClick} />
-                        </MapContainer>
+                      <div>
+                        <label className={`text-sm font-bold mb-2 block ${stepColor.text}`}>Tìm kiếm hoặc nhấn chọn vị trí trên bản đồ *</label>
+                        <div className="relative flex gap-2">
+                          <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchLocation()} placeholder="Nhập địa chỉ hoặc tên địa điểm..." className={smoothFieldClass} />
+                          <button onClick={searchLocation} className={`px-6 ${stepColor.gradient} text-white rounded-xl font-bold hover:brightness-110 transition-all flex items-center gap-2 shadow-lg shadow-blue-200/50`}>
+                            <Icon name="search" size="sm" />
+                          </button>
+                        </div>
+                        <div className="w-full h-[320px] bg-slate-100 rounded-3xl overflow-hidden border-2 border-slate-200 relative z-0 shadow-sm mt-4">
+
+                          <MapContainer center={mapCenter} zoom={13} scrollWheelZoom={true} className="h-full w-full z-0">
+                            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                            <MapUpdater center={mapCenter} />
+                            <LocationPicker position={mapPosition} onPositionChange={handleMapClick} />
+                          </MapContainer>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               )}
 
+
               {currentStep === 3 && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500 ease-out fill-mode-both">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <h2 className="text-2xl font-extrabold text-slate-900">Lịch trình sự kiện</h2>
+                      <h2 className={`text-2xl font-extrabold ${stepColor.text}`}>Lịch trình sự kiện</h2>
                       <p className="text-sm text-slate-500 font-medium">Chi tiết các hoạt động diễn ra trong cùng một sự kiện</p>
                     </div>
-                    <button onClick={() => setSchedules([...schedules, { id: Date.now(), startTime: '', activity: '' }])} className="px-4 py-2 bg-primary/10 text-primary font-bold rounded-xl hover:bg-primary/20 transition-colors flex items-center gap-2 text-sm">
+                    <button onClick={() => setSchedules([...schedules, { id: Date.now(), startTime: '', activity: '' }])} className={`px-5 py-2.5 ${stepColor.gradient} text-white font-bold rounded-xl hover:brightness-110 transition-all flex items-center gap-2 text-sm shadow-md shadow-blue-200/50`}>
                       <Icon name="add" size="sm" /> Thêm hoạt động
                     </button>
+
                   </div>
                   <div className="space-y-4">
                     {schedules.map((sched, index) => (
-                      <div key={sched.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl relative group flex flex-col md:flex-row gap-4 items-start md:items-center">
-                        <div className="w-full md:w-1/4">
+                      <div key={sched.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl relative group flex flex-col md:flex-row gap-10 items-start md:items-center">
+
+
+                        <div className="w-full md:w-48 shrink-0">
                           <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">Thời gian</label>
                           <input type="time" value={sched.startTime} onChange={(e) => { const newSchedules = [...schedules]; newSchedules[index].startTime = e.target.value; setSchedules(newSchedules); }} className={smoothFieldClass + " py-2"} />
                         </div>
+
                         <div className="flex-1 w-full relative">
                           <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">Hoạt động</label>
                           <input type="text" placeholder="VD: Đón khách và Check-in..." value={sched.activity} onChange={(e) => { const newSchedules = [...schedules]; newSchedules[index].activity = e.target.value; setSchedules(newSchedules); }} className={smoothFieldClass + " py-2 pr-10"} />
@@ -583,9 +775,11 @@ const OrganizerEventCreate = () => {
               {currentStep === 4 && (
                 <div className="space-y-10 animate-in fade-in slide-in-from-right-8 duration-500 ease-out fill-mode-both">
                   <div className="flex items-center justify-between">
-                    <div><h2 className="text-2xl font-extrabold text-slate-900">1. Các loại vé</h2><p className="text-sm text-slate-500 font-medium">Định nghĩa các hạng vé và mức giá của bạn</p></div>
-                    <button onClick={() => { const newId = Math.max(...ticketTypes.map(t => t.id), 0) + 1; setTicketTypes([...ticketTypes, { id: newId, name: 'Loại vé mới', price: 0, color: 'bg-slate-500', totalQuantity: 0 }]); }} className="px-4 py-2 bg-primary/10 text-primary font-bold rounded-xl hover:bg-primary/20 transition-colors flex items-center gap-2 text-sm"><Icon name="add" size="sm" /> Thêm hạng vé</button>
+                    <div><h2 className={`text-2xl font-extrabold ${stepColor.text}`}>1. Các loại vé</h2><p className="text-sm text-slate-500 font-medium">Định nghĩa các hạng vé và mức giá của bạn</p></div>
+                    <button onClick={() => { const newId = Math.max(...ticketTypes.map(t => t.id), 0) + 1; setTicketTypes([...ticketTypes, { id: newId, name: 'Loại vé mới', price: 0, color: 'bg-slate-500', totalQuantity: 0 }]); }} className={`px-5 py-2.5 ${stepColor.gradient} text-white font-bold rounded-xl hover:brightness-110 transition-all flex items-center gap-2 text-sm shadow-md shadow-blue-200/50`}><Icon name="add" size="sm" /> Thêm hạng vé</button>
+
                   </div>
+
                   <div className="grid grid-cols-1 gap-4">
                     {ticketTypes.map((ticket, index) => (
                       <div key={ticket.id} className="flex flex-col md:flex-row items-center gap-4 p-5 bg-slate-50 border border-slate-200 rounded-2xl group hover:border-primary/30 transition-shadow hover:shadow-md">
@@ -596,8 +790,9 @@ const OrganizerEventCreate = () => {
                             <input
                               value={ticket.name}
                               onChange={(e) => { const newTypes = [...ticketTypes]; newTypes[index].name = e.target.value; setTicketTypes(newTypes); }}
-                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-200/60 transition-all"
+                              className={`w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 outline-none transition-all ${stepColor.border} focus:ring-2 ${stepColor.ring}`}
                             />
+
                           </div>
                           <div>
                             <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">Giá vé (VNĐ)</label>
@@ -605,8 +800,9 @@ const OrganizerEventCreate = () => {
                               type="number"
                               value={ticket.price}
                               onChange={(e) => { const newTypes = [...ticketTypes]; newTypes[index].price = parseInt(e.target.value) || 0; setTicketTypes(newTypes); }}
-                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-200/60 transition-all"
+                              className={`w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 outline-none transition-all ${stepColor.border} focus:ring-2 ${stepColor.ring}`}
                             />
+
                           </div>
                           <div>
                             <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">Số lượng (Từ sơ đồ)</label>
@@ -621,58 +817,63 @@ const OrganizerEventCreate = () => {
                   </div>
                   <div className="h-px bg-slate-100 w-full" />
                   <div className="space-y-8">
-                    <div><h2 className="text-2xl font-extrabold text-slate-900 mb-1">2. Cấu hình sơ đồ ghế</h2><p className="text-sm text-slate-500 font-medium">Thiết lập số hàng, số ghế và gán hạng vé cho từng khu vực</p></div>
+                    <div><h2 className={`text-2xl font-extrabold mb-1 ${stepColor.text}`}>2. Cấu hình sơ đồ ghế</h2><p className="text-sm text-slate-500 font-medium">Thiết lập số hàng, số ghế và gán hạng vé cho từng khu vực</p></div>
+
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                       <div className="lg:col-span-4 space-y-6">
                         <div className="grid grid-cols-2 gap-4">
-                          <div><label className="text-sm font-bold text-slate-700 mb-2 block">Số hàng</label><input type="number" min="1" max="26" value={rowCount} onChange={(e) => setRowCount(parseInt(e.target.value) || 1)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-slate-300 outline-none transition-all rounded-xl shadow-sm" /></div>
-                          <div><label className="text-sm font-bold text-slate-700 mb-2 block">Ghế mỗi hàng</label><input type="number" min="1" max="50" value={seatsPerRow} onChange={(e) => setSeatsPerRow(parseInt(e.target.value) || 1)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-slate-300 outline-none transition-all rounded-xl shadow-sm" /></div>
+                          <div><label className={`text-sm font-bold mb-2 block ${stepColor.text}`}>Số hàng</label><input type="number" min="1" max="26" value={rowCount} onChange={(e) => setRowCount(parseInt(e.target.value) || 1)} className={smoothFieldClass} /></div>
+                          <div><label className={`text-sm font-bold mb-2 block ${stepColor.text}`}>Ghế mỗi hàng</label><input type="number" min="1" max="50" value={seatsPerRow} onChange={(e) => setSeatsPerRow(parseInt(e.target.value) || 1)} className={smoothFieldClass} /></div>
                         </div>
                         <div className="space-y-3">
-                          <label className="text-sm font-bold text-slate-700 mb-2 block">Gán hạng vé theo hàng</label>
+                          <label className={`text-sm font-bold mb-2 block ${stepColor.text}`}>Gán hạng vé theo hàng</label>
+
                           <div className="max-h-[300px] pr-2 space-y-2 custom-scrollbar overflow-y-auto pb-4">
                             {Array.from({ length: rowCount }, (_, i) => i + 1).map(rowIdx => {
                               const shouldFlipUp = rowCount > 3 && rowIdx >= rowCount - 2;
                               return (
-                              <div key={rowIdx} className={`flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 relative ${activeRowDropdown === rowIdx ? 'z-50' : 'z-10'}`}>
-                                <span className={`w-8 h-8 flex items-center justify-center bg-white rounded-lg text-xs font-black shadow-sm border ${activeRowDropdown === rowIdx ? 'border-primary text-primary' : 'border-slate-100 text-slate-700'}`}>{getRowLetter(rowIdx)}</span>
-                                <div className="relative flex-1" data-row-assignment-dropdown="true">
-                                  <button
-                                    type="button"
-                                    onClick={() => setActiveRowDropdown(activeRowDropdown === rowIdx ? null : rowIdx)}
-                                    className={`w-full flex items-center justify-between px-4 py-3 border rounded-xl text-sm font-bold outline-none transition-all shadow-sm ${activeRowDropdown === rowIdx ? 'bg-white border-primary ring-4 ring-primary/10 text-slate-800' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'}`}
-                                  >
-                                    <span>
-                                      {ticketTypes.find(t => t.id === (rowAssignments[rowIdx] || ticketTypes[0].id))?.name || 'Chọn hạng vé'}
-                                    </span>
-                                    <Icon name={activeRowDropdown === rowIdx ? "expand_less" : "expand_more"} className={activeRowDropdown === rowIdx ? 'text-primary' : 'text-slate-400'} />
-                                  </button>
-                                  {activeRowDropdown === rowIdx && (
-                                    <div className={`absolute z-[100] left-0 w-full bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in duration-200 ${shouldFlipUp ? 'bottom-[calc(100%+8px)] slide-in-from-bottom-2' : 'top-[calc(100%+8px)] slide-in-from-top-2'}`}>
-                                      {ticketTypes.map(t => (
-                                        <button
-                                          key={t.id}
-                                          type="button"
-                                          onClick={() => {
-                                            setRowAssignments({ ...rowAssignments, [rowIdx]: t.id });
-                                            setActiveRowDropdown(null);
-                                          }}
-                                          className={`w-full flex justify-between items-center px-4 py-2.5 text-sm transition-colors ${(rowAssignments[rowIdx] || ticketTypes[0].id) === t.id
-                                            ? 'bg-slate-50 text-slate-900 font-bold'
-                                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
-                                            }`}
-                                        >
-                                          <span>{t.name}</span>
-                                          {(rowAssignments[rowIdx] || ticketTypes[0].id) === t.id && (
-                                            <Icon name="check" size="sm" className="text-primary" />
-                                          )}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  )}
+                                <div key={rowIdx} className={`flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 relative ${activeRowDropdown === rowIdx ? 'z-50' : 'z-10'}`}>
+                                  <span className={`w-8 h-8 flex items-center justify-center bg-white rounded-lg text-xs font-black shadow-sm border ${activeRowDropdown === rowIdx ? 'border-primary text-primary' : 'border-slate-100 text-slate-700'}`}>{getRowLetter(rowIdx)}</span>
+                                  <div className="relative flex-1" data-row-assignment-dropdown="true">
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveRowDropdown(activeRowDropdown === rowIdx ? null : rowIdx)}
+                                      className={`w-full flex items-center justify-between px-4 py-3 border rounded-xl text-sm font-bold outline-none transition-all shadow-sm ${activeRowDropdown === rowIdx ? `bg-white ${stepColor.border.replace('focus:', '')} ring-4 ${stepColor.ring} text-slate-800` : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'}`}
+                                    >
+                                      <span>
+                                        {ticketTypes.find(t => t.id === (rowAssignments[rowIdx] || ticketTypes[0].id))?.name || 'Chọn hạng vé'}
+                                      </span>
+                                      <Icon name={activeRowDropdown === rowIdx ? "expand_less" : "expand_more"} className={activeRowDropdown === rowIdx ? `${stepColor.text}` : 'text-slate-400'} />
+                                    </button>
+
+                                    {activeRowDropdown === rowIdx && (
+                                      <div className={`absolute z-[100] left-0 w-full bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in duration-200 ${shouldFlipUp ? 'bottom-[calc(100%+8px)] slide-in-from-bottom-2' : 'top-[calc(100%+8px)] slide-in-from-top-2'}`}>
+                                        {ticketTypes.map(t => (
+                                          <button
+                                            key={t.id}
+                                            type="button"
+                                            onClick={() => {
+                                              setRowAssignments({ ...rowAssignments, [rowIdx]: t.id });
+                                              setActiveRowDropdown(null);
+                                            }}
+                                            className={`w-full flex justify-between items-center px-4 py-2.5 text-sm transition-colors ${(rowAssignments[rowIdx] || ticketTypes[0].id) === t.id
+                                              ? 'bg-slate-50 text-slate-900 font-bold'
+                                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
+                                              }`}
+                                          >
+                                            <span>{t.name}</span>
+                                            {(rowAssignments[rowIdx] || ticketTypes[0].id) === t.id && (
+                                              <Icon name="check" size="sm" className={stepColor.text} />
+                                            )}
+
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            )})}
+                              )
+                            })}
                           </div>
                         </div>
                       </div>
@@ -707,9 +908,9 @@ const OrganizerEventCreate = () => {
               </button>
               <div className="flex gap-3">
                 {currentStep < 5 ? (
-                  <button onClick={nextStep} className="px-8 py-3 bg-primary text-white font-bold rounded-xl hover:bg-blue-600 transition-all shadow-lg shadow-primary/30 flex items-center gap-2"> Tiếp tục <Icon name="arrow_forward" size="sm" /> </button>
+                  <button onClick={nextStep} className={`px-8 py-3 ${stepColor.gradient} text-white font-bold rounded-xl hover:brightness-110 transition-all shadow-lg shadow-blue-200/50 flex items-center gap-2`}> Tiếp tục <Icon name="arrow_forward" size="sm" /> </button>
                 ) : (
-                  <button onClick={handleCreateEvent} disabled={isSubmitting} className="px-8 py-3 bg-green-500 text-white font-bold rounded-xl hover:bg-green-600 transition-all shadow-lg shadow-green-500/30 flex items-center gap-2 disabled:opacity-50">
+                  <button onClick={handleCreateEvent} disabled={isSubmitting} className={`px-8 py-3 ${stepColor.gradient} text-white font-bold rounded-xl hover:brightness-110 transition-all shadow-lg shadow-blue-200/50 flex items-center gap-2 disabled:opacity-50`}>
                     <Icon name={isSubmitting ? "sync" : "publish"} size="sm" className={isSubmitting ? "animate-spin" : ""} /> {isSubmitting ? "Đang xử lý..." : "Tạo sự kiện"}
                   </button>
                 )}

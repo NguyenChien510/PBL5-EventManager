@@ -51,8 +51,15 @@ public class Event {
     @JoinColumn(name = "organizer_id")
     private User organizer;
 
-    @Column(columnDefinition = "TEXT")
-    private String artists;
+    @jakarta.persistence.ManyToMany
+    @jakarta.persistence.JoinTable(
+        name = "event_artists",
+        joinColumns = @jakarta.persistence.JoinColumn(name = "event_id"),
+        inverseJoinColumns = @jakarta.persistence.JoinColumn(name = "artist_id")
+    )
+    @Builder.Default
+    private List<Artist> artists = new java.util.ArrayList<>();
+
 
     @Column(columnDefinition = "TEXT")
     private String description;
