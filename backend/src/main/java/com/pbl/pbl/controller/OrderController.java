@@ -25,7 +25,13 @@ public class OrderController {
         List<Order> orders = orderRepository.findAll();
         List<OrderDTO> dtos = orders.stream()
                 .sorted(Comparator.comparing(Order::getPurchaseDate).reversed())
-                .map(order -> OrderDTO.builder()
+                .map(order -> {
+                    var firstTicket = order.getTickets().isEmpty() ? null : order.getTickets().get(0);
+                    var mainSeat = (firstTicket != null) ? firstTicket.getSeat() : null;
+                    var mainSession = (mainSeat != null) ? mainSeat.getEventSession() : null;
+                    var mainEvent = (mainSession != null) ? mainSession.getEvent() : null;
+
+                    return OrderDTO.builder()
                         .id(order.getId())
                         .userEmail(order.getUser() != null ? order.getUser().getEmail() : "Unknown")
                         .userName(order.getUser() != null ? order.getUser().getFullName() : "Unknown")
@@ -33,7 +39,10 @@ public class OrderController {
                         .status(order.getStatus() != null ? order.getStatus().name() : "PENDING")
                         .paymentMethod(order.getPaymentMethod())
                         .purchaseDate(order.getPurchaseDate())
-                        .eventSessionId(order.getTickets().isEmpty() ? null : order.getTickets().get(0).getSeat().getEventSession().getId())
+                        .eventId(mainEvent != null ? mainEvent.getId() : null)
+                        .eventTitle(mainEvent != null ? mainEvent.getTitle() : "Unknown Event")
+                        .eventPosterUrl(mainEvent != null ? mainEvent.getPosterUrl() : null)
+                        .eventSessionId(mainSession != null ? mainSession.getId() : null)
                         .tickets(order.getTickets().stream()
                                 .map(ticket -> {
                                     var seat = ticket.getSeat();
@@ -51,7 +60,8 @@ public class OrderController {
                                             .build();
                                 })
                                 .collect(Collectors.toList()))
-                        .build())
+                        .build();
+                })
                 .collect(Collectors.toList());
                 
         return ResponseEntity.ok(dtos);

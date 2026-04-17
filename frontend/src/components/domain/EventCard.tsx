@@ -38,10 +38,15 @@ const EventCard: React.FC<EventCardProps> = ({
       <div className="relative aspect-[4/3] overflow-hidden">
         <img src={image} alt={title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
         {category && (
-          <span className={`absolute top-4 left-4 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${categoryColor}`}>
+          <span 
+            className={`absolute top-4 left-4 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm ${!categoryColor?.startsWith('#') ? categoryColor : 'text-white'}`}
+            style={categoryColor?.startsWith('#') ? { backgroundColor: categoryColor } : {}}
+          >
             {category}
           </span>
         )}
+
+
         {rating && (
           <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-md text-white px-2 py-1 rounded-lg flex items-center gap-1 text-xs font-bold">
             <Icon name="star" size="sm" className="text-yellow-400" filled />

@@ -17,4 +17,17 @@ public interface EventRepository extends JpaRepository<Event, Long> {
 
     @EntityGraph(attributePaths = { "category", "province", "organizer" })
     List<Event> findAllByOrderByStartTimeDesc();
+
+    @EntityGraph(attributePaths = { "category", "province", "organizer" })
+    org.springframework.data.domain.Page<Event> findAll(org.springframework.data.domain.Pageable pageable);
+
+    @EntityGraph(attributePaths = { "category", "province", "organizer" })
+    org.springframework.data.domain.Page<Event> findByStatusIn(java.util.List<EventStatus> statuses, org.springframework.data.domain.Pageable pageable);
+
+    long countByStatus(EventStatus status);
+
+    
+    long countByStatusIn(java.util.List<EventStatus> statuses);
 }
+
+

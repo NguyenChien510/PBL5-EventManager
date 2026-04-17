@@ -66,7 +66,7 @@ const AdminEventReview = () => {
         const query = event.location
         const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`)
         let data = await res.json()
-        
+
         // Fallback: If not found, try adding province
         if ((!data || data.length === 0) && event.province?.name) {
           const fallbackQuery = `${event.location}, ${event.province.name}`
@@ -124,9 +124,9 @@ const AdminEventReview = () => {
 
   return (
     <DashboardLayout sidebarProps={sidebarConfig}>
-      <PageHeader 
-        title="Kiểm duyệt Chi tiết" 
-        breadcrumb={['Kiểm duyệt', event.title]} 
+      <PageHeader
+        title="Kiểm duyệt Chi tiết"
+        breadcrumb={['Kiểm duyệt', event.title]}
       />
       <div className="p-8 space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -135,13 +135,13 @@ const AdminEventReview = () => {
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm border-l-4 border-l-blue-500">
 
               <div className="aspect-[21/9] bg-slate-100 relative">
-                <img 
-                  src={event.posterUrl || "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=2070&auto=format&fit=crop"} 
-                  alt={event.title} 
-                  className="w-full h-full object-cover" 
+                <img
+                  src={event.posterUrl || "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=2070&auto=format&fit=crop"}
+                  alt={event.title}
+                  className="w-full h-full object-cover"
                 />
                 <div className="absolute top-4 left-4">
-                   <StatusBadge status={event.status} />
+                  <StatusBadge status={event.status} />
                 </div>
               </div>
               <div className="p-6">
@@ -207,34 +207,34 @@ const AdminEventReview = () => {
               <h3 className="font-bold mb-4 flex items-center gap-2">
                 <Icon name="gavel" className="text-primary" /> Phê duyệt
               </h3>
-              
+
               <div className="mb-6">
                 <label className="text-sm font-bold text-slate-600 mb-2 block">Ghi chú phản hồi / Lý do (Internal)</label>
-                <textarea 
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all" 
-                  placeholder="Nhập ghi chú cho nhà tổ chức..." 
-                  rows={4} 
+                <textarea
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  placeholder="Nhập ghi chú cho nhà tổ chức..."
+                  rows={4}
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
                 />
               </div>
 
               <div className="space-y-3">
-                <button 
+                <button
                   onClick={() => handleStatusUpdate('upcoming')}
                   className="w-full py-3 bg-green-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-green-600 transition-all shadow-sm"
                 >
                   <Icon name="check_circle" size="sm" /> Phê duyệt
                 </button>
 
-                <button 
+                <button
                   onClick={() => handleStatusUpdate('rejected')}
                   className="w-full py-3 bg-red-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-red-600 transition-all shadow-sm"
                 >
                   <Icon name="block" size="sm" /> Từ chối
                 </button>
-                
-                <button 
+
+                <button
                   onClick={() => navigate('/admin/moderation')}
                   className="w-full py-3 bg-slate-100 text-slate-600 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition-all shadow-sm"
                 >

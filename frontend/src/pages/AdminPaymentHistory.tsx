@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { apiClient } from '../utils/axios';
 import { Loader } from '../components/ui/loader';
 import toast from 'react-hot-toast';
@@ -24,6 +25,9 @@ interface OrderDTO {
     status: string;
     paymentMethod: string;
     purchaseDate: string;
+    eventId?: number;
+    eventTitle?: string;
+    eventPosterUrl?: string;
     eventSessionId?: number;
     tickets?: TicketDetailDTO[];
 }
@@ -82,122 +86,123 @@ const AdminPaymentHistory = () => {
         }
     };
 
-    if (isLoading) {
-        return (
-            <div className="flex justify-center items-center h-screen bg-slate-50">
-                <Loader className="w-10 h-10 text-primary" />
-            </div>
-        );
-    }
-
     return (
         <DashboardLayout sidebarProps={adminSidebarConfig}>
-            <PageHeader title="Lịch sử Giao dịch" searchPlaceholder="Tìm mã đơn, email..." />
-            
-            <div className="p-8 space-y-8">
-                {/* Stats Summary */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                            <Icon name="payments" />
-                        </div>
-                        <div>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tổng đơn hàng</p>
-                            <p className="text-2xl font-black text-slate-900">{orders.length}</p>
-                        </div>
-                    </div>
-                    
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600">
-                            <Icon name="account_balance_wallet" />
-                        </div>
-                        <div>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tổng doanh thu</p>
-                            <p className="text-2xl font-black text-emerald-600">
-                                {orders.filter(o => o.status === 'COMPLETED').reduce((sum, o) => sum + o.totalAmount, 0).toLocaleString()}đ
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600">
-                            <Icon name="history" />
-                        </div>
-                        <div>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Đang chờ</p>
-                            <p className="text-2xl font-black text-amber-600">
-                                {orders.filter(o => o.status === 'PENDING').length} đơn
-                            </p>
-                        </div>
-                    </div>
+            {isLoading ? (
+                <div className="flex justify-center items-center h-[60vh]">
+                    <Loader className="w-10 h-10 text-primary" />
                 </div>
+            ) : (
+                <>
+                    <PageHeader title="Lịch sử Giao dịch" searchPlaceholder="Tìm mã đơn, email..." />
 
-                {/* Table */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm whitespace-nowrap">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                                <tr>
-                                    <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Mã Đơn</th>
-                                    <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Khách hàng</th>
-                                    <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Số tiền</th>
-                                    <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Cổng T.Toán</th>
-                                    <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Thời gian</th>
-                                    <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Trạng thái</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 text-slate-600">
-                                {orders.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
-                                            Chưa có giao dịch nào được ghi nhận.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    orders.map((order) => (
-                                        <tr 
-                                            key={order.id} 
-                                            className="hover:bg-primary/5 transition-colors cursor-pointer group"
-                                            onClick={() => setSelectedOrder(order)}
-                                        >
-                                            <td className="px-6 py-5">
-                                                <span className="font-mono font-bold text-primary group-hover:underline">
-                                                    #{order.id.toString().padStart(6, '0')}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <div className="flex flex-col">
-                                                    <span className="font-bold text-slate-900">{order.userName}</span>
-                                                    <span className="text-[10px] text-slate-400 uppercase tracking-tighter">{order.userEmail}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <span className="font-extrabold text-slate-900">
-                                                    {order.totalAmount.toLocaleString()}đ
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 font-bold text-[10px] uppercase">
-                                                    <Icon name="point_of_sale" size="sm" />
-                                                    {order.paymentMethod || 'VNPAY'}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-5 text-xs">
-                                                {new Date(order.purchaseDate).toLocaleString('vi-VN')}
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest border ${getStatusStyle(order.status)}`}>
-                                                    {order.status}
-                                                </span>
-                                            </td>
+                    <div className="p-8 space-y-8">
+                        {/* Stats Summary */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                                    <Icon name="payments" />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tổng đơn hàng</p>
+                                    <p className="text-2xl font-black text-slate-900">{orders.length}</p>
+                                </div>
+                            </div>
+
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600">
+                                    <Icon name="account_balance_wallet" />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tổng doanh thu</p>
+                                    <p className="text-2xl font-black text-emerald-600">
+                                        {orders.filter(o => o.status === 'COMPLETED').reduce((sum, o) => sum + o.totalAmount, 0).toLocaleString()}đ
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600">
+                                    <Icon name="history" />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Đang chờ</p>
+                                    <p className="text-2xl font-black text-amber-600">
+                                        {orders.filter(o => o.status === 'PENDING').length} đơn
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Table */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-sm whitespace-nowrap">
+                                    <thead className="bg-slate-50 border-b border-slate-200">
+                                        <tr>
+                                            <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Mã Đơn</th>
+                                            <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Khách hàng</th>
+                                            <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Số tiền</th>
+                                            <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Cổng T.Toán</th>
+                                            <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Thời gian</th>
+                                            <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Trạng thái</th>
                                         </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 text-slate-600">
+                                        {orders.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
+                                                    Chưa có giao dịch nào được ghi nhận.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            orders.map((order) => (
+                                                <tr
+                                                    key={order.id}
+                                                    className="hover:bg-primary/5 transition-colors cursor-pointer group"
+                                                    onClick={() => setSelectedOrder(order)}
+                                                >
+                                                    <td className="px-6 py-5">
+                                                        <span className="font-mono font-bold text-primary group-hover:underline">
+                                                            #{order.id.toString().padStart(6, '0')}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-5">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold text-slate-900">{order.userName}</span>
+                                                            <span className="text-[10px] text-slate-400 uppercase tracking-tighter">{order.userEmail}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-5">
+                                                        <span className="font-extrabold text-slate-900">
+                                                            {order.totalAmount.toLocaleString()}đ
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-5">
+                                                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 font-bold text-[10px] uppercase">
+                                                            <Icon name="point_of_sale" size="sm" />
+                                                            {order.paymentMethod || 'VNPAY'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-5 text-xs">
+                                                        {new Date(order.purchaseDate).toLocaleString('vi-VN')}
+                                                    </td>
+                                                    <td className="px-6 py-5">
+                                                        <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest border ${getStatusStyle(order.status)}`}>
+                                                            {order.status}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
+                </>
+            )}
+
 
             {/* Detailed Modal */}
             {selectedOrder && (
@@ -206,7 +211,7 @@ const AdminPaymentHistory = () => {
                     <div className="relative w-full max-w-2xl bg-white rounded-[32px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
                         {/* Modal Header */}
                         <div className="p-8 bg-gradient-to-r from-primary to-electric text-white relative">
-                            <button 
+                            <button
                                 onClick={() => setSelectedOrder(null)}
                                 className="absolute top-6 right-6 w-10 h-10 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"
                             >
@@ -215,10 +220,34 @@ const AdminPaymentHistory = () => {
                             <h3 className="text-2xl font-black">Chi tiết đơn hàng #{selectedOrder.id.toString().padStart(6, '0')}</h3>
                             <p className="text-white/70 text-sm mt-1">Thông tin chi tiết về các vé đã mua</p>
                         </div>
-                        
+
                         {/* Modal Body */}
-                        <div className="p-8 max-h-[60vh] overflow-y-auto space-y-6">
-                            <div className="grid grid-cols-2 gap-8 pb-6 border-b border-slate-100">
+                        <div className="p-8 max-h-[60vh] overflow-y-auto space-y-8">
+                            {/* Visual Event Banner Link */}
+                            {selectedOrder.eventId && (
+                                <Link
+                                    to={`/event/${selectedOrder.eventId}`}
+                                    className="block group relative aspect-[21/9] overflow-hidden rounded-2xl shadow-lg hover:shadow-xl transition-all duration-500"
+                                >
+                                    <img
+                                        src={selectedOrder.eventPosterUrl || "https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=2070&auto=format&fit=crop"}
+                                        alt={selectedOrder.eventTitle}
+                                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent flex flex-col justify-end p-6">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="px-2 py-0.5 bg-primary text-white text-[10px] font-bold rounded uppercase tracking-wider">Event</span>
+                                            <div className="h-[1px] flex-1 bg-white/20"></div>
+                                        </div>
+                                        <h4 className="text-white text-xl font-black">{selectedOrder.eventTitle}</h4>
+                                        <div className="flex items-center gap-2 mt-2 text-white/70 text-xs font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                            Xem chi tiết sự kiện <Icon name="arrow_forward" size="sm" />
+                                        </div>
+                                    </div>
+                                </Link>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-8 pb-8 border-b border-slate-100">
                                 <div>
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Khách hàng</p>
                                     <p className="font-bold text-slate-900">{selectedOrder.userName}</p>
@@ -254,9 +283,9 @@ const AdminPaymentHistory = () => {
                             {/* Visual Seat Map */}
                             {selectedOrder.eventSessionId && (
                                 <div className="pt-4 border-t border-slate-100">
-                                    <AdminSeatMap 
-                                        seats={sessionSeats} 
-                                        highlightedSeatIds={selectedOrder.tickets?.map(t => t.seatId) || []} 
+                                    <AdminSeatMap
+                                        seats={sessionSeats}
+                                        highlightedSeatIds={selectedOrder.tickets?.map(t => t.seatId) || []}
                                     />
                                     {isLoadingSeats && (
                                         <div className="flex justify-center py-4">
@@ -273,7 +302,7 @@ const AdminPaymentHistory = () => {
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Tổng thanh toán</p>
                                 <p className="text-2xl font-black text-primary mt-1">{selectedOrder.totalAmount.toLocaleString()}đ</p>
                             </div>
-                            <button 
+                            <button
                                 onClick={() => setSelectedOrder(null)}
                                 className="px-8 py-3 bg-slate-900 text-white rounded-2xl font-bold text-sm hover:scale-105 active:scale-95 transition-all shadow-lg shadow-slate-900/20"
                             >

@@ -13,24 +13,29 @@ WHERE NOT EXISTS (SELECT 1 FROM roles WHERE name = 'ADMIN');
 
 -- Insert default categories if they don't exist
 INSERT INTO categories (name, icon, color) 
-SELECT 'Âm nhạc', 'music_note', 'bg-pink-500'
+SELECT 'Âm nhạc', 'music_note', '#ec4899'
 WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Âm nhạc');
 
+
 INSERT INTO categories (name, icon, color) 
-SELECT 'Công nghệ', 'computer', 'bg-cyan-500'
+SELECT 'Công nghệ', 'computer', '#06b6d4'
 WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Công nghệ');
 
+
 INSERT INTO categories (name, icon, color) 
-SELECT 'Nghệ thuật', 'palette', 'bg-purple-500'
+SELECT 'Nghệ thuật', 'palette', '#a855f7'
 WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Nghệ thuật');
 
-INSERT INTO categories (name, icon, color) 
-SELECT 'Thể thao', 'sports_soccer', 'bg-orange-500'
-WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Thể thao');
 
 INSERT INTO categories (name, icon, color) 
-SELECT 'Ẩm thực', 'restaurant', 'bg-yellow-500'
+SELECT 'Thể thao', 'sports_soccer', '#f97316'
+WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Thể thao');
+
+
+INSERT INTO categories (name, icon, color) 
+SELECT 'Ẩm thực', 'restaurant', '#eab308'
 WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Ẩm thực');
+
 
 ALTER TABLE tickets DROP CONSTRAINT IF EXISTS tickets_status_check;
 ALTER TABLE seats DROP CONSTRAINT IF EXISTS seats_status_check;

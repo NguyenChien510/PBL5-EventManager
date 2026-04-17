@@ -1,7 +1,7 @@
 import { Icon, StatCard, Pagination, StatusBadge } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { adminSidebarConfig } from '../config/adminSidebarConfig'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { EventService } from '../services/eventService'
 import { toast } from 'react-hot-toast'
@@ -17,35 +17,53 @@ const AdminEventModeration = () => {
   const [events, setEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('Danh sách chờ duyệt')
+  const [pagination, setPagination] = useState<any>(null)
+  const [stats, setStats] = useState({ pending: 0, processed: 0 })
+  const [currentPage, setCurrentPage] = useState(0)
   const navigate = useNavigate()
 
-  const fetchEvents = async () => {
+  const getStatusesByTab = (tab: string) => {
+    if (tab === 'Danh sách chờ duyệt') return ['pending']
+    if (tab === 'Lịch sử xử lý') return ['upcoming', 'rejected', 'sold_out', 'ended']
+    return []
+  }
+
+  const fetchEvents = useCallback(async (page = 0, tab = activeTab) => {
     try {
       setLoading(true)
-      const data = await EventService.getAllAdminEvents()
-      setEvents(data)
+      const statuses = getStatusesByTab(tab)
+      const data = await EventService.getAllAdminEvents(page, 5, statuses)
+      setEvents(data.events.content)
+      setPagination({
+        totalPages: data.events.totalPages,
+        totalElements: data.events.totalElements,
+        size: data.events.size,
+        number: data.events.number
+      })
+      setStats({
+        pending: data.pendingCount,
+        processed: data.processedCount
+      })
     } catch (error) {
       console.error('Error fetching admin events:', error)
       toast.error('Không thể tải danh sách sự kiện')
     } finally {
       setLoading(false)
     }
-  }
+  }, [activeTab])
 
   useEffect(() => {
-    fetchEvents()
-  }, [])
+    setCurrentPage(0)
+  }, [activeTab])
 
-  const filteredEvents = events.filter(evt => {
-    if (activeTab === 'Danh sách chờ duyệt') return evt.status === 'pending'
-    if (activeTab === 'Lịch sử xử lý') return evt.status === 'upcoming' || evt.status === 'rejected'
-    return true
-  })
+  useEffect(() => {
+    fetchEvents(currentPage)
+  }, [currentPage, fetchEvents])
 
-  const stats = {
-    pending: events.filter(e => e.status === 'pending').length,
-    processed: events.filter(e => e.status === 'upcoming' || e.status === 'rejected').length,
-  }
+  // No more local filtering needed
+  const filteredEvents = events
+
+
   return (
     <DashboardLayout sidebarProps={sidebarConfig}>
       <PageHeader title="Danh sách Kiểm duyệt" searchPlaceholder="Tìm tên sự kiện, nhà tổ chức..." />
@@ -118,16 +136,20 @@ const AdminEventModeration = () => {
                       <td className="p-4">
                         <div className="flex items-center gap-2">
                           <div className={`w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold uppercase`}>
-                            {evt.organizer?.fullName?.substring(0, 2) || '??'}
+                            {evt.organizerName?.substring(0, 2) || '??'}
                           </div>
-                          <p className="text-sm font-medium">{evt.organizer?.fullName || 'Người dùng hệ thống'}</p>
+                          <p className="text-sm font-medium">{evt.organizerName || 'Người dùng hệ thống'}</p>
                         </div>
                       </td>
                       <td className="p-4">
-                        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${evt.category?.color || 'bg-slate-100 text-slate-600'}`}>
-                          {evt.category?.name || 'Chưa phân loại'}
+                        <span 
+                          className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${!evt.categoryColor?.startsWith('#') ? (evt.categoryColor || 'bg-slate-100 text-slate-600') : 'text-white'}`}
+                          style={evt.categoryColor?.startsWith('#') ? { backgroundColor: evt.categoryColor } : {}}
+                        >
+                          {evt.categoryName || 'Chưa phân loại'}
                         </span>
                       </td>
+
                        <td className="p-4 text-sm font-medium">
                         {evt.createdAt ? new Date(evt.createdAt).toLocaleDateString('vi-VN') : '---'}
                       </td>
@@ -143,8 +165,14 @@ const AdminEventModeration = () => {
               </tbody>
             </table>
             <div className="p-4 bg-slate-50/30 border-t border-slate-200">
-              <Pagination current={1} total={1} label={`Hiển thị ${filteredEvents.length} sự kiện`} />
+              <Pagination 
+                current={currentPage + 1} 
+                total={pagination?.totalPages || 1} 
+                onPageChange={(page) => setCurrentPage(page - 1)}
+                label={`Hiển thị ${filteredEvents.length} trên ${pagination?.totalElements || 0} sự kiện`} 
+              />
             </div>
+
           </div>
         </div>
 

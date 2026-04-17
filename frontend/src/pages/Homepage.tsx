@@ -200,7 +200,8 @@ const Homepage = () => {
       location: event.location,
       price: priceDisplay,
       category: event.categoryName || 'Sự kiện',
-      categoryColor: event.categoryColor ? `${event.categoryColor.replace('-500', '-100')} text-slate-700` : 'bg-primary/10 text-primary',
+      categoryColor: event.categoryColor || 'bg-primary/10 text-primary',
+
       rating: undefined,
       ticketsLeft: event.ticketsLeft,
       totalTickets: event.totalTickets,
@@ -376,9 +377,15 @@ const Homepage = () => {
               to="/explore"
               className="rounded-2xl p-5 border border-slate-100 bg-gradient-to-b from-white to-slate-50/30 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col items-center gap-3 group"
             >
-              <div className={`w-12 h-12 rounded-xl ${cat.color} flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform`}>
-                <Icon name={cat.icon} />
+              <div 
+                className="w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform"
+                style={{ backgroundColor: cat.color }}
+              >
+                <div className="relative z-10">
+                  <Icon name={cat.icon} />
+                </div>
               </div>
+
               <span className="text-sm font-bold text-slate-700">{cat.name}</span>
             </Link>
           ))}

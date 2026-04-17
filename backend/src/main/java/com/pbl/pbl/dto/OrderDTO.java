@@ -16,6 +16,9 @@ public class OrderDTO {
     private String status;
     private String paymentMethod;
     private LocalDateTime purchaseDate;
+    private Long eventId;
+    private String eventTitle;
+    private String eventPosterUrl;
     private Long eventSessionId; // Required to fetch the seat map for THIS specific session
     private List<TicketDetailDTO> tickets;
 

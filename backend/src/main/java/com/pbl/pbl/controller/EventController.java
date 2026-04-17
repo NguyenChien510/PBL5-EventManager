@@ -10,6 +10,11 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+
 
 import com.pbl.pbl.dto.EventRequestDTO;
 import com.pbl.pbl.dto.UpcomingEventCardDTO;
@@ -75,9 +80,16 @@ public class EventController {
     }
 
     @GetMapping("/admin/all")
-    public ResponseEntity<java.util.List<com.pbl.pbl.dto.EventResponseDTO>> getAllEventsForAdmin() {
-        return ResponseEntity.ok(eventService.getAllEventsForAdmin());
+    public ResponseEntity<com.pbl.pbl.dto.AdminEventListResponseDTO> getAllEventsForAdmin(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) java.util.List<com.pbl.pbl.entity.EventStatus> statuses) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("startTime").descending());
+        return ResponseEntity.ok(eventService.getAllEventsForAdminPaginated(pageable, statuses));
     }
+
+
+
 
     @PatchMapping("/admin/{id}/status")
     public ResponseEntity<Event> updateEventStatus(@PathVariable Long id, @RequestParam com.pbl.pbl.entity.EventStatus status, @RequestParam(required = false) String rejectReason) {

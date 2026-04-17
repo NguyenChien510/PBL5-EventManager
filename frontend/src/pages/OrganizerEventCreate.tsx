@@ -463,8 +463,8 @@ const OrganizerEventCreate = () => {
       />
 
       <div className={`p-6 mx-auto transition-all duration-500 ${currentStep === 1 ? 'max-w-5xl' :
-          currentStep === 3 ? 'max-w-[1700px]' :
-            'max-w-7xl'
+        currentStep === 3 ? 'max-w-[1700px]' :
+          'max-w-7xl'
         }`}>
 
 
@@ -530,11 +530,27 @@ const OrganizerEventCreate = () => {
                           {isCategoryOpen && (
                             <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200 shadow-sky-900/10">
                               {categories.map((cat) => (
-                                <button key={cat.id} onClick={() => { setSelectedCategory(cat); setIsCategoryOpen(false); }} className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${selectedCategory?.id === cat.id ? 'bg-primary/5 text-primary font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'}`}>{cat.name}</button>
+                                <button
+                                  key={cat.id}
+                                  onClick={() => { setSelectedCategory(cat); setIsCategoryOpen(false); }}
+                                  className={`w-full text-left px-4 py-3 text-sm transition-all flex items-center gap-3 border-l-4 mb-1 last:mb-0 ${
+                                    selectedCategory?.id === cat.id 
+                                    ? 'font-bold shadow-sm' 
+                                    : 'hover:translate-x-1'
+                                  }`}
+                                  style={{ 
+                                    borderLeftColor: cat.color || '#cbd5e1',
+                                    backgroundColor: selectedCategory?.id === cat.id ? `${cat.color}20` : `${cat.color}08`, // 12% and 3% opacity approx
+                                    color: cat.color || '#475569'
+                                  }}
+                                >
+                                  <span className="font-semibold">{cat.name}</span>
+                                </button>
                               ))}
                             </div>
                           )}
                         </div>
+
                       </div>
                       <div>
                         <label className={`text-sm font-bold mb-2 block ${stepColor.text}`}>Nghệ sĩ biểu diễn (Multi-Tag Selection)</label>

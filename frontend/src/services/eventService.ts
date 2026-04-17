@@ -35,10 +35,20 @@ export class EventService {
     return response.data;
   }
   
-  static async getAllAdminEvents() {
-    const response = await apiClient.get('/events/admin/all');
+  static async getAllAdminEvents(page: number = 0, size: number = 5, statuses?: string[], keyword?: string) {
+    const query = new URLSearchParams();
+    query.append('page', page.toString());
+    query.append('size', size.toString());
+    if (keyword) query.append('keyword', keyword);
+    if (statuses && statuses.length > 0) {
+      statuses.forEach(s => query.append('statuses', s));
+    }
+    
+    const response = await apiClient.get(`/events/admin/all?${query.toString()}`);
     return response.data;
   }
+
+
 
   static async updateEventStatus(id: number | string, status: string, rejectReason?: string) {
     let url = `/events/admin/${id}/status?status=${status}`;

@@ -6,10 +6,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.pbl.pbl.dto.AdminEventListResponseDTO;
+import com.pbl.pbl.dto.EventAdminSummaryDTO;
 import com.pbl.pbl.dto.EventRequestDTO;
+
+
 import com.pbl.pbl.dto.EventSessionRequestDTO;
 import com.pbl.pbl.dto.TicketTypeRequestDTO;
 import com.pbl.pbl.dto.EventScheduleRequestDTO;
@@ -69,6 +75,30 @@ public class EventService {
                 .map(this::convertToResponseDTO)
                 .toList();
     }
+
+    @Transactional(readOnly = true)
+    public AdminEventListResponseDTO getAllEventsForAdminPaginated(Pageable pageable, List<EventStatus> statuses) {
+        Page<Event> eventsPage;
+        if (statuses != null && !statuses.isEmpty()) {
+            eventsPage = eventRepository.findByStatusIn(statuses, pageable);
+        } else {
+            eventsPage = eventRepository.findAll(pageable);
+        }
+        
+        Page<EventAdminSummaryDTO> summaryPage = eventsPage.map(this::convertToSummaryDTO);
+        
+        long pendingCount = eventRepository.countByStatus(EventStatus.pending);
+        long processedCount = eventRepository.countByStatusIn(List.of(EventStatus.upcoming, EventStatus.rejected, EventStatus.sold_out, EventStatus.ended));
+        
+        return AdminEventListResponseDTO.builder()
+                .events(summaryPage)
+                .pendingCount(pendingCount)
+                .processedCount(processedCount)
+                .build();
+    }
+
+
+
 
     @Transactional(readOnly = true)
     public com.pbl.pbl.dto.EventResponseDTO getEventResponseById(Long id) {
@@ -398,4 +428,21 @@ public class EventService {
                         .toList() : new java.util.ArrayList<>())
                 .build();
     }
+
+    private EventAdminSummaryDTO convertToSummaryDTO(Event event) {
+        return EventAdminSummaryDTO.builder()
+                .id(event.getId())
+                .title(event.getTitle())
+                .location(event.getLocation())
+                .posterUrl(event.getPosterUrl())
+                .startTime(event.getStartTime())
+                .createdAt(event.getCreatedAt())
+                .status(event.getStatus())
+                .categoryName(event.getCategory() != null ? event.getCategory().getName() : "")
+                .categoryColor(event.getCategory() != null ? event.getCategory().getColor() : "")
+                .organizerName(event.getOrganizer() != null ? event.getOrganizer().getFullName() : "")
+                .organizerEmail(event.getOrganizer() != null ? event.getOrganizer().getEmail() : "")
+                .build();
+    }
 }
+

@@ -94,9 +94,13 @@ const EventDetail = () => {
         {/* Hero content */}
         <div className="absolute bottom-0 left-0 right-0 z-10 px-6 pb-10">
           <div className="max-w-7xl mx-auto">
-            <span className="inline-flex items-center gap-2 px-3 py-1 bg-pink-500/80 backdrop-blur-md rounded-full text-xs font-bold text-white mb-4">
-              <Icon name="music_note" size="sm" /> {event.category?.name || "Âm nhạc"}
+            <span 
+              className="inline-flex items-center gap-2 px-3 py-1 backdrop-blur-md rounded-full text-xs font-bold text-white mb-4 shadow-sm"
+              style={{ backgroundColor: event.category?.color ? `${event.category.color}CC` : '#ec4899CC' }}
+            >
+              <Icon name={event.category?.icon || "music_note"} size="sm" /> {event.category?.name || "Âm nhạc"}
             </span>
+
             <h1 className="text-4xl font-extrabold text-white mb-3">{event.title}</h1>
             <div className="flex flex-wrap items-center gap-6 text-white/80 text-sm">
               <span className="flex items-center gap-2"><Icon name="calendar_today" size="sm" /> {new Date(event.startTime).toLocaleDateString("vi-VN", {day: "2-digit", month: "short", year: "numeric"})} • {new Date(event.startTime).toLocaleTimeString("vi-VN", {hour: "2-digit", minute: "2-digit"})}</span>
@@ -140,9 +144,17 @@ const EventDetail = () => {
 
                     {/* Center: dot + connector line */}
                     <div className="flex flex-col items-center shrink-0">
-                      <div className={`w-8 h-8 rounded-full ${item.color || 'bg-primary'} flex items-center justify-center z-10 shadow-md`}>
-                        <Icon name={item.icon || 'adjust'} size="sm" className="text-white text-[14px]" />
+                      <div 
+                        className="w-8 h-8 rounded-full flex items-center justify-center z-10 shadow-md relative"
+                        style={{ backgroundColor: item.color?.startsWith('#') ? item.color : undefined }}
+                      >
+                        {!item.color?.startsWith('#') && <div className={`absolute inset-0 rounded-full ${item.color || 'bg-primary'}`} />}
+
+                        <div className="relative z-10">
+                          <Icon name={item.icon || 'adjust'} size="sm" className="text-white text-[14px]" />
+                        </div>
                       </div>
+
                       {idx < arr.length - 1 && (
                         <div className="w-0.5 flex-1 bg-slate-200 my-0" />
                       )}

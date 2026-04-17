@@ -107,12 +107,17 @@ const EventExplore = () => {
                   key={cat.id}
                   onClick={() => setSelectedCategoryId(cat.id as any)}
                   className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-sm font-medium ${
-                    selectedCategoryId === cat.id ? 'bg-primary/10 text-primary font-bold' : 'text-slate-500 hover:bg-slate-50'
+                    selectedCategoryId === cat.id ? 'bg-primary/5 text-primary font-bold' : 'text-slate-500 hover:bg-slate-50'
                   }`}
                 >
-                  <Icon name={cat.icon} size="sm" />
+                  {cat.color ? (
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                  ) : (
+                    <Icon name={cat.icon} size="sm" />
+                  )}
                   {cat.name}
                 </button>
+
               ))}
             </div>
           </div>
