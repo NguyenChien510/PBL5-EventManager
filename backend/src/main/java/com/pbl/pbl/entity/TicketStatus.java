@@ -3,5 +3,6 @@ package com.pbl.pbl.entity;
 public enum TicketStatus {
     PENDING,
     PAID,
-    CANCELLED
+    CANCELLED,
+    CHECKED_IN
 }

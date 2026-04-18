@@ -58,4 +58,33 @@ export class EventService {
     const response = await apiClient.patch(url);
     return response.data;
   }
+
+  static async getOrganizerDashboard(page: number = 0, size: number = 10, status?: string) {
+    let url = `/events/organizer/dashboard?page=${page}&size=${size}`;
+    if (status && status !== 'all') {
+      url += `&status=${status}`;
+    }
+    const response = await apiClient.get(url);
+    return response.data;
+  }
+
+  static async createEvent(data: any) {
+    const response = await apiClient.post('/events', data);
+    return response.data;
+  }
+
+  static async getEventManageStats(id: string | number) {
+    const response = await apiClient.get(`/organizer/events/${id}/manage/stats`);
+    return response.data;
+  }
+
+  static async getEventAttendees(id: string | number) {
+    const response = await apiClient.get(`/organizer/events/${id}/manage/attendees`);
+    return response.data;
+  }
+
+  static async checkInTicket(ticketId: number, checkedIn: boolean) {
+    const response = await apiClient.patch(`/organizer/tickets/${ticketId}/check-in?checkedIn=${checkedIn}`);
+    return response.data;
+  }
 }

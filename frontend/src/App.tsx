@@ -27,6 +27,7 @@ import AdminUserManagement from './pages/AdminUserManagement'
 import AdminFinanceConfig from './pages/AdminFinanceConfig'
 import AdminPaymentHistory from './pages/AdminPaymentHistory'
 import Homepage from './pages/Homepage'
+import OrganizerEventManage from './pages/OrganizerEventManage'
 import SignInPage from './pages/SignInPage'
 import SignUpPage from './pages/SignUpPage'
 import PaymentResult from './pages/PaymentResult'
@@ -194,6 +195,7 @@ function App() {
           <Route path="/organizer" element={<Navigate to="/organizer/dashboard" replace />} />
           <Route path="/organizer/dashboard" element={<OrganizerDashboard />} />
           <Route path="/organizer/events" element={<OrganizerEventList />} />
+          <Route path="/organizer/events/:id/manage" element={<OrganizerEventManage />} />
           <Route path="/organizer/create-event" element={<OrganizerEventCreate />} />
           <Route path="/organizer/create" element={<OrganizerEventCreate />} />
           <Route path="/organizer/guests" element={<OrganizerGuests />} />

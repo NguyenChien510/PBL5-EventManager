@@ -2,9 +2,12 @@ package com.pbl.pbl.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -39,6 +42,7 @@ import com.pbl.pbl.repository.ProvinceRepository;
 import com.pbl.pbl.repository.SeatRepository;
 import com.pbl.pbl.repository.TicketTypeRepository;
 import com.pbl.pbl.repository.WardRepository;
+import com.pbl.pbl.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -54,7 +58,9 @@ public class EventService {
     private final ProvinceRepository provinceRepository;
     private final WardRepository wardRepository;
     private final EventScheduleRepository eventScheduleRepository;
+    private final com.pbl.pbl.repository.TicketRepository ticketRepository;
     private final ArtistService artistService;
+    private final com.pbl.pbl.repository.UserRepository userRepository;
 
 
     @Transactional(readOnly = true)
@@ -73,7 +79,7 @@ public class EventService {
         return eventRepository.findAllByOrderByStartTimeDesc()
                 .stream()
                 .map(this::convertToResponseDTO)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -96,9 +102,29 @@ public class EventService {
                 .processedCount(processedCount)
                 .build();
     }
+    
+    @Transactional(readOnly = true)
+    public com.pbl.pbl.dto.OrganizerDashboardResponseDTO getOrganizerDashboardData(UUID organizerId, com.pbl.pbl.entity.EventStatus status, Pageable pageable) {
+        long totalEvents = eventRepository.countByOrganizer_Id(organizerId);
+        long ticketsSold = seatRepository.countByOrganizerIdAndStatus(organizerId);
+        BigDecimal revenue = seatRepository.sumRevenueByOrganizerIdAndStatus(organizerId);
+        if (revenue == null) revenue = BigDecimal.ZERO;
 
+        Page<Event> eventsPage;
+        if (status != null) {
+            eventsPage = eventRepository.findByOrganizer_IdAndStatus(organizerId, status, pageable);
+        } else {
+            eventsPage = eventRepository.findByOrganizer_Id(organizerId, pageable);
+        }
+        Page<com.pbl.pbl.dto.EventAdminSummaryDTO> summaryPage = eventsPage.map(this::convertToSummaryDTO);
 
-
+        return com.pbl.pbl.dto.OrganizerDashboardResponseDTO.builder()
+                .totalEvents(totalEvents)
+                .totalTicketsSold(ticketsSold)
+                .totalRevenue(revenue)
+                .events(summaryPage)
+                .build();
+    }
 
     @Transactional(readOnly = true)
     public com.pbl.pbl.dto.EventResponseDTO getEventResponseById(Long id) {
@@ -132,7 +158,7 @@ public class EventService {
                 .price(tt.getPrice())
                 .totalQuantity(tt.getTotalQuantity())
                 .build())
-            .toList();
+            .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -146,7 +172,7 @@ public class EventService {
                 .ticketTypeName(s.getTicketType() != null ? s.getTicketType().getName() : "")
                 .price(s.getTicketType() != null ? s.getTicketType().getPrice() : BigDecimal.ZERO)
                 .build())
-            .toList();
+            .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -160,7 +186,7 @@ public class EventService {
                 .ticketTypeName(s.getTicketType() != null ? s.getTicketType().getName() : "")
                 .price(s.getTicketType() != null ? s.getTicketType().getPrice() : BigDecimal.ZERO)
                 .build())
-            .toList();
+            .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -258,7 +284,7 @@ public class EventService {
     }
 
     @Transactional
-    public Event createEvent(EventRequestDTO request) {
+    public Event createEvent(EventRequestDTO request, com.pbl.pbl.entity.User organizer) {
         Category category = categoryRepository.findById(request.getCategoryId())
             .orElseThrow(() -> new RuntimeException("Category not found"));
         
@@ -282,8 +308,8 @@ public class EventService {
         List<com.pbl.pbl.entity.Artist> artists = request.getArtists() != null 
             ? request.getArtists().stream()
                 .map(artistService::getOrCreateArtist)
-                .toList()
-            : new java.util.ArrayList<>();
+                .collect(Collectors.toCollection(ArrayList::new))
+            : new ArrayList<>();
 
         Event event = Event.builder()
             .title(request.getTitle())
@@ -296,6 +322,7 @@ public class EventService {
             .startTime(eventStart)
             .endTime(eventEnd)
             .posterUrl(request.getPosterUrl())
+            .organizer(organizer)
             .status(EventStatus.pending)
             .build();
 
@@ -418,7 +445,7 @@ public class EventService {
                 .ticketsLeft(left)
                 .artists(event.getArtists().stream()
                         .map(artistService::convertToDTO)
-                        .toList())
+                        .collect(Collectors.toList()))
 
                 .category(event.getCategory() != null ? com.pbl.pbl.dto.EventResponseDTO.CategoryDTO.builder()
                         .id(event.getCategory().getId())
@@ -440,7 +467,7 @@ public class EventService {
                                 .startTime(s.getStartTime())
                                 .activity(s.getActivity())
                                 .build())
-                        .toList() : new java.util.ArrayList<>())
+                        .collect(Collectors.toList()) : new java.util.ArrayList<>())
                 .build();
     }
 
@@ -457,6 +484,59 @@ public class EventService {
                 .categoryColor(event.getCategory() != null ? event.getCategory().getColor() : "")
                 .organizerName(event.getOrganizer() != null ? event.getOrganizer().getFullName() : "")
                 .organizerEmail(event.getOrganizer() != null ? event.getOrganizer().getEmail() : "")
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.pbl.pbl.dto.EventAttendeeDTO> getEventAttendees(Long eventId) {
+        List<com.pbl.pbl.entity.Ticket> tickets = ticketRepository.findBySeat_EventSession_Event_Id(eventId);
+        return tickets.stream().map(this::convertToAttendeeDTO).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public com.pbl.pbl.dto.EventManagementStatsDTO getEventManagementStats(Long eventId) {
+        List<com.pbl.pbl.entity.Ticket> tickets = ticketRepository.findBySeat_EventSession_Event_Id(eventId);
+        List<Seat> allSeats = seatRepository.findByEventSession_Event_Id(eventId);
+        
+        long totalSeats = allSeats.size();
+        long soldSeats = tickets.stream().filter(t -> t.getStatus() != com.pbl.pbl.entity.TicketStatus.CANCELLED).count();
+        long checkedInSeats = tickets.stream().filter(t -> t.getStatus() == com.pbl.pbl.entity.TicketStatus.CHECKED_IN).count();
+        
+        BigDecimal totalRevenue = tickets.stream()
+            .filter(t -> t.getStatus() != com.pbl.pbl.entity.TicketStatus.CANCELLED)
+            .map(t -> t.getSeat().getTicketType().getPrice())
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        Map<String, Long> salesByTicketType = tickets.stream()
+            .filter(t -> t.getStatus() != com.pbl.pbl.entity.TicketStatus.CANCELLED)
+            .collect(Collectors.groupingBy(t -> t.getSeat().getTicketType().getName(), Collectors.counting()));
+
+        return com.pbl.pbl.dto.EventManagementStatsDTO.builder()
+                .totalSeats(totalSeats)
+                .soldSeats(soldSeats)
+                .checkedInSeats(checkedInSeats)
+                .totalRevenue(totalRevenue)
+                .salesByTicketType(salesByTicketType)
+                .build();
+    }
+
+    @Transactional
+    public void updateTicketStatus(Long ticketId, com.pbl.pbl.entity.TicketStatus status) {
+        com.pbl.pbl.entity.Ticket ticket = ticketRepository.findById(ticketId)
+            .orElseThrow(() -> new RuntimeException("Ticket not found"));
+        ticket.setStatus(status);
+        ticketRepository.save(ticket);
+    }
+
+    private com.pbl.pbl.dto.EventAttendeeDTO convertToAttendeeDTO(com.pbl.pbl.entity.Ticket ticket) {
+        return com.pbl.pbl.dto.EventAttendeeDTO.builder()
+                .ticketId(ticket.getId())
+                .userName(ticket.getUser().getFullName())
+                .userEmail(ticket.getUser().getEmail())
+                .seatNumber(ticket.getSeat().getSeatNumber())
+                .ticketTypeName(ticket.getSeat().getTicketType().getName())
+                .status(ticket.getStatus().name())
+                .purchaseDate(ticket.getPurchaseDate())
                 .build();
     }
 }

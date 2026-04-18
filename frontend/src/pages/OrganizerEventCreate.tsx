@@ -3,6 +3,7 @@ import { useCategoryStore } from '../stores/useCategoryStore';
 import { useLocationStore } from '../stores/useLocationStore';
 import { Icon } from '../components/ui';
 import { ArtistService } from '../services/artistService';
+import { EventService } from '../services/eventService';
 
 import { DashboardLayout, PageHeader } from '../components/layout';
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig';
@@ -386,27 +387,19 @@ const OrganizerEventCreate = () => {
       };
 
       setIsSubmitting(true);
-      const res = await fetch('http://localhost:8080/api/events', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        setIsSubmitted(true);
-      } else {
-        const error = await res.json();
-        alert("Lỗi: " + (error.message || "Không thể tạo sự kiện"));
-      }
+      const data = await EventService.createEvent(payload);
+      console.log('Event created successfully:', data);
+      setIsSubmitted(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       console.error(err);
-      alert("Lỗi kết nối server");
+      alert("Lỗi: " + (err instanceof Error ? err.message : "Không thể tạo sự kiện"));
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 4));
+  const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 5));
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
   const getStepColor = () => {
     return {
@@ -463,7 +456,7 @@ const OrganizerEventCreate = () => {
       />
 
       <div className={`p-6 mx-auto transition-all duration-500 ${currentStep === 1 ? 'max-w-5xl' :
-        currentStep === 3 ? 'max-w-[1700px]' :
+        currentStep === 4 ? 'max-w-[1700px]' :
           'max-w-7xl'
         }`}>
 
@@ -474,8 +467,8 @@ const OrganizerEventCreate = () => {
         {isSubmitted ? (
           <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-16 text-center animate-in fade-in zoom-in-95 duration-700 ease-out fill-mode-both">
             <div className="flex justify-center mb-8">
-              <div className="w-32 h-32 bg-green-50 rounded-full flex items-center justify-center border border-green-100 animate-bounce">
-                <Icon name="check_circle" className="text-green-500 text-[60px]" />
+              <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center border border-green-100 animate-bounce">
+                <Icon name="check" className="text-green-500 text-[50px]" />
               </div>
             </div>
             <h2 className="text-3xl font-extrabold text-slate-900 mb-4">Chúc mừng! Sự kiện đã được đăng</h2>
@@ -533,12 +526,11 @@ const OrganizerEventCreate = () => {
                                 <button
                                   key={cat.id}
                                   onClick={() => { setSelectedCategory(cat); setIsCategoryOpen(false); }}
-                                  className={`w-full text-left px-4 py-3 text-sm transition-all flex items-center gap-3 border-l-4 mb-1 last:mb-0 ${
-                                    selectedCategory?.id === cat.id 
-                                    ? 'font-bold shadow-sm' 
+                                  className={`w-full text-left px-4 py-3 text-sm transition-all flex items-center gap-3 border-l-4 mb-1 last:mb-0 ${selectedCategory?.id === cat.id
+                                    ? 'font-bold shadow-sm'
                                     : 'hover:translate-x-1'
-                                  }`}
-                                  style={{ 
+                                    }`}
+                                  style={{
                                     borderLeftColor: cat.color || '#cbd5e1',
                                     backgroundColor: selectedCategory?.id === cat.id ? `${cat.color}20` : `${cat.color}08`, // 12% and 3% opacity approx
                                     color: cat.color || '#475569'
@@ -914,7 +906,9 @@ const OrganizerEventCreate = () => {
 
               {currentStep === 5 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500 ease-out fill-mode-both max-w-2xl mx-auto text-center py-8">
-                  <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6"><Icon name="check_circle" className="text-green-500 text-5xl" /></div>
+                  <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Icon name="check_circle" className="text-green-500 text-[45px]" />
+                  </div>
                   <h2 className="text-3xl font-extrabold text-slate-900">Hoàn tất thiết lập!</h2>
                   <p className="text-slate-500">Sự kiện của bạn đã sẵn sàng. Hãy nhấn nút "Tạo sự kiện" bên dưới để gửi lên ban quản trị phê duyệt.</p>
                 </div>

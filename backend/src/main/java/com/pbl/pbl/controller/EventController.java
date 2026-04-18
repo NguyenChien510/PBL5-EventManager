@@ -19,7 +19,11 @@ import org.springframework.data.domain.Sort;
 import com.pbl.pbl.dto.EventRequestDTO;
 import com.pbl.pbl.dto.UpcomingEventCardDTO;
 import com.pbl.pbl.entity.Event;
+import com.pbl.pbl.entity.User;
+import com.pbl.pbl.repository.UserRepository;
 import com.pbl.pbl.service.EventService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import lombok.RequiredArgsConstructor;
 
@@ -30,6 +34,13 @@ import lombok.RequiredArgsConstructor;
 public class EventController {
 
     private final EventService eventService;
+    private final UserRepository userRepository;
+
+    private User getCurrentUser(Authentication auth) {
+        if (auth == null) return null;
+        String email = auth.getName();
+        return userRepository.findByEmail(email).orElse(null);
+    }
 
     @GetMapping("/upcoming")
     public ResponseEntity<java.util.List<Event>> getUpcomingEvents() {
@@ -74,9 +85,19 @@ public class EventController {
     }
 
     @PostMapping
-    public ResponseEntity<Event> createEvent(@RequestBody EventRequestDTO request) {
-        System.out.println(">>> CREATE EVENT REQUEST RECEIVED: " + request.getTitle());
-        return ResponseEntity.ok(eventService.createEvent(request));
+    public ResponseEntity<?> createEvent(@RequestBody EventRequestDTO request, Authentication auth) {
+        User user = getCurrentUser(auth);
+        if (user == null) {
+            return ResponseEntity.status(401).body("Unauthorized");
+        }
+        
+        String role = user.getRole().getName().toUpperCase();
+        if (!role.contains("ORGANIZER") && !role.contains("ADMIN")) {
+            return ResponseEntity.status(403).body("Only organizers or admins can create events");
+        }
+
+        System.out.println(">>> CREATE EVENT REQUEST BY: " + user.getEmail());
+        return ResponseEntity.ok(eventService.createEvent(request, user));
     }
 
     @GetMapping("/admin/all")
@@ -87,6 +108,34 @@ public class EventController {
         Pageable pageable = PageRequest.of(page, size, Sort.by("startTime").descending());
         return ResponseEntity.ok(eventService.getAllEventsForAdminPaginated(pageable, statuses));
     }
+
+    @GetMapping("/organizer/dashboard")
+    public ResponseEntity<?> getOrganizerDashboard(
+            Authentication auth,
+            @RequestParam(required = false) com.pbl.pbl.entity.EventStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        if (auth != null) {
+            System.out.println(">>> DASHBOARD REQUESTED BY: " + auth.getName());
+            System.out.println(">>> AUTHORITIES: " + auth.getAuthorities());
+        }
+
+        User user = getCurrentUser(auth);
+        if (user == null) {
+            System.err.println(">>> DASHBOARD ACCESS DENIED: USER NOT FOUND FOR EMAIL " + (auth != null ? auth.getName() : "NULL"));
+            return ResponseEntity.status(401).body("Unauthorized");
+        }
+
+        System.out.println(">>> USER ROLE FROM DB: " + user.getRole().getName());
+        System.out.println(">>> DASHBOARD REQUESTED FOR USER ID: " + user.getId() + " STATUS: " + status);
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        com.pbl.pbl.dto.OrganizerDashboardResponseDTO data = eventService.getOrganizerDashboardData(user.getId(), status, pageable);
+        
+        System.out.println(">>> EVENTS FOUND FOR USER: " + data.getTotalEvents());
+        return ResponseEntity.ok(data);
+    }
+
 
 
 
