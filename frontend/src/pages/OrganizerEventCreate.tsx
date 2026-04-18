@@ -743,7 +743,11 @@ const OrganizerEventCreate = () => {
                         <div className="w-full h-[320px] bg-slate-100 rounded-3xl overflow-hidden border-2 border-slate-200 relative z-0 shadow-sm mt-4">
 
                           <MapContainer center={mapCenter} zoom={13} scrollWheelZoom={true} className="h-full w-full z-0">
-                            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                            <TileLayer
+                              url="https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+                              subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+                              attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
+                            />
                             <MapUpdater center={mapCenter} />
                             <LocationPicker position={mapPosition} onPositionChange={handleMapClick} />
                           </MapContainer>

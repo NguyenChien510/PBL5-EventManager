@@ -54,8 +54,9 @@ const EventMap = ({ events }: EventMapProps) => {
     <div className="w-full h-[400px] md:h-[500px] rounded-3xl overflow-hidden shadow-sm border border-slate-200 z-0 relative">
       <MapContainer center={[10.762622, 106.660172]} zoom={13} scrollWheelZoom={false} className="h-full w-full z-0">
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          url="https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+          subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+          attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
         />
         <LocationMarker />
         {events.map((event) => (

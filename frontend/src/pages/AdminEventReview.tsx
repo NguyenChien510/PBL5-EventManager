@@ -179,8 +179,9 @@ const AdminEventReview = () => {
               <div className="rounded-xl overflow-hidden h-80 border border-slate-100 relative z-0">
                 <MapContainer center={coordinates || [10.762622, 106.660172]} zoom={13} scrollWheelZoom={true} className="h-full w-full z-0">
                   <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    url="https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+                    subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+                    attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
                   />
                   {coordinates && (
                     <>
@@ -197,7 +198,7 @@ const AdminEventReview = () => {
                   )}
                 </MapContainer>
               </div>
-              <p className="text-[10px] text-slate-400 mt-2 italic">* Bản đồ sử dụng OpenStreetMap. Vị trí được tìm kiếm qua Nominatim.</p>
+              <p className="text-[10px] text-slate-400 mt-2 italic">* Bản đồ sử dụng Google Maps. Vị trí được tìm kiếm qua Nominatim.</p>
             </div>
           </div>
 
