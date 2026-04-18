@@ -7,8 +7,8 @@ import { useAuthStore } from '../stores/useAuthStore'
 import { toast } from 'react-hot-toast'
 
 const paymentMethods = [
-  { id: 'momo', label: 'Ví MoMo', icon: 'MoMo', color: 'bg-accent-pink'},
-  { id: 'vnpay', label: 'VNPay', icon: 'VNPay', color: 'bg-[#005ba6]'},
+  { id: 'momo', label: 'Ví MoMo', logo: 'https://developers.momo.vn/v3/assets/images/MOMO-Logo-App-6262c3743a290ef02396a24ea2b66c35.png', color: 'bg-accent-pink' },
+  { id: 'vnpay', label: 'VNPay', logo: 'https://vnpay.vn/s1/statics.vnpay.vn/2023/9/06ncktiwd6dc1694418196384.png', color: 'bg-[#005ba6]' },
 ]
 
 const SeatSelection = () => {
@@ -63,7 +63,7 @@ const SeatSelection = () => {
 
   const handlePayment = async () => {
     if (selectedSeatObjects.length === 0) return;
-    
+
     setIsProcessing(true);
     try {
       if (activePayment === 'vnpay' || activePayment === 'momo') {
@@ -170,17 +170,17 @@ const SeatSelection = () => {
                           {Array.from({ length: seatsPerRow }, (_, idx) => {
                             const col = idx + 1
                             const seatId = `${row}${col.toString().padStart(2, '0')}` // Ex: A01
-                            
+
                             const seatObj = seats.find(s => s.seatNumber === seatId);
                             const isBooked = !seatObj || seatObj.status !== 'AVAILABLE';
                             const isSelected = selectedSeats.includes(seatId);
                             const isVip = seatObj && seatObj.ticketTypeName.toLowerCase().includes('vip');
-                            
+
                             // Visual Gap after col 3 and depending on items, 3 and max-3. Let's make it fixed every 4 items or so for visual.
                             // The original mock had gap after col=3 and col=9 (length=12).
                             // Assuming similar pattern to keep visual nice, let's keep gaps dynamic or constant
                             const showGap = (Math.floor(seatsPerRow / 4) !== 0) && (col % Math.floor(seatsPerRow / 4) === 0 && col !== seatsPerRow);
-                            
+
                             return (
                               <div key={seatId} className="flex gap-2">
                                 {seatObj ? (
@@ -215,17 +215,23 @@ const SeatSelection = () => {
                   <div
                     key={pm.id}
                     onClick={() => setActivePayment(pm.id)}
-                    className={`payment-method-card ${activePayment === pm.id ? 'active' : ''}`}
+                    className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all cursor-pointer ${
+                      activePayment === pm.id 
+                        ? 'border-primary bg-primary/5 shadow-md shadow-primary/10' 
+                        : 'border-slate-100 hover:border-slate-200 bg-white'
+                    }`}
                   >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className={`w-12 h-12 ${pm.color} rounded-xl flex items-center justify-center text-white font-bold italic text-xs`}>{pm.icon}</div>
-                      {activePayment === pm.id ? (
-                        <Icon name="check_circle" className="text-primary" filled />
-                      ) : (
-                        <div className="w-5 h-5 rounded-full border-2 border-slate-200"></div>
-                      )}
+                    <div className={`w-10 h-10 ${pm.color} rounded-lg flex items-center justify-center overflow-hidden shadow-sm flex-shrink-0`}>
+                      <img src={pm.logo} alt={pm.label} className="w-full h-full object-cover" />
                     </div>
-                    <p className="text-sm font-bold">{pm.label}</p>
+                    <div className="flex-grow">
+                      <p className="text-sm font-bold text-slate-700">{pm.label}</p>
+                    </div>
+                    {activePayment === pm.id ? (
+                      <Icon name="check_circle" className="text-primary" filled />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full border-2 border-slate-200 flex-shrink-0"></div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -247,7 +253,7 @@ const SeatSelection = () => {
                     <span className="inline-block bg-primary/10 text-primary text-[10px] font-black uppercase px-2 py-1 rounded-lg mb-2">{event?.category?.name || 'Sự kiện'}</span>
                     <h3 className="text-base font-black leading-tight line-clamp-2">{event?.title || 'Đang tải...'}</h3>
                     <p className="text-xs font-bold text-slate-400 mt-2">
-                       {event?.startTime ? new Date(event.startTime).toLocaleDateString('vi-VN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Sắp tới'} • {event?.startTime ? new Date(event.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Đang cập nhật'}
+                      {event?.startTime ? new Date(event.startTime).toLocaleDateString('vi-VN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Sắp tới'} • {event?.startTime ? new Date(event.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Đang cập nhật'}
                     </p>
                   </div>
                 </div>
@@ -287,9 +293,9 @@ const SeatSelection = () => {
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider text-right">Đã bao gồm thuế VAT</p>
                 </div>
 
-                <button 
+                <button
                   onClick={handlePayment}
-                  className="w-full bg-primary text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-primary/25 hover:shadow-primary/40 transition-all active:scale-[0.98] mb-4 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" 
+                  className="w-full bg-primary text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-primary/25 hover:shadow-primary/40 transition-all active:scale-[0.98] mb-4 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={selectedSeats.length === 0 || isProcessing}
                 >
                   {isProcessing ? 'Đang tạo giao dịch...' : 'Xác nhận Thanh toán'}

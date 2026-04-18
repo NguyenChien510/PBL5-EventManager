@@ -47,7 +47,7 @@ export default function PaymentResult() {
             
             {transactionId && (
               <div className="flex justify-between border-b border-slate-100 pb-3">
-                <span className="text-slate-500 text-sm font-medium">Mã giao dịch VNPay</span>
+                <span className="text-slate-500 text-sm font-medium">Mã giao dịch</span>
                 <span className="text-slate-800 text-sm font-mono font-semibold">{transactionId}</span>
               </div>
             )}

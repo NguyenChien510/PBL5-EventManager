@@ -9,4 +9,5 @@ import com.pbl.pbl.entity.Seat;
 public interface SeatRepository extends JpaRepository<Seat, Long> {
     java.util.List<Seat> findByEventSession_Event_Id(Long eventId);
     java.util.List<Seat> findByEventSessionId(Long sessionId);
+    long countByEventSession_Event_IdAndStatus(Long eventId, com.pbl.pbl.entity.SeatStatus status);
 }

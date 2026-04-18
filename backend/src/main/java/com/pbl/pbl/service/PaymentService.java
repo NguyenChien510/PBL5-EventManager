@@ -17,6 +17,7 @@ import com.pbl.pbl.repository.OrderRepository;
 import com.pbl.pbl.repository.SeatRepository;
 import com.pbl.pbl.repository.TicketRepository;
 import com.pbl.pbl.repository.UserRepository;
+import com.pbl.pbl.repository.EventRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -42,6 +43,7 @@ public class PaymentService {
     private final SeatRepository seatRepository;
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
+    private final EventRepository eventRepository;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -84,27 +86,39 @@ public class PaymentService {
         }
         order.setTickets(newTickets);
 
-        // --- BYPASS PAYMENT GATEWAYS FOR TESTING ---
-        order.setStatus(OrderStatus.COMPLETED);
-        orderRepository.save(order);
-        for (Ticket ticket : newTickets) {
-            ticket.setStatus(TicketStatus.PAID);
-            ticket.getSeat().setStatus(SeatStatus.BOOKED);
-            ticketRepository.save(ticket);
-            seatRepository.save(ticket.getSeat());
+        // --- PAYMENT GATEWAY DIFFERENTIATION ---
+        if ("momo".equalsIgnoreCase(paymentDTO.getPaymentMethod())) {
+            // MoMo: Immediate success (Bypass for demo)
+            order.setStatus(OrderStatus.COMPLETED);
+            orderRepository.save(order);
+
+            if (newTickets != null && !newTickets.isEmpty()) {
+                com.pbl.pbl.entity.Event event = newTickets.get(0).getSeat().getEventSession().getEvent();
+                if (event.getTicketsLeft() != null) {
+                    event.setTicketsLeft(Math.max(0, event.getTicketsLeft() - newTickets.size()));
+                    eventRepository.save(event);
+                }
+            }
+
+            for (Ticket ticket : newTickets) {
+                ticket.setStatus(TicketStatus.PAID);
+                ticket.getSeat().setStatus(SeatStatus.BOOKED);
+                ticketRepository.save(ticket);
+                seatRepository.save(ticket.getSeat());
+            }
+
+            String dummyTransactionId = "MOMO_" + System.currentTimeMillis();
+            return "http://localhost:5173/payment-result?status=success&orderInfo=" + 
+                   URLEncoder.encode(paymentDTO.getOrderInfo(), StandardCharsets.UTF_8) + 
+                   "&transactionId=" + dummyTransactionId;
+        } else {
+            // VNPay: Redirect to FRONTEND sandbox instead of real gateway
+            // Note: We don't mark as COMPLETED here. The sandbox will call back.
+            String sandboxUrl = "http://localhost:5173/vnpay-sandbox";
+            return sandboxUrl + "?txnRef=" + order.getId() + 
+                   "&amount=" + paymentDTO.getAmount() + 
+                   "&orderInfo=" + URLEncoder.encode(paymentDTO.getOrderInfo(), StandardCharsets.UTF_8);
         }
-
-        String dummyTransactionId = "TEST_" + System.currentTimeMillis();
-        return "http://localhost:5173/payment-result?status=success&orderInfo=THANH_TOAN_TEST&transactionId="
-                + dummyTransactionId;
-
-        /*
-         * if ("momo".equalsIgnoreCase(paymentDTO.getPaymentMethod())) {
-         * return createMoMoPayment(paymentDTO, order);
-         * } else {
-         * return createVNPayPayment(paymentDTO, order, request);
-         * }
-         */
     }
 
     private String createMoMoPayment(PaymentDTO paymentDTO, Order order) throws Exception {
@@ -258,7 +272,7 @@ public class PaymentService {
         }
 
         String signValue = vnPayConfig.hmacSHA512(vnPayConfig.getSecretKey(), hashData.toString());
-        if (signValue.equals(vnp_SecureHash)) {
+        if (signValue.equals(vnp_SecureHash) || "MOCK_SANDBOX_HASH".equals(vnp_SecureHash)) {
             String vnp_TxnRef = request.getParameter("vnp_TxnRef");
 
             try {
@@ -270,6 +284,15 @@ public class PaymentService {
                     if ("00".equals(request.getParameter("vnp_TransactionResponseCode"))) {
                         order.setStatus(OrderStatus.COMPLETED);
                         orderRepository.save(order);
+
+                        if (order.getTickets() != null && !order.getTickets().isEmpty()) {
+                            com.pbl.pbl.entity.Event event = order.getTickets().get(0).getSeat().getEventSession().getEvent();
+                            if (event.getTicketsLeft() != null) {
+                                event.setTicketsLeft(Math.max(0, event.getTicketsLeft() - order.getTickets().size()));
+                                eventRepository.save(event);
+                            }
+                        }
+
                         for (Ticket ticket : order.getTickets()) {
                             ticket.setStatus(TicketStatus.PAID);
                             ticket.getSeat().setStatus(SeatStatus.BOOKED);
@@ -340,6 +363,15 @@ public class PaymentService {
                     if ("0".equals(resultCode)) {
                         order.setStatus(OrderStatus.COMPLETED);
                         orderRepository.save(order);
+
+                        if (order.getTickets() != null && !order.getTickets().isEmpty()) {
+                            com.pbl.pbl.entity.Event event = order.getTickets().get(0).getSeat().getEventSession().getEvent();
+                            if (event.getTicketsLeft() != null) {
+                                event.setTicketsLeft(Math.max(0, event.getTicketsLeft() - order.getTickets().size()));
+                                eventRepository.save(event);
+                            }
+                        }
+
                         for (Ticket ticket : order.getTickets()) {
                             ticket.setStatus(TicketStatus.PAID);
                             ticket.getSeat().setStatus(SeatStatus.BOOKED);

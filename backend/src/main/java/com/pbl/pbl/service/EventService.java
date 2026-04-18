@@ -182,8 +182,10 @@ public class EventService {
             Long eventId = ((Number) row[0]).longValue();
             minMaxByEventId.put(eventId, new BigDecimal[]{(BigDecimal) row[1], (BigDecimal) row[2]});
             int totalQty = ((Number) row[3]).intValue();
-            ticketsLeftByEventId.put(eventId, totalQty); // Assuming no bookings yet for calculation
+            
+            long bookedCount = seatRepository.countByEventSession_Event_IdAndStatus(eventId, SeatStatus.BOOKED);
             totalTicketsByEventId.put(eventId, totalQty);
+            ticketsLeftByEventId.put(eventId, (int)(totalQty - bookedCount));
         }
 
         java.time.ZoneId vnZone = java.time.ZoneId.of("Asia/Ho_Chi_Minh");
@@ -390,6 +392,17 @@ public class EventService {
     }
 
     private com.pbl.pbl.dto.EventResponseDTO convertToResponseDTO(Event event) {
+        Integer total = event.getTotalTickets();
+        if (total == null || total == 0) {
+            total = ticketTypeRepository.findByEventSession_Event_Id(event.getId())
+                    .stream()
+                    .mapToInt(tt -> tt.getTotalQuantity() != null ? tt.getTotalQuantity() : 0)
+                    .sum();
+        }
+
+        long bookedCount = seatRepository.countByEventSession_Event_IdAndStatus(event.getId(), SeatStatus.BOOKED);
+        Integer left = (int) (total - bookedCount);
+
         return com.pbl.pbl.dto.EventResponseDTO.builder()
                 .id(event.getId())
                 .title(event.getTitle())
@@ -401,6 +414,8 @@ public class EventService {
                 .status(event.getStatus())
                 .rejectReason(event.getRejectReason())
                 .createdAt(event.getCreatedAt())
+                .totalTickets(total)
+                .ticketsLeft(left)
                 .artists(event.getArtists().stream()
                         .map(artistService::convertToDTO)
                         .toList())

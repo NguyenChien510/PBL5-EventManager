@@ -30,6 +30,7 @@ import Homepage from './pages/Homepage'
 import SignInPage from './pages/SignInPage'
 import SignUpPage from './pages/SignUpPage'
 import PaymentResult from './pages/PaymentResult'
+import VnpaySandbox from './pages/VnpaySandbox'
 import Chatbot from './components/ui/Chatbot'
 import { useAuthStore } from './stores/useAuthStore'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
@@ -179,6 +180,7 @@ function App() {
           <Route path="/seat-selection" element={<SeatSelection />} />
           <Route path="/seats" element={<SeatSelection />} />
           <Route path="/payment-result" element={<PaymentResult />} />
+          <Route path="/vnpay-sandbox" element={<VnpaySandbox />} />
           <Route path="/profile" element={<UserProfile />} />
           <Route path="/tickets" element={<UserTickets />} />
           <Route path="/history" element={<UserHistory />} />

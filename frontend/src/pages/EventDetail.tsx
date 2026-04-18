@@ -73,7 +73,7 @@ const EventDetail = () => {
           alt={event.title} className="w-full h-full object-cover"
         />
         <div className="hero-gradient absolute inset-0" />
-        
+
         {/* Nav overlay */}
         <div className="absolute top-0 left-0 right-0 z-20 px-6 py-4">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -94,7 +94,7 @@ const EventDetail = () => {
         {/* Hero content */}
         <div className="absolute bottom-0 left-0 right-0 z-10 px-6 pb-10">
           <div className="max-w-7xl mx-auto">
-            <span 
+            <span
               className="inline-flex items-center gap-2 px-3 py-1 backdrop-blur-md rounded-full text-xs font-bold text-white mb-4 shadow-sm"
               style={{ backgroundColor: event.category?.color ? `${event.category.color}CC` : '#ec4899CC' }}
             >
@@ -103,7 +103,7 @@ const EventDetail = () => {
 
             <h1 className="text-4xl font-extrabold text-white mb-3">{event.title}</h1>
             <div className="flex flex-wrap items-center gap-6 text-white/80 text-sm">
-              <span className="flex items-center gap-2"><Icon name="calendar_today" size="sm" /> {new Date(event.startTime).toLocaleDateString("vi-VN", {day: "2-digit", month: "short", year: "numeric"})} • {new Date(event.startTime).toLocaleTimeString("vi-VN", {hour: "2-digit", minute: "2-digit"})}</span>
+              <span className="flex items-center gap-2"><Icon name="calendar_today" size="sm" /> {new Date(event.startTime).toLocaleDateString("vi-VN", { day: "2-digit", month: "short", year: "numeric" })} • {new Date(event.startTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</span>
               <span className="flex items-center gap-2"><Icon name="location_on" size="sm" /> {event.location ? `${event.location}${event.province?.name ? `, ${event.province.name}` : ''}` : (event.province?.name || "SVĐ Quân khu 7, TP.HCM")}</span>
               <span className="flex items-center gap-2"><Icon name="star" size="sm" className="text-yellow-400" /> 4.9 (2,450 đánh giá)</span>
             </div>
@@ -136,38 +136,39 @@ const EventDetail = () => {
                   const displayTime = item.startTime ? String(item.startTime).substring(0, 5) : item.time;
                   const displayTitle = item.activity || item.title;
                   return (
-                  <div key={idx} className="flex gap-4">
-                    {/* Left: time label */}
-                    <div className="w-14 shrink-0 text-right pt-4">
-                      <span className="text-sm font-bold text-slate-500">{displayTime}</span>
-                    </div>
+                    <div key={idx} className="flex gap-4">
+                      {/* Left: time label */}
+                      <div className="w-14 shrink-0 text-right pt-4">
+                        <span className="text-sm font-bold text-slate-500">{displayTime}</span>
+                      </div>
 
-                    {/* Center: dot + connector line */}
-                    <div className="flex flex-col items-center shrink-0">
-                      <div 
-                        className="w-8 h-8 rounded-full flex items-center justify-center z-10 shadow-md relative"
-                        style={{ backgroundColor: item.color?.startsWith('#') ? item.color : undefined }}
-                      >
-                        {!item.color?.startsWith('#') && <div className={`absolute inset-0 rounded-full ${item.color || 'bg-primary'}`} />}
+                      {/* Center: dot + connector line */}
+                      <div className="flex flex-col items-center shrink-0">
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center z-10 shadow-md relative"
+                          style={{ backgroundColor: item.color?.startsWith('#') ? item.color : undefined }}
+                        >
+                          {!item.color?.startsWith('#') && <div className={`absolute inset-0 rounded-full ${item.color || 'bg-primary'}`} />}
 
-                        <div className="relative z-10">
-                          <Icon name={item.icon || 'adjust'} size="sm" className="text-white text-[14px]" />
+                          <div className="relative z-10">
+                            <Icon name={item.icon || 'adjust'} size="sm" className="text-white text-[14px]" />
+                          </div>
+                        </div>
+
+                        {idx < arr.length - 1 && (
+                          <div className="w-0.5 flex-1 bg-slate-200 my-0" />
+                        )}
+                      </div>
+
+                      {/* Right: content card */}
+                      <div className="flex-1 pb-6">
+                        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                          <p className="text-sm font-semibold text-slate-800">{displayTitle}</p>
                         </div>
                       </div>
-
-                      {idx < arr.length - 1 && (
-                        <div className="w-0.5 flex-1 bg-slate-200 my-0" />
-                      )}
                     </div>
-
-                    {/* Right: content card */}
-                    <div className="flex-1 pb-6">
-                      <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                        <p className="text-sm font-semibold text-slate-800">{displayTitle}</p>
-                      </div>
-                    </div>
-                  </div>
-                )})}
+                  )
+                })}
               </div>
             </section>
 
@@ -208,18 +209,31 @@ const EventDetail = () => {
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Chỗ</span>
                     </div>
                   </div>
-                  <div className="p-4 bg-primary/10 backdrop-blur-sm rounded-2xl border border-primary/20 shadow-sm">
+                  <div className="p-4 bg-primary/5 backdrop-blur-sm rounded-2xl border border-primary/10 shadow-sm relative overflow-hidden group">
                     <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Đã đặt</p>
-                    <div className="flex items-baseline gap-1">
+                    <div className="flex items-baseline gap-1.5">
                       <span className="text-xl font-black text-primary">
-                        {event.totalTickets && event.ticketsLeft !== undefined 
+                        {event.totalTickets && event.ticketsLeft !== undefined
                           ? new Intl.NumberFormat('vi-VN').format(event.totalTickets - event.ticketsLeft)
                           : '0'}
                       </span>
-                      <span className="text-[10px] font-bold text-primary/60 uppercase">
-                        {event.totalTickets 
-                          ? `/ ${Math.round(((event.totalTickets - (event.ticketsLeft || 0)) / event.totalTickets) * 100)}%` 
-                          : '/ 0%'}
+                      <span className="text-xs font-bold text-primary/30 tracking-tighter">
+                        / {event.totalTickets ? new Intl.NumberFormat('vi-VN').format(event.totalTickets) : '0'}
+                      </span>
+                    </div>
+
+                    {/* Tiny Progress Bar */}
+                    <div className="mt-2 h-1 w-full bg-primary/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all duration-1000 ease-out"
+                        style={{
+                          width: `${event.totalTickets ? Math.round(((event.totalTickets - (event.ticketsLeft || 0)) / event.totalTickets) * 100) : 0}%`
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="text-[10px] font-black text-primary italic">
+                        {event.totalTickets ? Math.round(((event.totalTickets - (event.ticketsLeft || 0)) / event.totalTickets) * 100) : 0}%
                       </span>
                     </div>
                   </div>
@@ -231,25 +245,25 @@ const EventDetail = () => {
                   {ticketTypes.length > 0 ? ticketTypes.map((tt, idx) => {
                     const lowerName = tt.name.toLowerCase();
                     let colorTheme = {
-                        dot: 'bg-slate-400',
-                        bg: 'bg-slate-50',
-                        border: 'border-slate-200',
-                        text: 'text-slate-700'
+                      dot: 'bg-slate-400',
+                      bg: 'bg-slate-50',
+                      border: 'border-slate-200',
+                      text: 'text-slate-700'
                     };
-                    
+
                     if (lowerName.includes('vip')) {
-                        colorTheme = { dot: 'bg-yellow-500', bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700' };
+                      colorTheme = { dot: 'bg-yellow-500', bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700' };
                     } else if (lowerName.includes('diamond') || lowerName.includes('vvip')) {
-                        colorTheme = { dot: 'bg-pink-500', bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-700' };
+                      colorTheme = { dot: 'bg-pink-500', bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-700' };
                     } else if (lowerName.includes('standard') || lowerName.includes('ga')) {
-                        colorTheme = { dot: 'bg-slate-400', bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-700' };
+                      colorTheme = { dot: 'bg-slate-400', bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-700' };
                     } else {
-                        const palettes = [
-                            { dot: 'bg-primary', bg: 'bg-primary/5', border: 'border-primary/20', text: 'text-primary' },
-                            { dot: 'bg-green-500', bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700' },
-                            { dot: 'bg-purple-500', bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700' }
-                        ];
-                        colorTheme = palettes[idx % palettes.length];
+                      const palettes = [
+                        { dot: 'bg-primary', bg: 'bg-primary/5', border: 'border-primary/20', text: 'text-primary' },
+                        { dot: 'bg-green-500', bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700' },
+                        { dot: 'bg-purple-500', bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700' }
+                      ];
+                      colorTheme = palettes[idx % palettes.length];
                     }
 
                     return (

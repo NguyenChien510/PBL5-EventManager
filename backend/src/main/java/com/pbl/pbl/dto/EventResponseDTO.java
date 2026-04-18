@@ -27,6 +27,8 @@ public class EventResponseDTO {
     private String rejectReason;
     private LocalDateTime createdAt;
     private List<ArtistDTO> artists;
+    private Integer totalTickets;
+    private Integer ticketsLeft;
 
     
     private CategoryDTO category;
