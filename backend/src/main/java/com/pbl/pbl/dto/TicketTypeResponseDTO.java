@@ -10,6 +10,7 @@ import lombok.Setter;
 @Builder
 public class TicketTypeResponseDTO {
     private Long id;
+    private Long sessionId;
     private String name;
     private BigDecimal price;
     private Integer totalQuantity;

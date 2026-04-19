@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Icon, StatusBadge, Pagination } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig'
@@ -167,7 +168,11 @@ const OrganizerEventList = () => {
                // Mocking sold/total logic for now if not in DTO, or use the one calculated in convertToSummaryDTO if added
                // For this implementation, we'll assume the DTO provides them or we use what's available
                return (
-                <div key={evt.id} className="bg-white rounded-2xl border border-slate-200 p-6 flex flex-col md:flex-row items-center gap-6 hover:shadow-md hover:border-primary/20 transition-all group relative overflow-hidden">
+                <Link 
+                  key={evt.id} 
+                  to={`/organizer/events/${evt.id}/manage`}
+                  className="bg-white rounded-2xl border border-slate-200 p-6 flex flex-col md:flex-row items-center gap-6 hover:shadow-xl hover:border-primary/30 transition-all group relative overflow-hidden"
+                >
                   <div className="w-20 h-20 bg-slate-100 rounded-2xl overflow-hidden shrink-0 shadow-sm border border-slate-200">
                     <img src={evt.posterUrl} alt={evt.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" onError={(e) => {
                       (e.target as any).src = 'https://via.placeholder.com/150?text=No+Image'
@@ -188,21 +193,7 @@ const OrganizerEventList = () => {
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-8 shrink-0 w-full md:w-auto mt-4 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-slate-100">
-                    <div className="flex gap-2">
-                      <a 
-                        href={`/organizer/events/${evt.id}/manage`} 
-                        className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-primary hover:text-white transition-all shadow-sm border border-slate-200"
-                        title="Quản lý sự kiện"
-                      >
-                        <Icon name="manage_accounts" size="sm" />
-                      </a>
-                      <a href={`/events/${evt.id}`} target="_blank" className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-primary hover:text-white transition-all shadow-sm border border-slate-200" title="Xem trên trang khách">
-                        <Icon name="visibility" size="sm" />
-                      </a>
-                    </div>
-                  </div>
-                </div>
+                </Link>
                )
             })
           )}

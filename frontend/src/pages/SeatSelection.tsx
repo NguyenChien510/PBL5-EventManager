@@ -124,6 +124,13 @@ const SeatSelection = () => {
           {/* Main Seat Map Area */}
           <div className="lg:col-span-8 space-y-6">
             <div className="glass-card rounded-3xl p-8 overflow-hidden relative">
+              <Link to={id ? `/event/${id}` : "/explore"} className="inline-flex items-center gap-2 text-slate-400 hover:text-primary transition-all font-bold mb-6 group/back">
+                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover/back:bg-primary group-hover/back:text-white transition-all">
+                  <Icon name="arrow_back" size="sm" />
+                </div>
+                <span className="text-xs uppercase tracking-widest">Quay lại sự kiện</span>
+              </Link>
+
               <div className="flex items-center justify-between mb-12">
                 <div>
                   <h2 className="text-2xl font-black mb-1">Sơ đồ vị trí</h2>

@@ -18,10 +18,151 @@ const timeline = [
   { time: '22:30', title: 'Kết thúc', icon: 'celebration', color: 'bg-green-500' },
 ]
 
+const EventCalendar = ({
+  sessions,
+  defaultDate,
+  selectedSessionId,
+  onSelectSession,
+  compact = false
+}: {
+  sessions: any[],
+  defaultDate: Date,
+  selectedSessionId?: number | null,
+  onSelectSession?: (sessionId: number) => void,
+  compact?: boolean
+}) => {
+  const [currentDate, setCurrentDate] = useState(defaultDate);
+
+  const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const today = new Date();
+
+  const days = [];
+  const totalDays = daysInMonth(year, month);
+  const startOffset = firstDayOfMonth(year, month);
+
+  for (let i = 0; i < startOffset; i++) {
+    days.push(null);
+  }
+
+  for (let i = 1; i <= totalDays; i++) {
+    days.push(new Date(year, month, i));
+  }
+
+  const getSessionForDay = (day: Date) => {
+    if (!sessions || sessions.length === 0) return null;
+    const dayStr = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+
+    return sessions.find(session => {
+      let sDateStr: string;
+      if (Array.isArray(session.sessionDate)) {
+        sDateStr = `${session.sessionDate[0]}-${String(session.sessionDate[1]).padStart(2, '0')}-${String(session.sessionDate[2]).padStart(2, '0')}`;
+      } else if (typeof session.sessionDate === 'string') {
+        sDateStr = session.sessionDate.split('T')[0];
+      } else {
+        return false;
+      }
+      return dayStr === sDateStr;
+    });
+  };
+
+  const isEventDay = (day: Date) => !!getSessionForDay(day);
+
+  const isToday = (day: Date) => {
+    return day.getDate() === today.getDate() &&
+      day.getMonth() === today.getMonth() &&
+      day.getFullYear() === today.getFullYear();
+  };
+
+  const monthNames = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6",
+    "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
+
+  return (
+    <div className={`bg-white rounded-[1.5rem] border border-slate-100 shadow-lg overflow-hidden relative group/cal ${compact ? 'p-4' : 'p-8'}`}>
+      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover/cal:bg-primary/10 transition-colors duration-700" />
+
+      <div className={`flex items-center justify-between relative z-10 ${compact ? 'mb-4' : 'mb-8'}`}>
+        <div>
+          <h3 className={`${compact ? 'text-sm' : 'text-xl'} font-black text-slate-900 tracking-tight`}>{monthNames[month]} {year}</h3>
+          {!compact && <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Lịch diễn ra sự kiện</p>}
+        </div>
+        <div className="flex gap-1.5">
+          <button
+            onClick={() => setCurrentDate(new Date(year, month - 1))}
+            className={`${compact ? 'w-7 h-7' : 'w-10 h-10'} rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 hover:text-primary hover:bg-white hover:shadow-md transition-all`}
+          >
+            <Icon name="chevron_left" size="xs" />
+          </button>
+          <button
+            onClick={() => setCurrentDate(new Date(year, month + 1))}
+            className={`${compact ? 'w-7 h-7' : 'w-10 h-10'} rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 hover:text-primary hover:bg-white hover:shadow-md transition-all`}
+          >
+            <Icon name="chevron_right" size="xs" />
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 mb-1 relative z-10">
+        {['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map(d => (
+          <div key={d} className={`text-center font-black text-slate-300 uppercase ${compact ? 'text-[8px] py-1' : 'text-[10px] py-2'}`}>{d}</div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 relative z-10">
+        {days.map((day, idx) => {
+          if (!day) return <div key={`empty-${idx}`} className={compact ? 'h-8' : 'h-12'} />;
+
+          const session = getSessionForDay(day);
+          const active = !!session;
+          const isSelected = session && session.id === selectedSessionId;
+          const current = isToday(day);
+
+          return (
+            <button
+              key={idx}
+              disabled={!active}
+              onClick={() => session && onSelectSession?.(session.id)}
+              className={`flex flex-col items-center justify-center rounded-xl transition-all relative group
+                ${compact ? 'h-8 text-xs' : 'h-12 text-sm'}
+                ${isSelected ? 'bg-primary text-white shadow-md shadow-primary/30 scale-110 z-20 font-black ring-4 ring-primary/20' :
+                  active ? 'bg-primary/10 text-primary hover:bg-primary hover:text-white font-bold' :
+                    'hover:bg-slate-50 text-slate-400 font-medium'}
+                ${current && !isSelected ? 'border-2 border-primary/20 bg-primary/5 text-primary' : ''}
+              `}
+            >
+              <span>{day.getDate()}</span>
+              {active && !compact && !isSelected && (
+                <div className="absolute -bottom-1 w-1 h-1 bg-primary rounded-full" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {!compact && (
+        <div className="mt-8 pt-6 border-t border-slate-50 flex items-center gap-6 relative z-10">
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 bg-primary/20 rounded-full" />
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ngày có sự kiện</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 bg-primary rounded-full" />
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Đang chọn</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
   const [event, setEvent] = useState<any>(null);
   const [ticketTypes, setTicketTypes] = useState<any[]>([]);
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -113,9 +254,9 @@ const EventDetail = () => {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-[7fr_3fr] gap-12">
           {/* Main */}
-          <div className="lg:col-span-2 space-y-10">
+          <div className="space-y-10">
             {/* Description */}
             <section>
               <h2 className="text-xl font-extrabold text-slate-900 mb-4 flex items-center gap-2">
@@ -126,176 +267,135 @@ const EventDetail = () => {
               </p>
             </section>
 
-            {/* Timeline */}
-            <section>
-              <h2 className="text-xl font-extrabold text-slate-900 mb-6 flex items-center gap-2">
-                <span className="w-1.5 h-6 bg-primary rounded-full" /> Lịch trình sự kiện
-              </h2>
-              <div className="space-y-0">
-                {(event.schedules && event.schedules.length > 0 ? event.schedules : timeline).map((item: any, idx: number, arr: any[]) => {
-                  const displayTime = item.startTime ? String(item.startTime).substring(0, 5) : item.time;
-                  const displayTitle = item.activity || item.title;
-                  return (
-                    <div key={idx} className="flex gap-4">
-                      {/* Left: time label */}
-                      <div className="w-14 shrink-0 text-right pt-4">
-                        <span className="text-sm font-bold text-slate-500">{displayTime}</span>
-                      </div>
-
-                      {/* Center: dot + connector line */}
-                      <div className="flex flex-col items-center shrink-0">
-                        <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center z-10 shadow-md relative"
-                          style={{ backgroundColor: item.color?.startsWith('#') ? item.color : undefined }}
-                        >
-                          {!item.color?.startsWith('#') && <div className={`absolute inset-0 rounded-full ${item.color || 'bg-primary'}`} />}
-
-                          <div className="relative z-10">
-                            <Icon name={item.icon || 'adjust'} size="sm" className="text-white text-[14px]" />
-                          </div>
-                        </div>
-
-                        {idx < arr.length - 1 && (
-                          <div className="w-0.5 flex-1 bg-slate-200 my-0" />
-                        )}
-                      </div>
-
-                      {/* Right: content card */}
-                      <div className="flex-1 pb-6">
-                        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                          <p className="text-sm font-semibold text-slate-800">{displayTitle}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </section>
-
             {/* Artists */}
-            <section>
-              <h2 className="text-xl font-extrabold text-slate-900 mb-6 flex items-center gap-2">
-                <span className="w-1.5 h-6 bg-primary rounded-full" /> Nghệ sĩ biểu diễn
-              </h2>
-              <div className="grid grid-cols-3 gap-4">
-                {(event.artists || []).map((artist: any) => (
-                  <div key={artist.name} className="bg-white rounded-2xl border border-slate-100 p-4 text-center hover:shadow-lg transition-all">
-                    <img src={artist.avatar} alt={artist.name} className="w-20 h-20 rounded-full mx-auto mb-3 object-cover shadow-sm" />
-                    <p className="font-bold text-sm text-slate-800">{artist.name}</p>
-                    <p className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1 opacity-80">Nghệ sĩ</p>
-                  </div>
-                ))}
-              </div>
-            </section>
+            {event.artists && event.artists.length > 0 && (
+              <section>
+                <h2 className="text-xl font-extrabold text-slate-900 mb-6 flex items-center gap-2">
+                  <span className="w-1.5 h-6 bg-primary rounded-full" /> Nghệ sĩ biểu diễn
+                </h2>
+                <div className="grid grid-cols-3 gap-4">
+                  {event.artists.map((artist: any) => (
+                    <div key={artist.name} className="bg-white rounded-2xl border border-slate-100 p-4 text-center hover:shadow-lg transition-all">
+                      <img src={artist.avatar} alt={artist.name} className="w-20 h-20 rounded-full mx-auto mb-3 object-cover shadow-sm" />
+                      <p className="font-bold text-sm text-slate-800">{artist.name}</p>
+                      <p className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1 opacity-80">Nghệ sĩ</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
 
           </div>
 
           {/* Sidebar */}
-          <aside className="w-full lg:w-[400px]">
-            <div className="sticky top-24">
-              <div className="glass-widget rounded-[32px] p-8 overflow-hidden relative">
+          <aside className="space-y-6">
+            <div className="sticky top-24 space-y-6">
+              {/* Compact Event Calendar */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 px-1">
+                  <div className="w-1 h-4 bg-emerald-500 rounded-full" />
+                  <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Thời gian biểu</span>
+                </div>
+                <EventCalendar
+                  sessions={event.sessions || []}
+                  defaultDate={new Date(event.startTime)}
+                  selectedSessionId={selectedSessionId}
+                  onSelectSession={(id) => setSelectedSessionId(id)}
+                  compact={true}
+                />
+              </div>
+
+              <div className="glass-widget rounded-[32px] p-6 overflow-hidden relative">
                 <div className="mb-6">
                   <h3 className="text-xl font-black mb-2">Thông tin đặt vé</h3>
-                  <p className="text-sm text-slate-500 font-medium tracking-tight italic">Giá vé chi tiết sẽ hiển thị sau khi chọn chỗ</p>
                 </div>
 
                 {/* Ticket Stats Grid */}
-                <div className="grid grid-cols-2 gap-4 mb-8">
-                  <div className="p-4 bg-white/40 backdrop-blur-sm rounded-2xl border border-white/50 shadow-sm">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tổng quy mô</p>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-xl font-black">{event.totalTickets ? new Intl.NumberFormat('vi-VN').format(event.totalTickets) : '0'}</span>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">Chỗ</span>
-                    </div>
-                  </div>
-                  <div className="p-4 bg-primary/5 backdrop-blur-sm rounded-2xl border border-primary/10 shadow-sm relative overflow-hidden group">
-                    <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Đã đặt</p>
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-xl font-black text-primary">
-                        {event.totalTickets && event.ticketsLeft !== undefined
-                          ? new Intl.NumberFormat('vi-VN').format(event.totalTickets - event.ticketsLeft)
-                          : '0'}
-                      </span>
-                      <span className="text-xs font-bold text-primary/30 tracking-tighter">
-                        / {event.totalTickets ? new Intl.NumberFormat('vi-VN').format(event.totalTickets) : '0'}
-                      </span>
-                    </div>
-
-                    {/* Tiny Progress Bar */}
-                    <div className="mt-2 h-1 w-full bg-primary/10 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary rounded-full transition-all duration-1000 ease-out"
-                        style={{
-                          width: `${event.totalTickets ? Math.round(((event.totalTickets - (event.ticketsLeft || 0)) / event.totalTickets) * 100) : 0}%`
-                        }}
-                      />
-                    </div>
-                    <div className="flex justify-between items-center mt-2">
-                      <span className="text-[10px] font-black text-primary italic">
-                        {event.totalTickets ? Math.round(((event.totalTickets - (event.ticketsLeft || 0)) / event.totalTickets) * 100) : 0}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Ticket Categories */}
-                <div className="space-y-3 mb-8">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Phân loại & Giá vé</p>
-                  {ticketTypes.length > 0 ? ticketTypes.map((tt, idx) => {
-                    const lowerName = tt.name.toLowerCase();
-                    let colorTheme = {
-                      dot: 'bg-slate-400',
-                      bg: 'bg-slate-50',
-                      border: 'border-slate-200',
-                      text: 'text-slate-700'
-                    };
-
-                    if (lowerName.includes('vip')) {
-                      colorTheme = { dot: 'bg-yellow-500', bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700' };
-                    } else if (lowerName.includes('diamond') || lowerName.includes('vvip')) {
-                      colorTheme = { dot: 'bg-pink-500', bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-700' };
-                    } else if (lowerName.includes('standard') || lowerName.includes('ga')) {
-                      colorTheme = { dot: 'bg-slate-400', bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-700' };
-                    } else {
-                      const palettes = [
-                        { dot: 'bg-primary', bg: 'bg-primary/5', border: 'border-primary/20', text: 'text-primary' },
-                        { dot: 'bg-green-500', bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700' },
-                        { dot: 'bg-purple-500', bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700' }
-                      ];
-                      colorTheme = palettes[idx % palettes.length];
-                    }
-
-                    return (
-                      <div key={tt.id} className={`flex items-center justify-between p-3 rounded-xl border ${colorTheme.bg} ${colorTheme.border} hover:brightness-95 transition-all`}>
-                        <div className="flex items-center gap-3">
-                          <div className={`w-3 h-3 rounded-md ${colorTheme.dot} shadow-sm`} />
-                          <span className={`text-sm font-bold ${colorTheme.text}`}>{tt.name}</span>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-black text-slate-800">{new Intl.NumberFormat('vi-VN').format(tt.price)}đ</p>
-                          <p className="text-[10px] font-bold uppercase text-slate-500 mt-0.5">{tt.totalQuantity} vé</p>
-                        </div>
+                <div className="relative group">
+                  {!selectedSessionId && (
+                    <div className="absolute inset-x-0 -inset-y-2 z-30 bg-white/60 backdrop-blur-[2px] rounded-3xl flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-primary/20">
+                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mb-3">
+                        <Icon name="touch_app" className="text-primary animate-bounce" />
                       </div>
-                    );
-                  }) : (
-                    <div className="p-3 text-center text-sm font-medium text-slate-500">
-                      Đang cập nhật hạng vé...
+                      <p className="text-xs font-black text-slate-800 uppercase tracking-wider mb-1">Vui lòng chọn ngày</p>
+                      <p className="text-[10px] text-slate-500 font-bold">Click vào ngày trên lịch để xem vé</p>
                     </div>
                   )}
-                </div>
 
-                <Link
-                  to={id ? `/event/${id}/seats` : "/seats"}
-                  className="w-full flex items-center justify-center gap-3 bg-primary text-white py-5 rounded-[24px] font-black text-lg transition-all hover:shadow-2xl hover:shadow-primary/40 hover:-translate-y-1 active:scale-[0.97] group"
-                >
-                  <Icon name="event_seat" className="text-xl group-hover:scale-110 transition-transform" />
-                  <span>Chọn chỗ ngồi trên sơ đồ</span>
-                </Link>
+                  <div className="grid grid-cols-2 gap-4 mb-8">
+                    <div className="p-4 bg-white/40 backdrop-blur-sm rounded-2xl border border-white/50 shadow-sm">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Quy mô phiên</p>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-xl font-black">
+                          {selectedSessionId
+                            ? (ticketTypes.filter(tt => tt.sessionId === selectedSessionId).reduce((acc, curr) => acc + curr.totalQuantity, 0))
+                            : '0'}
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Chỗ</span>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-primary/5 backdrop-blur-sm rounded-2xl border border-primary/10 shadow-sm relative overflow-hidden group">
+                      <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Đã đặt</p>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-xl font-black text-primary">0</span>
+                        <span className="text-xs font-bold text-primary/30 tracking-tighter">
+                          / {selectedSessionId
+                            ? (ticketTypes.filter(tt => tt.sessionId === selectedSessionId).reduce((acc, curr) => acc + curr.totalQuantity, 0))
+                            : '0'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
 
-                <div className="mt-6 pt-6 border-t border-slate-300/30 flex items-center justify-center gap-2 text-slate-400">
-                  <Icon name="verified_user" size="sm" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest">Wow Ticket Protection • No hidden fees</span>
+                  {/* Ticket Categories */}
+                  <div className="space-y-3 mb-8">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Phân loại & Giá vé</p>
+                    {selectedSessionId ? (
+                      ticketTypes
+                        .filter(tt => tt.sessionId === selectedSessionId)
+                        .map((tt, idx) => {
+                          const lowerName = tt.name.toLowerCase();
+                          let colorTheme = { dot: 'bg-primary', bg: 'bg-primary/5', border: 'border-primary/20', text: 'text-primary' };
+
+                          if (lowerName.includes('vip')) {
+                            colorTheme = { dot: 'bg-yellow-500', bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700' };
+                          } else if (lowerName.includes('diamond') || lowerName.includes('vvip')) {
+                            colorTheme = { dot: 'bg-pink-500', bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-700' };
+                          }
+
+                          return (
+                            <div key={tt.id} className={`flex items-center justify-between p-3 rounded-xl border ${colorTheme.bg} ${colorTheme.border} hover:brightness-95 transition-all`}>
+                              <div className="flex items-center gap-3">
+                                <div className={`w-3 h-3 rounded-md ${colorTheme.dot} shadow-sm`} />
+                                <span className={`text-sm font-bold ${colorTheme.text}`}>{tt.name}</span>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-black text-slate-800">{new Intl.NumberFormat('vi-VN').format(tt.price)}đ</p>
+                                <p className="text-[10px] font-bold uppercase text-slate-500 mt-0.5">{tt.totalQuantity} vé</p>
+                              </div>
+                            </div>
+                          );
+                        })
+                    ) : (
+                      <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-100 italic text-xs text-slate-400 font-medium">
+                        Chọn ngày để xem hạng vé khả dụng
+                      </div>
+                    )}
+                  </div>
+
+                  <Link
+                    to={selectedSessionId ? `/event/${id}/seats?session=${selectedSessionId}` : "#"}
+                    onClick={(e) => !selectedSessionId && e.preventDefault()}
+                    className={`w-full flex items-center justify-center gap-2.5 py-3.5 rounded-2xl font-black text-sm transition-all 
+                      ${selectedSessionId
+                        ? 'bg-primary text-white hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98] group'
+                        : 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-50'
+                      }`}
+                  >
+                    <Icon name="event_seat" className={selectedSessionId ? 'group-hover:scale-110 transition-transform' : ''} size="sm" />
+                    <span>Chọn chỗ ngồi trên sơ đồ</span>
+                  </Link>
                 </div>
               </div>
 
@@ -316,6 +416,61 @@ const EventDetail = () => {
             </div>
           </aside>
         </div>
+
+        {/* Timeline (Single Column Full Width) */}
+        {event.schedules && event.schedules.length > 0 && (
+          <div className="mt-20 pt-16 border-t border-slate-200">
+            <div className="max-w-4xl mx-auto space-y-12">
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="inline-flex items-center gap-3 px-4 py-1.5 bg-primary/5 rounded-full border border-primary/10">
+                  <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+                  <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Flow of Event</span>
+                </div>
+                <h2 className="text-4xl font-black text-slate-900 tracking-tight uppercase px-4">Chi tiết lịch trình</h2>
+                <p className="text-sm text-slate-400 font-medium max-w-md">Theo dõi dòng chảy thời gian và các hoạt động chính thức của chương trình</p>
+              </div>
+
+              <div className="relative px-4 sm:px-0">
+                {/* Vertical Line */}
+                <div className="absolute left-[39px] sm:left-1/2 top-10 bottom-10 w-px bg-gradient-to-b from-transparent via-slate-200 to-transparent hidden sm:block" />
+
+                <div className="space-y-12">
+                  {event.schedules.map((item: any, idx: number, arr: any[]) => {
+                    const displayTime = item.startTime ? String(item.startTime).substring(0, 5) : item.time;
+                    const displayTitle = item.activity || item.title;
+                    const isEven = idx % 2 === 0;
+
+                    return (
+                      <div key={idx} className={`flex flex-col sm:flex-row items-center gap-8 relative group ${isEven ? 'sm:flex-row' : 'sm:flex-row-reverse'}`}>
+                        {/* Time Label */}
+                        <div className={`sm:w-1/2 flex ${isEven ? 'sm:justify-end' : 'sm:justify-start'}`}>
+                          <div className={`flex flex-col ${isEven ? 'sm:items-end' : 'sm:items-start'}`}>
+                            <span className="text-sm font-black text-primary bg-primary/5 px-3 py-1 rounded-lg border border-primary/10 mb-2">{displayTime}</span>
+                            <p className={`text-xs text-slate-400 font-bold uppercase tracking-widest ${isEven ? 'sm:text-right' : 'sm:text-left'}`}>Activity {idx + 1}</p>
+                          </div>
+                        </div>
+
+                        {/* Dot */}
+                        <div className="absolute left-10 sm:left-1/2 top-0 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-20">
+                          <div className="w-5 h-5 bg-white border-4 border-slate-100 rounded-full group-hover:border-primary group-hover:scale-125 transition-all duration-500" />
+                        </div>
+
+                        {/* Content Card */}
+                        <div className="sm:w-1/2 w-full pl-20 sm:pl-0">
+                          <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm group-hover:shadow-xl group-hover:border-primary/10 transition-all duration-500 relative overflow-hidden">
+                            <div className={`absolute top-0 bottom-0 w-1 ${isEven ? 'left-0' : 'sm:right-0 left-0 sm:left-auto'} bg-primary opacity-20`} />
+                            <h4 className="text-lg font-black text-slate-800 mb-2">{displayTitle}</h4>
+                            <p className="text-xs text-slate-500 leading-relaxed font-medium">Hạng mục chương trình đã được ban tổ chức xác nhận chính thức.</p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

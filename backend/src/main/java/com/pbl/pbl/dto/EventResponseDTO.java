@@ -36,6 +36,19 @@ public class EventResponseDTO {
     private OrganizerInfoDTO organizer;
     
     private List<EventScheduleResponseDTO> schedules;
+    private List<SessionDTO> sessions;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SessionDTO {
+        private Long id;
+        private java.time.LocalDate sessionDate;
+        private java.time.LocalTime startTime;
+        private java.time.LocalTime endTime;
+        private String name;
+    }
 
     @Data
     @Builder

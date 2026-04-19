@@ -98,6 +98,10 @@ public class Event {
     @Builder.Default
     private List<EventSchedule> schedules = new ArrayList<>();
 
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<EventSession> sessions = new ArrayList<>();
+
     @Column(columnDefinition = "TEXT")
     private String rejectReason;
 
