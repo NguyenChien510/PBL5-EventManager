@@ -28,6 +28,9 @@ public class Order {
     @Column(nullable = false)
     private BigDecimal totalAmount;
 
+    @Column(name = "platform_fee", precision = 15, scale = 2)
+    private BigDecimal platformFee;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OrderStatus status;

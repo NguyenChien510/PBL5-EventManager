@@ -1,96 +1,209 @@
+import { useState, useEffect } from 'react'
 import { Icon, StatCard } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig'
+import { apiClient } from '@/utils/axios'
 
 const sidebarConfig = organizerSidebarConfig
 
-const transactions = [
-  { id: 'TX-001', event: 'Concert Year End', type: 'Vé bán', amount: '+2.400.000', date: '20/12/2024', status: 'Thành công', positive: true },
-  { id: 'TX-002', event: 'Concert Year End', type: 'Phí nền tảng', amount: '-240.000', date: '20/12/2024', status: 'Đã trừ', positive: false },
-  { id: 'TX-003', event: 'AI Summit', type: 'Rút về tài khoản', amount: '-5.000.000', date: '18/12/2024', status: 'Đang xử lý', positive: false },
-  { id: 'TX-004', event: 'Workshop UX', type: 'Vé bán', amount: '+500.000', date: '15/12/2024', status: 'Thành công', positive: true },
-]
+interface OrderDTO {
+  id: number;
+  totalAmount: number;
+  platformFee: number | null;
+  status: string;
+  purchaseDate: string;
+  eventTitle: string;
+}
 
 const OrganizerFinance = () => {
+  const [orders, setOrders] = useState<OrderDTO[]>([])
+  const [loading, setLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [chartData, setChartData] = useState<number[]>(Array(12).fill(0))
+  const itemsPerPage = 5
+
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        const [transactionsRes, statsRes] = await Promise.all([
+          apiClient.get('/organizer/finance/transactions'),
+          apiClient.get('/organizer/finance/stats')
+        ])
+        if (transactionsRes.data) setOrders(transactionsRes.data)
+        if (statsRes.data) setChartData(statsRes.data)
+      } catch (err) {
+        console.error('Error fetching finance data', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchTransactions()
+  }, [])
+
+  const totalRevenue = orders.filter(o => o.status === 'COMPLETED').reduce((sum, o) => sum + o.totalAmount, 0)
+  const platformFee = orders.filter(o => o.status === 'COMPLETED').reduce((sum, o) => sum + (o.platformFee || 0), 0)
+  const netIncome = totalRevenue - platformFee
+  
+  const pendingOrders = orders.filter(o => o.status === 'PENDING').reduce((sum, o) => sum + o.totalAmount, 0)
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
+  }
+
+  // Pagination Logic
+  const totalPages = Math.ceil(orders.length / itemsPerPage)
+  const paginatedOrders = orders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page)
+    }
+  }
+
   return (
     <DashboardLayout sidebarProps={sidebarConfig}>
       <PageHeader title="Quyết toán Tài chính" subtitle="Tổng quan doanh thu & chi phí" />
-      <div className="p-8 space-y-8">
+      <div className="p-6 space-y-5">
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <StatCard label="Tổng doanh thu" value="2.4B" icon="payments" iconBg="bg-green-100" iconColor="text-green-600" trend={{ value: '+15% tháng này', positive: true }} />
-          <StatCard label="Phí nền tảng" value="240M" icon="receipt_long" iconBg="bg-red-100" iconColor="text-red-500" />
-          <StatCard label="Thu nhập ròng" value="2.16B" icon="account_balance" iconBg="bg-primary/10" iconColor="text-primary" />
-          <StatCard label="Chờ thanh toán" value="85M" icon="hourglass_empty" iconBg="bg-orange-100" iconColor="text-orange-500" />
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 animate-slide-down">
+          <StatCard label="Tổng doanh thu" value={formatCurrency(totalRevenue)} icon="payments" iconBg="bg-emerald-50" iconColor="text-emerald-600" trend={{ value: 'Cập nhật tự động', positive: true }} />
+          <StatCard label="Thu nhập ròng (Thực nhận)" value={formatCurrency(netIncome)} icon="account_balance" iconBg="bg-indigo-50" iconColor="text-indigo-600" />
+          <StatCard label="Thuế / Phí nền tảng" value={formatCurrency(platformFee)} icon="receipt_long" iconBg="bg-rose-50" iconColor="text-rose-600" />
+          <StatCard label="Đơn hàng chờ User thanh toán" value={formatCurrency(pendingOrders)} icon="hourglass_empty" iconBg="bg-orange-50" iconColor="text-orange-500" />
         </div>
 
-        {/* Chart + Withdraw */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <h3 className="font-bold mb-6 flex items-center gap-2">
-              <Icon name="trending_up" className="text-primary" /> Biểu đồ doanh thu theo tháng
-            </h3>
-            <div className="flex items-end gap-3 h-48">
-              {[35, 50, 42, 68, 55, 75, 88, 70, 82, 95, 78, 90].map((h, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <div className="w-full bg-slate-100 rounded-t-md relative" style={{ height: '100%' }}>
-                    <div className="chart-bar absolute bottom-0 w-full bg-gradient-to-t from-primary to-blue-400 rounded-t-md" style={{ height: `${h}%` }} />
+        {/* Chart */}
+        <div className="grid grid-cols-1 gap-5 animate-slide-down" style={{ animationDelay: '100ms', animationFillMode: 'both' }}>
+          <div className="bg-white p-5 rounded-[1.5rem] border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-lg font-black text-slate-900">Biểu đồ doanh thu</h3>
+                <p className="text-xs text-slate-500 font-medium">Theo tháng trong năm (VND)</p>
+              </div>
+            </div>
+            <div className="flex items-end gap-4 sm:gap-6 h-56 mt-4 px-2">
+              {chartData.map((val, i) => {
+                const maxVal = Math.max(...chartData, 1000000);
+                const heightPercent = (val / maxVal) * 100;
+                return (
+                  <div key={i} className="flex-1 h-full flex flex-col items-center justify-end gap-3 group relative cursor-pointer">
+                    {/* Tooltip */}
+                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-black px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-all pointer-events-none z-10 whitespace-nowrap">
+                      {formatCurrency(val)}
+                    </div>
+                    
+                    <span className="text-[10px] font-black text-indigo-600 opacity-0 group-hover:opacity-100 transition-all group-hover:-translate-y-1 duration-300">
+                      {val > 1000000 ? `${(val/1000000).toFixed(1)}M` : `${(val/1000).toFixed(0)}K`}
+                    </span>
+                    <div className="w-full flex-1 bg-slate-50/80 rounded-t-xl relative overflow-hidden ring-1 ring-inset ring-slate-100 border-b-2 border-slate-200">
+                      <div className="absolute bottom-0 w-full rounded-t-xl transition-all duration-700 ease-out group-hover:brightness-110 bg-gradient-to-t from-indigo-600 to-blue-400 shadow-[0_0_15px_rgba(79,70,229,0.2)]" 
+                           style={{ height: `${Math.max(heightPercent, 2)}%` }} />
+                    </div>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase group-hover:text-indigo-600 transition-colors">T{i + 1}</span>
                   </div>
-                  <span className="text-[9px] text-slate-400">T{i + 1}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-primary to-blue-600 p-6 rounded-2xl text-white shadow-xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 opacity-10">
-              <Icon name="account_balance_wallet" className="text-8xl" />
-            </div>
-            <div className="relative z-10">
-              <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-1">Số dư khả dụng</p>
-              <h4 className="text-3xl font-extrabold mb-6">2.160.000.000đ</h4>
-              <button className="w-full py-3 bg-white text-primary font-bold rounded-xl shadow-lg hover:bg-slate-50 transition-colors flex items-center justify-center gap-2">
-                <Icon name="account_balance" size="sm" /> Rút về tài khoản
-              </button>
+                )
+              })}
             </div>
           </div>
         </div>
 
         {/* Transactions Table */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-6 flex items-center justify-between border-b border-slate-100">
-            <h3 className="font-bold flex items-center gap-2"><Icon name="receipt" className="text-primary" /> Lịch sử giao dịch</h3>
-            <button className="px-4 py-2 text-xs font-bold border border-slate-200 rounded-lg flex items-center gap-2 hover:bg-slate-50">
+        <div className="bg-white rounded-[1.5rem] border border-slate-200 shadow-sm overflow-hidden animate-slide-down" style={{ animationDelay: '200ms', animationFillMode: 'both' }}>
+          <div className="p-5 flex items-center justify-between border-b border-slate-100 bg-slate-50/50">
+            <h3 className="font-black text-slate-900 flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                <Icon name="receipt" size="sm" />
+              </div>
+              Lịch sử giao dịch
+            </h3>
+            <button className="text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-4 py-2 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2">
               <Icon name="download" size="sm" /> Xuất CSV
             </button>
           </div>
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-slate-50/50">
-                {['Mã GD', 'Sự kiện', 'Loại', 'Số tiền', 'Ngày', 'Trạng thái'].map((h) => (
-                  <th key={h} className="p-4 text-xs font-bold text-slate-400 uppercase">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {transactions.map((tx) => (
-                <tr key={tx.id} className="hover:bg-slate-50/30">
-                  <td className="p-4 text-sm font-mono text-slate-500">{tx.id}</td>
-                  <td className="p-4 text-sm font-medium">{tx.event}</td>
-                  <td className="p-4 text-sm text-slate-500">{tx.type}</td>
-                  <td className={`p-4 text-sm font-bold ${tx.positive ? 'text-green-600' : 'text-red-500'}`}>{tx.amount}đ</td>
-                  <td className="p-4 text-sm text-slate-500">{tx.date}</td>
-                  <td className="p-4">
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                      tx.status === 'Thành công' ? 'bg-green-100 text-green-600' :
-                      tx.status === 'Đang xử lý' ? 'bg-orange-100 text-orange-500' :
-                      'bg-slate-100 text-slate-500'
-                    }`}>{tx.status}</span>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  {['Mã GD', 'Sự kiện', 'Tổng thu', 'Phí nền tảng', 'Thực nhận', 'Ngày', 'Trạng thái'].map((h) => (
+                    <th key={h} className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {orders.length === 0 && !loading && (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-slate-500 font-medium text-sm">Chưa có giao dịch nào</td>
+                  </tr>
+                )}
+                {loading && (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-slate-500 font-medium text-sm">Đang tải dữ liệu...</td>
+                  </tr>
+                )}
+                {paginatedOrders.map((tx) => {
+                  const txFee = tx.platformFee || 0;
+                  const txNet = tx.totalAmount - txFee;
+                  return (
+                    <tr key={tx.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="p-4 text-xs font-bold text-slate-500 font-mono">#{tx.id}</td>
+                      <td className="p-4 text-sm font-bold text-slate-900">{tx.eventTitle}</td>
+                      <td className="p-4 text-sm font-black whitespace-nowrap text-emerald-600">{formatCurrency(tx.totalAmount)}</td>
+                      <td className="p-4 text-sm font-bold whitespace-nowrap text-rose-500">-{formatCurrency(txFee)}</td>
+                      <td className="p-4 text-sm font-black whitespace-nowrap text-indigo-600">{formatCurrency(txNet)}</td>
+                      <td className="p-4 text-xs font-medium text-slate-500 whitespace-nowrap">{new Date(tx.purchaseDate).toLocaleString('vi-VN')}</td>
+                      <td className="p-4 whitespace-nowrap">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider inline-block border ${
+                          tx.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
+                          tx.status === 'PENDING' ? 'bg-orange-50 text-orange-500 border-orange-200' :
+                          'bg-slate-50 text-slate-500 border-slate-200'
+                        }`}>{tx.status}</span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Footer */}
+          {orders.length > itemsPerPage && (
+            <div className="p-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                Hiển thị {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, orders.length)} / {orders.length} giao dịch
+              </div>
+              <div className="flex items-center gap-1">
+                <button 
+                  onClick={() => goToPage(currentPage - 1)} 
+                  disabled={currentPage === 1}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 bg-white text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-all"
+                >
+                  <Icon name="chevron_left" size="sm" />
+                </button>
+                
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => goToPage(page)}
+                    className={`w-8 h-8 rounded-lg text-xs font-black transition-all ${
+                      currentPage === page 
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' 
+                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+
+                <button 
+                  onClick={() => goToPage(currentPage + 1)} 
+                  disabled={currentPage === totalPages}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 bg-white text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-all"
+                >
+                  <Icon name="chevron_right" size="sm" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </DashboardLayout>

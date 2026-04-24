@@ -13,6 +13,7 @@ public class OrderDTO {
     private String userEmail;
     private String userName;
     private BigDecimal totalAmount;
+    private BigDecimal platformFee;
     private String status;
     private String paymentMethod;
     private LocalDateTime purchaseDate;

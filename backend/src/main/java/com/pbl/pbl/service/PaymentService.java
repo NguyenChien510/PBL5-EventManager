@@ -18,6 +18,8 @@ import com.pbl.pbl.repository.SeatRepository;
 import com.pbl.pbl.repository.TicketRepository;
 import com.pbl.pbl.repository.UserRepository;
 import com.pbl.pbl.repository.EventRepository;
+import com.pbl.pbl.repository.SystemConfigRepository;
+import com.pbl.pbl.entity.SystemConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -44,6 +46,7 @@ public class PaymentService {
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final EventRepository eventRepository;
+    private final SystemConfigRepository systemConfigRepository;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -52,9 +55,17 @@ public class PaymentService {
         User user = userRepository.findById(paymentDTO.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
+        String taxRateStr = systemConfigRepository.findById("DEFAULT_COMMISSION_RATE")
+                .map(SystemConfig::getConfigValue)
+                .orElse("10"); // Default 10%
+        BigDecimal taxRate = new BigDecimal(taxRateStr);
+        BigDecimal amount = BigDecimal.valueOf(paymentDTO.getAmount());
+        BigDecimal platformFee = amount.multiply(taxRate).divide(new BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP);
+
         Order order = Order.builder()
                 .user(user)
-                .totalAmount(BigDecimal.valueOf(paymentDTO.getAmount()))
+                .totalAmount(amount)
+                .platformFee(platformFee)
                 .status(OrderStatus.PENDING)
                 .purchaseDate(LocalDateTime.now())
                 .paymentMethod(paymentDTO.getPaymentMethod() != null ? paymentDTO.getPaymentMethod() : "vnpay")

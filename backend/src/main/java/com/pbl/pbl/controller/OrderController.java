@@ -36,6 +36,7 @@ public class OrderController {
                         .userEmail(order.getUser() != null ? order.getUser().getEmail() : "Unknown")
                         .userName(order.getUser() != null ? order.getUser().getFullName() : "Unknown")
                         .totalAmount(order.getTotalAmount())
+                        .platformFee(order.getPlatformFee())
                         .status(order.getStatus() != null ? order.getStatus().name() : "PENDING")
                         .paymentMethod(order.getPaymentMethod())
                         .purchaseDate(order.getPurchaseDate())

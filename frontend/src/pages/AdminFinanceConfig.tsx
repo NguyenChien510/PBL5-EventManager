@@ -1,6 +1,9 @@
+import { useState, useEffect } from 'react'
 import { Icon, StatCard } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { adminSidebarConfig } from '../config/adminSidebarConfig'
+import { apiClient } from '@/utils/axios'
+import { toast } from 'react-toastify'
 
 const sidebarConfig = adminSidebarConfig
 
@@ -13,42 +16,83 @@ const categories = [
 ]
 
 const AdminFinanceConfig = () => {
+  const [config, setConfig] = useState({
+    defaultCommissionRate: '10',
+    fixedFeePerTicket: '5000',
+    minWithdrawalAmount: '500000',
+    withdrawalProcessTime: '1-3 ngày làm việc'
+  })
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    fetchConfig()
+  }, [])
+
+  const fetchConfig = async () => {
+    try {
+      const res = await apiClient.get('/admin/finance/config')
+      if (res.data) setConfig(res.data)
+    } catch (err) {
+      console.error(err)
+      toast.error('Không thể tải cấu hình tài chính')
+    }
+  }
+
+  const handleSave = async () => {
+    setLoading(true)
+    try {
+      await apiClient.post('/admin/finance/config', config)
+      toast.success('Lưu cấu hình thành công')
+    } catch (err) {
+      console.error(err)
+      toast.error('Lưu cấu hình thất bại')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <DashboardLayout sidebarProps={sidebarConfig}>
       <PageHeader title="Cấu hình Tài chính" subtitle="Quản lý phí nền tảng & hoa hồng" />
-      <div className="p-8 space-y-8">
+      <div className="p-5 space-y-5 animate-slide-down">
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <StatCard label="Chờ thanh toán" value="125M" icon="hourglass_empty" iconBg="bg-orange-100" iconColor="text-orange-500" />
-          <StatCard label="Hoa hồng mặc định" value="10%" icon="percent" />
-          <StatCard label="Phí cố định / vé" value="5.000đ" icon="receipt" iconBg="bg-green-100" iconColor="text-green-600" />
+          <StatCard label="Hoa hồng mặc định" value={`${config.defaultCommissionRate}%`} icon="percent" />
+          <StatCard label="Phí cố định / vé" value={`${parseInt(config.fixedFeePerTicket).toLocaleString('vi-VN')}đ`} icon="receipt" iconBg="bg-green-100" iconColor="text-green-600" />
         </div>
 
         {/* Settings */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
-            <h3 className="font-bold flex items-center gap-2"><Icon name="tune" className="text-primary" /> Cài đặt chung</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5" style={{ animationDelay: '100ms' }}>
+          <div className="bg-white rounded-[1.5rem] border border-slate-200 p-6 shadow-sm space-y-5">
+            <h3 className="font-bold flex items-center gap-2"><Icon name="tune" className="text-indigo-600" /> Cài đặt chung</h3>
             <div>
               <label className="text-sm font-bold text-slate-600 mb-2 block">Tỷ lệ hoa hồng mặc định (%)</label>
-              <input type="number" defaultValue="10" className="input-field" />
+              <input type="number" value={config.defaultCommissionRate} onChange={e => setConfig({...config, defaultCommissionRate: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none" />
             </div>
             <div>
               <label className="text-sm font-bold text-slate-600 mb-2 block">Phí cố định trên mỗi vé (VNĐ)</label>
-              <input type="number" defaultValue="5000" className="input-field" />
+              <input type="number" value={config.fixedFeePerTicket} onChange={e => setConfig({...config, fixedFeePerTicket: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none" />
             </div>
             <div>
               <label className="text-sm font-bold text-slate-600 mb-2 block">Ngưỡng rút tiền tối thiểu (VNĐ)</label>
-              <input type="number" defaultValue="500000" className="input-field" />
+              <input type="number" value={config.minWithdrawalAmount} onChange={e => setConfig({...config, minWithdrawalAmount: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none" />
             </div>
             <div>
               <label className="text-sm font-bold text-slate-600 mb-2 block">Thời gian xử lý rút tiền</label>
-              <select className="input-field"><option>1-3 ngày làm việc</option><option>3-5 ngày</option><option>7 ngày</option></select>
+              <select value={config.withdrawalProcessTime} onChange={e => setConfig({...config, withdrawalProcessTime: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none">
+                <option value="1-3 ngày làm việc">1-3 ngày làm việc</option>
+                <option value="3-5 ngày">3-5 ngày</option>
+                <option value="7 ngày">7 ngày</option>
+              </select>
             </div>
-            <button className="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-xl shadow-sm hover:bg-blue-600">Lưu cài đặt</button>
+            <button onClick={handleSave} disabled={loading} className="px-6 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-xl shadow-sm hover:bg-indigo-700 transition-colors w-full sm:w-auto">
+              {loading ? 'Đang lưu...' : 'Lưu cài đặt'}
+            </button>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-            <h3 className="font-bold mb-4 flex items-center gap-2"><Icon name="category" className="text-primary" /> Hoa hồng theo thể loại</h3>
+          <div className="bg-white rounded-[1.5rem] border border-slate-200 p-6 shadow-sm">
+            <h3 className="font-bold mb-4 flex items-center gap-2"><Icon name="category" className="text-indigo-600" /> Hoa hồng theo thể loại</h3>
             <div className="space-y-3">
               {categories.map((cat) => (
                 <div key={cat.name} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
