@@ -87,4 +87,14 @@ export class EventService {
     const response = await apiClient.patch(`/organizer/tickets/${ticketId}/check-in?checkedIn=${checkedIn}`);
     return response.data;
   }
+
+  static async getEventComments(eventId: string | number) {
+    const response = await apiClient.get(`/comments/event/${eventId}`);
+    return response.data;
+  }
+
+  static async getOrganizerComments(organizerId: string) {
+    const response = await apiClient.get(`/comments/organizer/${organizerId}`);
+    return response.data;
+  }
 }

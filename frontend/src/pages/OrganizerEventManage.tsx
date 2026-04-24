@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { DashboardLayout, PageHeader } from '../components/layout';
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig';
 import { Icon } from '../components/ui';
@@ -12,6 +12,7 @@ interface ManageStats {
   checkedInSeats: number;
   totalRevenue: number;
   salesByTicketType: Record<string, number>;
+  dailyRevenue?: Record<string, number>;
 }
 
 interface Attendee {
@@ -43,14 +44,21 @@ const RosterCard = ({ shift }: any) => (
 
 const OrganizerEventManage = () => {
   const { id } = useParams<{ id: string }>();
-  const [activeTab, setActiveTab] = useState<'overview' | 'guests' | 'finance' | 'staff' | 'feedback' | 'edit'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'guests' | 'finance' | 'feedback' | 'edit'>('overview');
   const [event, setEvent] = useState<any>(null);
   const [stats, setStats] = useState<ManageStats | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [seats, setSeats] = useState<any[]>([]);
+  const [comments, setComments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [guestViewMode, setGuestViewMode] = useState<'list' | 'seats'>('list');
+  const [selectedSeatInfo, setSelectedSeatInfo] = useState<Attendee | null>(null);
+
+  // Finance pagination
+  const [transactionPage, setTransactionPage] = useState(1);
+  const transactionsPerPage = 5;
+
   // New state for Finance tab
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const d = new Date();
@@ -156,27 +164,70 @@ const OrganizerEventManage = () => {
     }, 3500);
   };
 
+  useEffect(() => {
+    if (stats) {
+      console.log('Finance Debug - Stats received:', stats);
+      console.log('Finance Debug - Daily Revenue keys:', Object.keys(stats.dailyRevenue || {}));
+    }
+  }, [stats]);
+
   const fetchData = async () => {
     if (!id) return;
     setLoading(true);
     try {
-      const [eventData, statsData, attendeesData, seatsData] = await Promise.all([
+      const [eventData, statsData, attendeesData, seatsData, commentsData] = await Promise.all([
         EventService.getEventById(id),
         EventService.getEventManageStats(id),
         EventService.getEventAttendees(id),
-        EventService.getEventSeats(id)
+        EventService.getEventSeats(id),
+        EventService.getEventComments(id)
       ]);
       setEvent(eventData);
       setStats(statsData);
       setAttendees(attendeesData);
       setSeats(seatsData || []);
+      setComments(commentsData || []);
     } catch (error) {
-      console.error('Error fetching manage data:', error);
-      toast.error('Không thể tải thông tin quản lý');
-    } finally {
+      console.error('Error fetching data:', error);
       setLoading(false);
     }
   };
+
+  // Auto-jump to week with data only once when entering the finance tab
+  const hasAutoJumped = React.useRef(false);
+
+  useEffect(() => {
+    if (activeTab === 'finance' && stats?.dailyRevenue && !hasAutoJumped.current) {
+      const hasDataThisWeek = Array.from({ length: 7 }).some((_, i) => {
+        const d = new Date(currentWeekStart);
+        d.setDate(d.getDate() + i);
+        const dk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        return Number(stats.dailyRevenue?.[dk] || 0) > 0;
+      });
+
+      if (!hasDataThisWeek) {
+        const keys = Object.keys(stats.dailyRevenue).filter(k => Number(stats.dailyRevenue![k]) > 0);
+        if (keys.length > 0) {
+          const latestDateString = keys.sort().reverse()[0];
+          const latestDate = new Date(latestDateString);
+          const day = latestDate.getDay();
+          const diff = latestDate.getDate() - (day === 0 ? 6 : day - 1);
+          const monday = new Date(latestDate.setDate(diff));
+          monday.setHours(0, 0, 0, 0);
+          console.log('Finance Debug - Initial auto jump to week with data:', monday);
+          setCurrentWeekStart(monday);
+          hasAutoJumped.current = true;
+        }
+      } else {
+        hasAutoJumped.current = true; // Even if it has data, mark as jumped so we don't interfere with manual navigation later
+      }
+    }
+    
+    // Reset jump flag if leaving the tab, so it can re-jump next time they enter
+    if (activeTab !== 'finance') {
+      hasAutoJumped.current = false;
+    }
+  }, [activeTab, stats]); // Removed currentWeekStart from dependencies to allow manual navigation
 
   useEffect(() => {
     fetchData();
@@ -256,7 +307,6 @@ const OrganizerEventManage = () => {
     { id: 'overview', label: 'Tổng quan', icon: 'visibility' },
     { id: 'guests', label: 'Khách mời', icon: 'how_to_reg' },
     { id: 'finance', label: 'Tài chính', icon: 'payments' },
-    { id: 'staff', label: 'Nhân sự', icon: 'groups_3' },
     { id: 'feedback', label: 'Phản hồi', icon: 'reviews' }
   ];
 
@@ -291,21 +341,29 @@ const OrganizerEventManage = () => {
         <PageHeader
           title={event?.title || 'Quản lý sự kiện'}
           subtitle="Theo dõi và quản lý chi tiết sự kiện của bạn"
-          backTo="/organizer/events"
         />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 pb-10">
           {/* Tab Navigation - Fixed structure with sticky behavior */}
-          <div className="sticky top-[72px] z-40 py-4 bg-slate-50/50 backdrop-blur-sm -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 transition-all">
-            <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-1.5 grid grid-cols-3 lg:grid-cols-6 gap-1.5 w-full">
-              {tabs.map(tab => (
+          <div className="sticky top-[72px] z-40 py-4 bg-slate-50/50 backdrop-blur-sm -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 transition-all flex justify-start items-center gap-4">
+            <Link
+              to="/organizer/events"
+              className="w-12 h-12 bg-white rounded-2xl shadow-md border border-slate-200 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all group shrink-0 animate-in fade-in slide-in-from-left-4 duration-500"
+              title="Quay lại danh sách"
+            >
+              <Icon name="arrow_back" size="sm" className="group-hover:-translate-x-1 transition-transform" />
+            </Link>
+
+            <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-1.5 flex flex-wrap sm:flex-nowrap gap-1.5 w-fit animate-in fade-in slide-in-from-left-6 duration-700">
+              {tabs.map((tab, idx) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
                   className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === tab.id
                     ? 'bg-primary text-white shadow-lg shadow-primary/20'
                     : 'text-slate-500 hover:bg-slate-50'
-                    }`}
+                    } animate-in fade-in slide-in-from-left-2`}
+                  style={{ animationDelay: `${idx * 40}ms`, animationFillMode: 'both' }}
                 >
                   <Icon name={tab.icon} size="sm" />
                   <span className="hidden sm:inline truncate">{tab.label}</span>
@@ -530,70 +588,100 @@ const OrganizerEventManage = () => {
 
                 {guestViewMode === 'list' ? (
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-1 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center space-y-4">
-                      <div className="w-full aspect-square bg-slate-900 rounded-2xl flex items-center justify-center relative overflow-hidden group">
-                        <div className="absolute inset-x-0 h-1 bg-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.8)] animate-pulse" style={{ top: '20%' }} />
-                        <Icon name="qr_code_2" className="text-white/20 text-7xl" />
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/60">
-                          <button className="px-4 py-2 bg-primary text-white rounded-xl text-sm font-bold">Kích hoạt Camera</button>
-                        </div>
+                    <div className="lg:col-span-1 bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center">
+                      <div className="w-16 h-16 bg-blue-50 text-primary rounded-2xl flex items-center justify-center mb-4">
+                        <Icon name="person_search" size="lg" />
                       </div>
+                      <h6 className="font-black text-slate-900 mb-2">Tìm kiếm nhanh</h6>
+                      <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mb-6">Tra cứu theo tên hoặc mã vé</p>
                       <div className="w-full">
                         <input
                           type="text"
-                          placeholder="Nhập mã check-in"
-                          className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent focus:border-primary rounded-2xl text-center font-bold outline-none transition-all"
+                          placeholder="Nhập thông tin khách..."
+                          className="w-full px-6 py-4 bg-slate-50 border border-slate-100 focus:border-primary rounded-2xl text-center font-bold outline-none transition-all"
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
                         />
                       </div>
                     </div>
 
-                    <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden" >
-                      <div className="p-6 border-b border-slate-100 flex justify-between items-center" >
-                        <h4 className="font-bold" >Danh sách khách mời</h4>
-                        <button className="p-2 text-slate-400 hover:text-primary transition-colors" >
+                    <div className="lg:col-span-2 bg-white rounded-[2rem] border border-slate-200 shadow-[0_20px_50px_rgba(0,0,0,0.05)] overflow-hidden animate-in slide-in-from-left duration-700" >
+                      <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-blue-50 to-white" >
+                        <div>
+                          <h4 className="text-xl font-black text-blue-900 tracking-tight" >Danh sách khách mời</h4>
+                          <p className="text-xs text-blue-400 font-bold uppercase tracking-widest mt-1">Quản lý người tham gia</p>
+                        </div>
+                        <button className="p-3 bg-white text-blue-400 hover:text-primary hover:scale-110 rounded-2xl shadow-sm border border-slate-100 transition-all" >
                           <Icon name="download" size="sm" />
                         </button>
                       </div>
                       <div className="overflow-x-auto" >
                         <table className="w-full text-left" >
                           <thead>
-                            <tr className="bg-slate-50/50 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100" >
-                              <th className="p-4" >Khách mời</th>
-                              <th className="p-4" >Loại vé / Ghế</th>
-                              <th className="p-4" >Trạng thái</th>
-                              <th className="p-4 text-center" >Action</th>
+                            <tr className="bg-primary text-[10px] font-black uppercase tracking-[0.2em] text-white border-b border-blue-700" >
+                              <th className="p-5" >Khách mời</th>
+                              <th className="p-5" >Số vé / Ghế</th>
+                              <th className="p-5" >Trạng thái</th>
+                              <th className="p-5 text-center" >Hành động</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100" >
-                            {filteredAttendees.map((a) => (
-                              <tr key={a.ticketId} className="hover:bg-slate-50/50 transition-colors" >
-                                <td className="p-4" >
-                                  <p className="font-bold text-slate-900 text-sm" >{a.userName}</p>
-                                  <p className="text-[10px] text-slate-500" >{a.userEmail}</p>
+                          <tbody className="divide-y divide-slate-50 font-medium" >
+                            {Object.values(filteredAttendees.reduce((acc, current) => {
+                              const key = current.userEmail;
+                              if (!acc[key]) acc[key] = { ...current, tickets: [] };
+                              acc[key].tickets.push(current);
+                              return acc;
+                            }, {} as Record<string, Attendee & { tickets: Attendee[] }>)).map((group) => (
+                              <tr key={group.userEmail} className="hover:bg-primary/[0.02] transition-colors group" >
+                                <td className="p-5" >
+                                  <div className="flex flex-col" >
+                                    <span className="font-black text-slate-900 text-base group-hover:text-primary transition-colors" >{group.userName}</span>
+                                    <span className="text-[11px] text-slate-400 font-bold" >{group.userEmail}</span>
+                                  </div>
                                 </td>
-                                <td className="p-4" >
-                                  <span className="text-[10px] font-bold text-primary" >{a.ticketTypeName}</span>
-                                  <p className="text-xs font-bold text-slate-700" >{a.seatNumber}</p>
+                                <td className="p-5" >
+                                  <div className="flex flex-wrap gap-1.5 mb-2">
+                                    {group.tickets.map((t, idx) => (
+                                      <span key={idx} className={`px-2.5 py-1 rounded-lg text-[10px] font-black shadow-sm ${t.ticketTypeName.toUpperCase().includes('VIP') ? 'bg-amber-500 text-white' : 'bg-primary text-white'}`}>
+                                        {t.seatNumber}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <span className="text-[10px] font-black text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full uppercase tracking-tighter">{group.tickets.length} Vé đã mua</span>
                                 </td>
-                                <td className="p-4" >
-                                  {a.status === 'CHECKED_IN' ? (
-                                    <span className="flex items-center gap-1.5 text-emerald-600 text-[10px] font-black uppercase" >
-                                      <Icon name="check_circle" size="xs" filled /> Đã đến
+                                <td className="p-5" >
+                                  {group.tickets.every(t => t.status === 'CHECKED_IN') ? (
+                                    <span className="flex items-center gap-2 text-emerald-600 text-[11px] font-black uppercase tracking-wider" >
+                                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                      Đã check-in ({group.tickets.length})
+                                    </span>
+                                  ) : group.tickets.some(t => t.status === 'CHECKED_IN') ? (
+                                    <span className="flex items-center gap-2 text-amber-500 text-[11px] font-black uppercase tracking-wider" >
+                                      <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                                      {group.tickets.filter(t => t.status === 'CHECKED_IN').length}/{group.tickets.length} đã đến
                                     </span>
                                   ) : (
-                                    <span className="text-[10px] text-slate-400 font-bold uppercase" >Chưa đến</span>
+                                    <span className="flex items-center gap-2 text-slate-400 text-[11px] font-black uppercase tracking-wider" >
+                                      <div className="w-2 h-2 rounded-full bg-slate-200" />
+                                      Chưa đến
+                                    </span>
                                   )}
                                 </td>
-                                <td className="p-4 text-center" >
-                                  <button
-                                    onClick={() => handleCheckIn(a.ticketId, a.status)}
-                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${a.status === 'CHECKED_IN' ? 'bg-red-50 text-red-600' : 'bg-primary text-white shadow-md shadow-primary/20'
-                                      }`}
-                                  >
-                                    {a.status === 'CHECKED_IN' ? 'HỦY' : 'CHECK'}
-                                  </button>
+                                <td className="p-5 text-center" >
+                                  <div className="flex items-center justify-center gap-2">
+                                    {group.tickets.map((t, idx) => (
+                                      <button
+                                        key={idx}
+                                        onClick={() => handleCheckIn(t.ticketId, t.status)}
+                                        title={`Check-in ghế ${t.seatNumber}`}
+                                        className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all shadow-sm font-black text-xs ${t.status === 'CHECKED_IN'
+                                          ? 'bg-emerald-600 text-white shadow-emerald-200 ring-4 ring-emerald-50'
+                                          : 'bg-white text-blue-400 border border-blue-100 hover:bg-primary hover:text-white hover:scale-110 active:scale-95'}`}
+                                      >
+                                        {t.seatNumber}
+                                      </button>
+                                    ))}
+                                  </div>
                                 </td>
                               </tr>
                             ))}
@@ -605,9 +693,22 @@ const OrganizerEventManage = () => {
                 ) : (
                   <div className="bg-white p-10 rounded-3xl border border-slate-200 shadow-sm" >
                     <div className="max-w-4xl mx-auto space-y-12" >
-                      <div className="text-center space-y-2" >
+                      <div className="text-center space-y-3" >
                         <h4 className="text-xl font-black text-slate-900 tracking-tight" >Sơ đồ khán đài thực tế</h4>
-                        <p className="text-sm text-slate-400 font-medium italic" >Chú giải: ( <span className="text-slate-800 font-black" >X</span> ) - Ghế đã có người • ( <span className="text-primary font-black" >●</span> ) - Ghế sẵn sàng</p>
+                        <div className="flex flex-wrap justify-center gap-6 text-[10px] font-black uppercase tracking-widest text-slate-400" >
+                          <div className="flex items-center gap-2" >
+                            <div className="w-3 h-3 rounded-sm bg-slate-900" /> <span>Đã bán (Thường)</span>
+                          </div>
+                          <div className="flex items-center gap-2" >
+                            <div className="w-3 h-3 rounded-sm bg-amber-500" /> <span>Đã bán (VIP)</span>
+                          </div>
+                          <div className="flex items-center gap-2" >
+                            <div className="w-3 h-3 rounded-sm bg-primary/20 border border-primary/30" /> <span>Trống (Thường)</span>
+                          </div>
+                          <div className="flex items-center gap-2" >
+                            <div className="w-3 h-3 rounded-sm bg-amber-50 border border-amber-200" /> <span>Trống (VIP)</span>
+                          </div>
+                        </div>
                       </div>
 
                       {/* Stage */}
@@ -629,16 +730,22 @@ const OrganizerEventManage = () => {
                                 })
                                 .map((seat: any) => {
                                   const isOccupied = seat.status !== 'AVAILABLE';
+                                  const attendee = isOccupied ? attendees.find(a => a.seatNumber === seat.seatNumber) : null;
+                                  const isVIP = seat.ticketTypeName?.toUpperCase().includes('VIP');
+
                                   return (
                                     <div
                                       key={seat.id}
+                                      onClick={() => {
+                                        if (attendee) setSelectedSeatInfo(attendee);
+                                      }}
                                       title={`${seat.seatNumber} - ${seat.ticketTypeName} - ${isOccupied ? 'Đã bán' : 'Trống'}`}
                                       className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-[10px] font-bold transition-all ${isOccupied
-                                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                        : 'bg-primary/5 text-primary border border-primary/20 hover:scale-110 cursor-help'
+                                        ? `${isVIP ? 'bg-amber-500 hover:bg-amber-600' : 'bg-slate-900 hover:bg-primary'} text-white cursor-pointer hover:scale-110 shadow-lg shadow-slate-200`
+                                        : `${isVIP ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-primary/5 text-primary border border-primary/20'} hover:scale-110 cursor-help`
                                         }`}
                                     >
-                                      {isOccupied ? <Icon name="close" size="xs" /> : seat.seatNumber.substring(1)}
+                                      {isOccupied ? <Icon name="person" size="xs" /> : seat.seatNumber.substring(1)}
                                     </div>
                                   );
                                 })}
@@ -646,6 +753,79 @@ const OrganizerEventManage = () => {
                           </div>
                         ))}
                       </div>
+
+                      {/* Attendee Detail Modal for Seat Map */}
+                      {selectedSeatInfo && (
+                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+                          <div className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 border border-slate-100">
+                            <div className="p-8 space-y-6">
+                              <div className="flex justify-between items-start">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-black uppercase rounded-lg">Ghế {selectedSeatInfo.seatNumber}</span>
+                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-black uppercase rounded-lg">{selectedSeatInfo.ticketTypeName}</span>
+                                  </div>
+                                  <h3 className="text-2xl font-black text-slate-900">{selectedSeatInfo.userName}</h3>
+                                </div>
+                                <button
+                                  onClick={() => setSelectedSeatInfo(null)}
+                                  className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400"
+                                >
+                                  <Icon name="close" size="sm" />
+                                </button>
+                              </div>
+
+                              <div className="space-y-4 bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 border border-slate-100">
+                                    <Icon name="mail" size="xs" />
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email</p>
+                                    <p className="text-sm font-bold text-slate-700">{selectedSeatInfo.userEmail}</p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-4">
+                                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 border border-slate-100">
+                                    <Icon name="calendar_today" size="xs" />
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ngày mua</p>
+                                    <p className="text-sm font-bold text-slate-700">
+                                      {new Date(selectedSeatInfo.purchaseDate).toLocaleDateString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-4">
+                                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${selectedSeatInfo.status === 'CHECKED_IN' ? 'bg-emerald-50 text-emerald-500 border-emerald-100' : 'bg-white text-slate-400 border-slate-100'}`}>
+                                    <Icon name={selectedSeatInfo.status === 'CHECKED_IN' ? 'check_circle' : 'pending'} size="xs" />
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Trạng thái</p>
+                                    <p className={`text-sm font-black uppercase ${selectedSeatInfo.status === 'CHECKED_IN' ? 'text-emerald-600' : 'text-slate-500'}`}>
+                                      {selectedSeatInfo.status === 'CHECKED_IN' ? 'Đã check-in' : 'Chưa đến'}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex gap-3 pt-2">
+                                <button
+                                  onClick={() => {
+                                    handleCheckIn(selectedSeatInfo.ticketId, selectedSeatInfo.status);
+                                    setSelectedSeatInfo(null);
+                                  }}
+                                  className={`flex-1 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${selectedSeatInfo.status === 'CHECKED_IN' ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-primary text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:scale-[1.02]'}`}
+                                >
+                                  {selectedSeatInfo.status === 'CHECKED_IN' ? 'Hủy Check-in' : 'Check-in ngay'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -655,56 +835,140 @@ const OrganizerEventManage = () => {
             {activeTab === 'finance' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10">
+                  <div className="lg:col-span-2 bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-[0_20px_50px_rgba(0,0,0,0.05)] relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32" />
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-12 relative z-10">
                       <div>
-                        <h4 className="text-lg font-bold">Biểu đồ Doanh thu (Ước tính)</h4>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Thống kê chi tiết theo từng ngày</p>
-                      </div>
-                      <div className="flex items-center gap-3 bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
-                        <button
-                          onClick={() => navigateWeek('prev')}
-                          className="w-8 h-8 flex items-center justify-center bg-white rounded-xl shadow-sm hover:text-primary transition-colors"
-                        >
-                          <Icon name="chevron_left" size="sm" />
-                        </button>
-                        <div className="px-2 text-center min-w-[150px]">
-                          <span className="text-[11px] font-black text-slate-700 whitespace-nowrap">
-                            {getWeekRangeString(currentWeekStart)}
-                          </span>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="text-2xl font-black text-slate-900 tracking-tight">Doanh thu theo tuần</h4>
                         </div>
+                        <p className="text-[11px] text-slate-400 font-black uppercase tracking-[0.2em]">Báo cáo tài chính chi tiết</p>
+                      </div>
+                      <div className="flex items-center gap-3">
                         <button
-                          onClick={() => navigateWeek('next')}
-                          className="w-8 h-8 flex items-center justify-center bg-white rounded-xl shadow-sm hover:text-primary transition-colors"
+                          onClick={() => fetchData()}
+                          className="w-10 h-10 flex items-center justify-center bg-white text-blue-400 rounded-xl hover:text-primary border border-blue-50 shadow-sm transition-all"
+                          title="Làm mới dữ liệu"
                         >
-                          <Icon name="chevron_right" size="sm" />
+                          <Icon name="refresh" size="sm" />
                         </button>
+                        <div className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-primary p-1.5 rounded-xl shadow-lg">
+                          <button
+                            onClick={() => navigateWeek('prev')}
+                            className="w-8 h-8 flex items-center justify-center bg-white/10 text-white rounded-lg hover:bg-white hover:text-primary transition-all active:scale-90"
+                          >
+                            <Icon name="chevron_left" size="xs" />
+                          </button>
+                          <div className="px-2 text-center min-w-[140px]">
+                            <span className="text-[10px] font-black text-white uppercase tracking-widest whitespace-nowrap">
+                              {getWeekRangeString(currentWeekStart)}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => navigateWeek('next')}
+                            className="w-8 h-8 flex items-center justify-center bg-white/10 text-white rounded-lg hover:bg-white hover:text-primary transition-all active:scale-90"
+                          >
+                            <Icon name="chevron_right" size="xs" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-end gap-3 sm:gap-6 h-56 pt-2">
-                      {weeklyMockData.map((item, i) => {
-                        // Calculate height based on max val (120 in mock)
-                        const h = (item.val / 130) * 100;
+                    <div className="flex items-end gap-3 sm:gap-6 h-56 pt-2 relative">
+                      {(() => {
+                        const hasDataThisWeek = Array.from({ length: 7 }).some((_, i) => {
+                          const d = new Date(currentWeekStart);
+                          d.setDate(d.getDate() + i);
+                          const dk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                          return Number(stats?.dailyRevenue?.[dk] || 0) > 0;
+                        });
+
+                        const hasAnyData = Object.values(stats?.dailyRevenue || {}).some(v => Number(v) > 0);
+
+                        if (!hasDataThisWeek && stats?.dailyRevenue) {
+                          const findWeekWithData = () => {
+                            const keys = Object.keys(stats.dailyRevenue).filter(k => Number(stats.dailyRevenue[k]) > 0);
+                            if (keys.length === 0) return null;
+                            const latestDateString = keys.sort().reverse()[0];
+                            const latestDate = new Date(latestDateString);
+                            const day = latestDate.getDay();
+                            const diff = latestDate.getDate() - (day === 0 ? 6 : day - 1);
+                            const monday = new Date(latestDate.setDate(diff));
+                            monday.setHours(0, 0, 0, 0);
+                            return monday;
+                          };
+
+                          const weekWithData = findWeekWithData();
+
+                          return (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-300 animate-in fade-in duration-700 z-20">
+                              <Icon name="insert_chart" size="lg" className="mb-4 opacity-10 scale-150" />
+                              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4">Không có dữ liệu tuần này</p>
+                              {hasAnyData && weekWithData && (
+                                <button
+                                  onClick={() => setCurrentWeekStart(weekWithData)}
+                                  className="px-6 py-3 bg-gradient-to-r from-primary to-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-blue-100"
+                                >
+                                  Xem tuần có doanh thu gần nhất
+                                </button>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+
+                      {Array.from({ length: 7 }).map((_, i) => {
+                        const d = new Date(currentWeekStart);
+                        d.setDate(d.getDate() + i);
+
+                        const year = d.getFullYear();
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const day = String(d.getDate()).padStart(2, '0');
+                        const dateKey = `${year}-${month}-${day}`;
+
+                        if (i === 0) console.log('Finance Debug - First day key in chart:', dateKey);
+
+                        const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+                        // Ensure we parse the revenue correctly regardless of format
+                        const rawRevenue = stats?.dailyRevenue?.[dateKey];
+                        const revenue = rawRevenue ? Number(rawRevenue) : 0;
+                        const valInM = revenue / 1000000;
+
+                        const weekValues = Array.from({ length: 7 }).map((_, idx) => {
+                          const dw = new Date(currentWeekStart);
+                          dw.setDate(dw.getDate() + idx);
+                          const dk = `${dw.getFullYear()}-${String(dw.getMonth() + 1).padStart(2, '0')}-${String(dw.getDate()).padStart(2, '0')}`;
+                          const rv = stats?.dailyRevenue?.[dk];
+                          return rv ? Number(rv) : 0;
+                        });
+                        const maxVal = Math.max(...weekValues, 1000000);
+                        const h = revenue > 0 ? Math.max((revenue / maxVal) * 100, 2) : 0; // Min 2% height if has revenue
+
                         return (
-                          <div key={i} className="flex-1 flex flex-col items-center gap-3">
-                            <div className="w-full bg-slate-50 rounded-2xl relative group h-full" >
+                          <div key={i} className="flex-1 flex flex-col items-center gap-2 animate-in slide-in-from-bottom duration-700 h-full relative group" style={{ animationDelay: `${i * 100}ms` }}>
+                            {/* Tooltip moved here to avoid overflow-hidden clipping */}
+                            {revenue > 0 && (
                               <div
-                                className="absolute bottom-0 w-full bg-gradient-to-t from-primary to-blue-400 rounded-2xl transition-all duration-500 group-hover:from-blue-600 group-hover:to-blue-400 shadow-lg shadow-primary/10"
+                                className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-900 text-white text-[11px] font-black px-4 py-2.5 rounded-2xl opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap shadow-[0_20px_50px_rgba(0,0,0,0.3)] z-[9999] scale-50 group-hover:scale-100 border border-white/10 flex items-center gap-2"
+                                style={{ bottom: `calc(${h}% + 40px)` }} // Positioned relative to the bar height
+                              >
+                                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+                                {formatCurrency(revenue)}
+                                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-900 rotate-45 border-r border-b border-white/10"></div>
+                              </div>
+                            )}
+
+                            <div className="w-full bg-slate-50 rounded-2xl relative flex-1 overflow-hidden border border-slate-100/50" >
+                              <div
+                                className="absolute bottom-0 w-full bg-gradient-to-t from-blue-700 via-primary to-blue-400 rounded-2xl transition-all duration-1000 group-hover:brightness-110 shadow-[0_0_15px_rgba(59,130,246,0.2)]"
                                 style={{ height: `${h}%` }}
                               >
-                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap shadow-xl">
-                                  {item.val}M VNĐ
-                                </div>
                               </div>
                             </div>
-                            <div className="flex flex-col items-center gap-1">
-                              <span className="text-[11px] text-slate-900 font-black">{item.day}</span>
-                              <span className="text-[8px] text-slate-400 font-bold">
-                                {(() => {
-                                  const d = new Date(currentWeekStart);
-                                  d.setDate(d.getDate() + i);
-                                  return d.getDate() + '/' + (d.getMonth() + 1);
-                                })()}
+                            <div className="flex flex-col items-center">
+                              <span className="text-xs text-slate-900 font-black">{dayNames[d.getDay()]}</span>
+                              <span className="text-[9px] text-slate-400 font-black opacity-60">
+                                {d.getDate() + '/' + (d.getMonth() + 1)}
                               </span>
                             </div>
                           </div>
@@ -713,50 +977,44 @@ const OrganizerEventManage = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     {/* Revenue Card */}
-                    <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-8 rounded-3xl text-white shadow-xl flex flex-col justify-between relative overflow-hidden h-[240px]">
-                      <div className="absolute -right-10 -bottom-10 opacity-10">
-                        <Icon name="account_balance_wallet" className="text-[140px]" />
+                    <div className="bg-gradient-to-br from-emerald-600 to-emerald-900 p-6 rounded-3xl text-white shadow-xl flex flex-col justify-center relative overflow-hidden h-[160px] border border-emerald-500/20">
+                      <div className="absolute -right-6 -bottom-6 opacity-10">
+                        <Icon name="account_balance_wallet" className="text-[100px]" />
                       </div>
                       <div className="relative z-10">
-                        <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mb-2">Doanh thu hiện thực</p>
-                        <h4 className="text-4xl font-black mb-1">{formatCurrency(stats?.totalRevenue || 0)}</h4>
-                        <p className="text-[10px] text-white/40 italic">Đã bao gồm VAT & Phí hệ thống</p>
-                      </div>
-                      <div className="relative z-10">
-                        <button className="w-full py-3 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/20 font-black rounded-2xl transition-all flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest">
-                          <Icon name="file_download" size="xs" /> XUẤT BÁO CÁO
-                        </button>
+                        <p className="text-emerald-100 text-[10px] font-bold uppercase tracking-widest mb-1">Doanh thu hiện thực</p>
+                        <h4 className="text-3xl font-black mb-1">{formatCurrency(stats?.totalRevenue || 0)}</h4>
+                        <p className="text-[9px] text-emerald-100/40 italic">Đã bao gồm VAT & Phí hệ thống</p>
                       </div>
                     </div>
 
                     {/* Cost Card (Mockup) */}
-                    <div className="bg-slate-900 p-8 rounded-3xl text-white shadow-xl flex flex-col justify-between relative overflow-hidden h-[240px] border border-slate-800">
-                      <div className="absolute -right-10 -bottom-10 opacity-10 text-emerald-500">
-                        <Icon name="payments" className="text-[140px]" />
+                    <div className="bg-gradient-to-br from-rose-600 to-rose-950 p-6 rounded-3xl text-white shadow-xl flex flex-col justify-between relative overflow-hidden h-[210px] border border-rose-500/20">
+                      <div className="absolute -right-6 -bottom-6 opacity-10 text-white">
+                        <Icon name="payments" className="text-[100px]" />
                       </div>
                       <div className="relative z-10">
-                         <div className="flex items-center gap-2 mb-2">
-                           <p className="text-emerald-500 text-[10px] font-bold uppercase tracking-widest">Chi phí sự kiện</p>
-                           <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
-                         </div>
-                        <h4 className="text-4xl font-black mb-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-rose-200 text-[10px] font-bold uppercase tracking-widest">Chi phí sự kiện</p>
+                        </div>
+                        <h4 className="text-3xl font-black mb-1">
                           {aiPlanResult ? formatCurrency(aiPlanResult.budgetSections.reduce((acc: number, cur: any) => acc + cur.total, 0)) : '770.000.000 ₫'}
                         </h4>
-                        <p className="text-[10px] text-white/40 italic">Dự toán dựa trên kế hoạch AI</p>
+                        <p className="text-[9px] text-rose-200/40 italic">Tổng ngân sách dự toán</p>
                       </div>
                       <div className="relative z-10">
-                        <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10">
-                           <div className="text-center transition-transform hover:scale-105">
-                              <p className="text-[8px] text-white/40 font-bold uppercase mb-1">Cần thanh toán</p>
-                              <p className="text-xs font-black">215.000K</p>
-                           </div>
-                           <div className="w-px h-8 bg-white/10"></div>
-                           <div className="text-center transition-transform hover:scale-105">
-                              <p className="text-[8px] text-white/40 font-bold uppercase mb-1">Đã chi trả</p>
-                              <p className="text-xs font-black text-emerald-400">555.000K</p>
-                           </div>
+                        <div className="flex items-center justify-between p-3 bg-black/20 rounded-2xl border border-white/10 backdrop-blur-md">
+                          <div className="text-center transition-transform hover:scale-105">
+                            <p className="text-[8px] text-rose-200/60 font-bold uppercase mb-1">Cần thanh toán</p>
+                            <p className="text-xs font-black text-white">215.000K</p>
+                          </div>
+                          <div className="w-px h-6 bg-white/10"></div>
+                          <div className="text-center transition-transform hover:scale-105">
+                            <p className="text-[8px] text-rose-200/60 font-bold uppercase mb-1">Đã chi trả</p>
+                            <p className="text-xs font-black text-rose-300">555.000K</p>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -764,28 +1022,70 @@ const OrganizerEventManage = () => {
 
                 </div>
 
-                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="p-6 border-b border-slate-100 font-bold text-slate-900">Giao dịch gần nhất</div>
+                <div className="bg-white rounded-[2rem] border border-slate-200 shadow-[0_15px_40px_rgba(0,0,0,0.04)] overflow-hidden animate-in slide-in-from-bottom duration-700 delay-200">
+                  <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-blue-700 to-primary text-white">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center border border-white/20">
+                        <Icon name="history" size="xs" />
+                      </div>
+                      <div>
+                        <span className="font-black text-md uppercase block leading-none mb-1">Giao dịch gần nhất</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 bg-black/10 p-1 rounded-xl border border-white/10">
+                      <button
+                        onClick={() => setTransactionPage(p => Math.max(1, p - 1))}
+                        disabled={transactionPage === 1}
+                        className="w-7 h-7 flex items-center justify-center hover:bg-white hover:text-primary rounded-lg disabled:opacity-20 transition-all active:scale-90"
+                      >
+                        <Icon name="chevron_left" size="xs" />
+                      </button>
+                      <span className="text-[10px] font-black text-white/90 min-w-[32px] text-center">{transactionPage} / {Math.ceil(filteredAttendees.length / transactionsPerPage) || 1}</span>
+                      <button
+                        onClick={() => setTransactionPage(p => Math.min(Math.ceil(filteredAttendees.length / transactionsPerPage), p + 1))}
+                        disabled={transactionPage >= Math.ceil(filteredAttendees.length / transactionsPerPage)}
+                        className="w-7 h-7 flex items-center justify-center hover:bg-white hover:text-primary rounded-lg disabled:opacity-20 transition-all active:scale-90"
+                      >
+                        <Icon name="chevron_right" size="xs" />
+                      </button>
+                    </div>
+                  </div>
                   <table className="w-full text-left">
                     <thead>
-                      <tr className="bg-slate-50/50 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        <th className="p-4">Mã GD</th>
-                        <th className="p-4">Khách hàng</th>
-                        <th className="p-4">Số tiền</th>
-                        <th className="p-4">Trạng thái</th>
+                      <tr className="bg-blue-50 text-[10px] font-black text-blue-400 uppercase tracking-[0.15em] border-b border-blue-100">
+                        <th className="p-5">Mã GD</th>
+                        <th className="p-5">Khách hàng</th>
+                        <th className="p-5">Thời gian</th>
+                        <th className="p-5">Số tiền</th>
+                        <th className="p-5">Trạng thái</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50 font-medium">
-                      {filteredAttendees.slice(0, 5).map((a, i) => (
-                        <tr key={i} className="text-sm">
-                          <td className="p-4 font-mono text-xs text-slate-400">TX-{1000 + i}</td>
-                          <td className="p-4 text-slate-700">{a.userName}</td>
-                          <td className="p-4 font-bold text-emerald-600">+{formatCurrency(250000)}</td>
-                          <td className="p-4">
-                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-bold">Thành công</span>
-                          </td>
-                        </tr>
-                      ))}
+                      {filteredAttendees
+                        .slice((transactionPage - 1) * transactionsPerPage, transactionPage * transactionsPerPage)
+                        .map((a, i) => (
+                          <tr key={i} className="text-sm hover:bg-blue-50/30 transition-all group animate-in fade-in slide-in-from-left duration-500" style={{ animationDelay: `${i * 100}ms` }}>
+                            <td className="p-5" >
+                              <span className="font-mono text-xs text-blue-400 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 group-hover:bg-white transition-colors">TX-{1000 + (transactionPage - 1) * transactionsPerPage + i}</span>
+                            </td>
+                            <td className="p-5" >
+                              <p className="font-black text-slate-900 group-hover:text-primary transition-colors">{a.userName}</p>
+                              <p className="text-[10px] text-slate-400 font-bold">{a.userEmail}</p>
+                            </td>
+                            <td className="p-5 text-xs text-slate-500 font-bold">
+                              {new Date(a.purchaseDate).toLocaleString('vi-VN', {
+                                day: '2-digit', month: '2-digit', year: 'numeric',
+                                hour: '2-digit', minute: '2-digit'
+                              })}
+                            </td>
+                            <td className="p-5" >
+                              <span className="font-black text-emerald-600 text-base">+{formatCurrency(250000)}</span>
+                            </td>
+                            <td className="p-5" >
+                              <span className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-emerald-100 shadow-sm">Thành công</span>
+                            </td>
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 </div>
@@ -840,10 +1140,10 @@ const OrganizerEventManage = () => {
                               <Icon name="auto_awesome" size="md" />
                             </div>
                             <div>
-                               <h4 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                                  Kế hoạch & Dự toán AI
-                                  <span className="px-2 py-0.5 bg-purple-100 text-purple-600 rounded text-[8px] font-black uppercase tracking-tighter">Premium Gen</span>
-                               </h4>
+                              <h4 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                                Kế hoạch & Dự toán AI
+                                <span className="px-2 py-0.5 bg-purple-100 text-purple-600 rounded text-[8px] font-black uppercase tracking-tighter">Premium Gen</span>
+                              </h4>
                               <p className="text-[10px] text-slate-500 font-bold tracking-widest uppercase mt-1">Tối ưu hóa ngân sách dựa trên loại hình sự kiện & mục tiêu</p>
                             </div>
                           </div>
@@ -918,22 +1218,22 @@ const OrganizerEventManage = () => {
                         {/* Full Width Spreadsheet Section */}
                         <div className="space-y-6">
                           <div className="flex items-center justify-between bg-slate-900 p-5 rounded-3xl text-white shadow-xl relative overflow-hidden">
-                             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -mr-16 -mt-16" />
-                             <div className="flex items-center gap-3 relative z-10">
-                                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/20">
-                                   <Icon name="table_chart" size="sm" />
-                                </div>
-                                <div>
-                                   <h5 className="font-black text-sm uppercase tracking-widest">DỰ TOÁN NGÂN SÁCH CHI TIẾT</h5>
-                                   <p className="text-[9px] text-white/50 font-bold uppercase tracking-tighter">Dựa trên khối lượng và đơn giá thực tế</p>
-                                </div>
-                             </div>
-                             <div className="text-right relative z-10">
-                                <p className="text-[9px] text-white/50 font-bold uppercase mb-1">Tổng cộng dự toán</p>
-                                <p className="text-2xl font-black text-primary">
-                                  {formatCurrency(aiPlanResult.budgetSections.reduce((acc: number, cur: any) => acc + cur.total, 0))}
-                                </p>
-                             </div>
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -mr-16 -mt-16" />
+                            <div className="flex items-center gap-3 relative z-10">
+                              <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/20">
+                                <Icon name="table_chart" size="sm" />
+                              </div>
+                              <div>
+                                <h5 className="font-black text-sm uppercase tracking-widest">DỰ TOÁN NGÂN SÁCH CHI TIẾT</h5>
+                                <p className="text-[9px] text-white/50 font-bold uppercase tracking-tighter">Dựa trên khối lượng và đơn giá thực tế</p>
+                              </div>
+                            </div>
+                            <div className="text-right relative z-10">
+                              <p className="text-[9px] text-white/50 font-bold uppercase mb-1">Tổng cộng dự toán</p>
+                              <p className="text-2xl font-black text-primary">
+                                {formatCurrency(aiPlanResult.budgetSections.reduce((acc: number, cur: any) => acc + cur.total, 0))}
+                              </p>
+                            </div>
                           </div>
 
                           <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
@@ -998,15 +1298,15 @@ const OrganizerEventManage = () => {
                               </table>
                             </div>
                           </div>
-                          
+
                           <div className="flex items-center gap-4 bg-amber-50 p-6 rounded-[2rem] border border-amber-100">
-                             <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center shadow-lg">
-                                <Icon name="info" size="sm" />
-                             </div>
-                             <div>
-                                <h6 className="text-[11px] font-black text-amber-900 uppercase">Lưu ý quan trọng</h6>
-                                <p className="text-[10px] text-amber-700 font-medium leading-relaxed italic">Dự toán này mang tính chất tham khảo dựa trên dữ liệu thị trường hiện tại. Chi phí thực tế có thể thay đổi tùy thuộc vào nhà cung cấp và thời điểm đặt hàng.</p>
-                             </div>
+                            <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center shadow-lg">
+                              <Icon name="info" size="sm" />
+                            </div>
+                            <div>
+                              <h6 className="text-[11px] font-black text-amber-900 uppercase">Lưu ý quan trọng</h6>
+                              <p className="text-[10px] text-amber-700 font-medium leading-relaxed italic">Dự toán này mang tính chất tham khảo dựa trên dữ liệu thị trường hiện tại. Chi phí thực tế có thể thay đổi tùy thuộc vào nhà cung cấp và thời điểm đặt hàng.</p>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1017,127 +1317,117 @@ const OrganizerEventManage = () => {
             )}
 
 
-            {activeTab === 'staff' && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
-                  <div className="flex items-center gap-4">
-                    <button className="p-2 border border-slate-100 rounded-xl hover:bg-slate-50"><Icon name="chevron_left" /></button>
-                    <span className="font-bold text-sm">Tuần: 23/10 - 29/10, 2024</span>
-                    <button className="p-2 border border-slate-100 rounded-xl hover:bg-slate-50"><Icon name="chevron_right" /></button>
-                  </div>
-                  <div className="flex gap-2">
-                    <button className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl shadow-lg shadow-primary/20">LẬP LỊCH MỚI</button>
-                    <button className="p-2 border border-slate-200 rounded-xl"><Icon name="more_vert" /></button>
-                  </div>
-                </div>
 
-                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="grid grid-cols-8 border-b border-slate-100 bg-slate-50/50 font-black text-[10px] text-slate-400 uppercase tracking-widest">
-                    <div className="p-4 border-r border-slate-100 text-center">Nhân viên</div>
-                    {['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'].map(day => (
-                      <div key={day} className="p-4 text-center border-r border-slate-100 last:border-r-0">{day}</div>
-                    ))}
-                  </div>
-                  <div className="divide-y divide-slate-100">
-                    {[
-                      { name: 'Hoàng Nguyễn', color: 'sky' },
-                      { name: 'Lê Minh Tuấn', color: 'orange' },
-                      { name: 'Quỳnh Anh', color: 'purple' }
-                    ].map((staff, i) => (
-                      <div key={i} className="grid grid-cols-8 hover:bg-slate-50/30 transition-colors group">
-                        <div className="p-4 border-r border-slate-100 flex flex-col items-center justify-center gap-2">
-                          <div className="w-10 h-10 rounded-full bg-slate-200" />
-                          <span className="text-[10px] font-bold text-center">{staff.name}</span>
-                        </div>
-                        {[0, 1, 2, 3, 4, 5, 6].map(d => (
-                          <div key={d} className="p-2 border-r border-slate-100 last:border-r-0 min-h-[120px] relative">
-                            {d === i || d === i + 2 ? (
-                              <RosterCard shift={{ title: 'Sự kiện chính', time: '08:00 - 17:00', color: staff.color }} />
-                            ) : d === 5 ? (
-                              <div className="absolute inset-2 border-2 border-dashed border-slate-100 rounded-xl flex items-center justify-center">
-                                <Icon name="add" className="text-slate-200" />
-                              </div>
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-white p-6 rounded-3xl border border-slate-200 flex items-center gap-4 shadow-sm">
-                    <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center">
-                      <Icon name="warning" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-400">Trùng lịch</p>
-                      <p className="text-xl font-black text-slate-900">01 ca trực</p>
-                    </div>
-                  </div>
-                  <div className="bg-white p-6 rounded-3xl border border-slate-200 flex items-center gap-4 shadow-sm col-span-2">
-                    <Icon name="info" className="text-primary" />
-                    <p className="text-xs text-slate-500 font-medium italic">Sử dụng tính năng Smart AI Fill để tự động tối ưu hóa lịch trình nhân sự dựa trên cường độ công việc.</p>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {activeTab === 'feedback' && (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-8">
                     <div className="w-24 h-24 bg-yellow-50 rounded-3xl flex flex-col items-center justify-center">
-                      <span className="text-4xl font-black text-yellow-500">4.8</span>
+                      <span className="text-4xl font-black text-yellow-500">
+                        {comments.length > 0
+                          ? (comments.reduce((acc, c) => acc + c.rating, 0) / comments.length).toFixed(1)
+                          : '0.0'}
+                      </span>
                       <div className="flex gap-0.5">
-                        {[1, 2, 3, 4, 5].map(s => <Icon key={s} name="star" size="xs" className="text-yellow-400" filled />)}
+                        {[1, 2, 3, 4, 5].map(s => (
+                          <Icon
+                            key={s}
+                            name="star"
+                            size="xs"
+                            className={s <= Math.round(comments.reduce((acc, c) => acc + c.rating, 0) / (comments.length || 1)) ? "text-yellow-400" : "text-slate-200"}
+                            filled
+                          />
+                        ))}
                       </div>
                     </div>
                     <div>
                       <h4 className="font-black text-slate-900">Xếp hạng trung bình</h4>
-                      <p className="text-xs text-slate-500 font-medium">Dựa trên 150+ đánh giá thực tế từ khách hàng đã tham gia.</p>
+                      <p className="text-xs text-slate-500 font-medium">{comments.length} đánh giá (Toàn hệ thống)</p>
                     </div>
                   </div>
                   <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-center">
-                    <div className="space-y-2">
-                      {[5, 4, 3, 2, 1].map(star => (
-                        <div key={star} className="flex items-center gap-4">
-                          <span className="text-xs font-bold w-4">{star}</span>
-                          <div className="flex-1 h-2 bg-slate-50 rounded-full overflow-hidden">
-                            <div className="h-full bg-primary" style={{ width: `${star === 5 ? 85 : star === 4 ? 10 : 5}%` }} />
+                    <div className="space-y-1">
+                      {[5, 4, 3, 2, 1].map(star => {
+                        const count = comments.filter(c => c.rating === star).length;
+                        const percentage = comments.length > 0 ? (count / comments.length) * 100 : 0;
+                        return (
+                          <div key={star} className="flex items-center gap-2 mb-1">
+                            <span className="text-xs w-4 font-bold">{star}</span>
+                            <Icon name="star" size="sm" className="text-yellow-400" filled />
+                            <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-yellow-400 rounded-full transition-all duration-500"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-slate-400 w-10 text-right">
+                              {percentage.toFixed(0)}%
+                            </span>
                           </div>
-                          <span className="text-[10px] text-slate-400 font-bold w-8">{star === 5 ? '85%' : star === 4 ? '10%' : '5%'}</span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex items-center justify-between group hover:border-indigo-500/20 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-500">
+                    <div className="flex items-center gap-5">
+                      <div className="relative">
+                        <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-blue-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
+                          <Icon name="chat_bubble" size="xs" />
                         </div>
-                      ))}
+                        {comments.length > 0 && (
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 border-2 border-white rounded-full animate-pulse" />
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="text-[15px] font-black text-slate-400 uppercase mb-1">Chưa phản hồi</h4>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-3xl font-black text-slate-900 tracking-tighter">
+                            {comments.length}
+                          </span>
+                          <span className="text-[11px] font-black text-indigo-500 uppercase">Feedback</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  {[
-                    { name: 'Nguyễn Minh Khoa', rating: 5, date: '2 giờ trước', text: 'Chương trình diễn ra rất mướt, âm thanh ánh sáng tuyệt vời quá trời luôn!' },
-                    { name: 'Lê Thu Trang', rating: 4, date: '1 ngày trước', text: 'Ok, phục vụ tốt nhưng check-in hơi đông, cần cải thiện tốc độ.' }
-                  ].map((review, i) => (
-                    <div key={i} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 hover:shadow-md transition-all">
+                  {comments.map((review, i) => (
+                    <div key={review.id || i} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 hover:shadow-md transition-all">
                       <div className="flex justify-between items-start">
                         <div className="flex gap-3">
-                          <div className="w-10 h-10 rounded-full bg-slate-100" />
+                          <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-black text-xs uppercase">
+                            {review.userName.substring(0, 2)}
+                          </div>
                           <div>
-                            <h4 className="text-sm font-bold text-slate-900">{review.name}</h4>
-                            <span className="text-[10px] text-slate-400">{review.date}</span>
+                            <h4 className="text-sm font-bold text-slate-900">{review.userName}</h4>
+                            <span className="text-[10px] text-slate-400">
+                              {new Date(review.createdAt).toLocaleDateString('vi-VN')}
+                            </span>
                           </div>
                         </div>
                         <div className="flex gap-0.5">
-                          {Array.from({ length: 5 }, (_, s) => <Icon key={s} name="star" size="xs" className={s < review.rating ? 'text-yellow-400' : 'text-slate-100'} filled />)}
+                          {Array.from({ length: 5 }, (_, s) => (
+                            <Icon key={s} name="star" size="xs" className={s < review.rating ? 'text-yellow-400' : 'text-slate-100'} filled />
+                          ))}
                         </div>
                       </div>
-                      <p className="text-sm text-slate-600 leading-relaxed font-medium">{review.text}</p>
+                      <p className="text-sm text-slate-600 leading-relaxed font-medium">{review.content}</p>
                       <div className="flex gap-3">
                         <input type="text" placeholder="Gửi phản hồi cho khách..." className="flex-1 px-4 py-2 bg-slate-50 border-none rounded-xl text-xs outline-none focus:ring-2 ring-primary/20" />
                         <button className="px-4 py-2 bg-slate-900 text-white text-[10px] font-bold rounded-xl shadow-lg">GỬI</button>
                       </div>
                     </div>
                   ))}
+                  {comments.length === 0 && (
+                    <div className="bg-white p-20 rounded-[3rem] border-2 border-dashed border-slate-100 text-center">
+                      <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Icon name="chat_bubble_outline" size="md" />
+                      </div>
+                      <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Chưa có nhận xét nào</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

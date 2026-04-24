@@ -17,4 +17,5 @@ public class EventManagementStatsDTO {
     private long checkedInSeats;
     private BigDecimal totalRevenue;
     private Map<String, Long> salesByTicketType;
+    private Map<String, BigDecimal> dailyRevenue;
 }

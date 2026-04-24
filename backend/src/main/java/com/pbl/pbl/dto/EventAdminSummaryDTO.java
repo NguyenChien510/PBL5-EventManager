@@ -26,4 +26,6 @@ public class EventAdminSummaryDTO {
     private String categoryColor;
     private String organizerName;
     private String organizerEmail;
+    private int ticketsSold;
+    private int totalTickets;
 }

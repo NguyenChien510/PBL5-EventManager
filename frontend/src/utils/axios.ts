@@ -88,16 +88,8 @@ const createApiClient = (): AxiosInstance => {
 
           return api(originalRequest);
         } catch (err) {
-          const rawAuth = localStorage.getItem("auth-storage");
-          if (rawAuth) {
-            const parsed = JSON.parse(rawAuth) as {
-              state?: { accessToken?: string };
-            };
-            if (parsed.state) {
-              delete parsed.state.accessToken;
-              localStorage.setItem("auth-storage", JSON.stringify(parsed));
-            }
-          }
+          localStorage.removeItem("auth-storage");
+          localStorage.removeItem("refreshToken");
           window.location.href = "/signin";
           return Promise.reject(err);
         }

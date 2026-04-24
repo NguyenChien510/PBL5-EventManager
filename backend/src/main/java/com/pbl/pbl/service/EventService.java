@@ -488,6 +488,9 @@ public class EventService {
     }
 
     private EventAdminSummaryDTO convertToSummaryDTO(Event event) {
+        int total = event.getTotalTickets() != null ? event.getTotalTickets() : 0;
+        long sold = seatRepository.countByEventSession_Event_IdAndStatus(event.getId(), SeatStatus.BOOKED);
+        
         return EventAdminSummaryDTO.builder()
                 .id(event.getId())
                 .title(event.getTitle())
@@ -500,6 +503,8 @@ public class EventService {
                 .categoryColor(event.getCategory() != null ? event.getCategory().getColor() : "")
                 .organizerName(event.getOrganizer() != null ? event.getOrganizer().getFullName() : "")
                 .organizerEmail(event.getOrganizer() != null ? event.getOrganizer().getEmail() : "")
+                .ticketsSold((int) sold)
+                .totalTickets(total)
                 .build();
     }
 
@@ -529,12 +534,19 @@ public class EventService {
                 .filter(t -> t.getStatus() != com.pbl.pbl.entity.TicketStatus.CANCELLED)
                 .collect(Collectors.groupingBy(t -> t.getSeat().getTicketType().getName(), Collectors.counting()));
 
+        Map<String, BigDecimal> dailyRevenue = tickets.stream()
+                .filter(t -> t.getStatus() != com.pbl.pbl.entity.TicketStatus.CANCELLED)
+                .collect(Collectors.groupingBy(
+                        t -> t.getPurchaseDate().toLocalDate().toString(),
+                        Collectors.reducing(BigDecimal.ZERO, t -> t.getSeat().getTicketType().getPrice(), BigDecimal::add)));
+
         return com.pbl.pbl.dto.EventManagementStatsDTO.builder()
                 .totalSeats(totalSeats)
                 .soldSeats(soldSeats)
                 .checkedInSeats(checkedInSeats)
                 .totalRevenue(totalRevenue)
                 .salesByTicketType(salesByTicketType)
+                .dailyRevenue(dailyRevenue)
                 .build();
     }
 

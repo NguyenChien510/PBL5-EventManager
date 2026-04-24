@@ -34,14 +34,30 @@ import PaymentResult from './pages/PaymentResult'
 import VnpaySandbox from './pages/VnpaySandbox'
 import Chatbot from './components/ui/Chatbot'
 import { useAuthStore } from './stores/useAuthStore'
+import { AuthService } from './services/authService'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { GuestRoute } from './components/auth/GuestRoute'
 
 function App() {
   const [navOpen, setNavOpen] = useState(false)
   const location = useLocation()
-  const { user } = useAuthStore()
+  const { user, accessToken, signOut } = useAuthStore()
   const roleName = (user?.role?.name ?? '').toUpperCase().replace('ROLE_', '')
+
+  // Proactive auth check on initial load
+  useEffect(() => {
+    const verifyAuth = async () => {
+      if (accessToken) {
+        try {
+          await AuthService.getCurrentUser()
+        } catch (error) {
+          console.error('Initial auth verification failed:', error)
+          // Interceptor in axios.ts handles the redirect and clearing of state
+        }
+      }
+    }
+    verifyAuth()
+  }, [accessToken])
 
   // Global scroll to top on route change
   useEffect(() => {
@@ -78,7 +94,6 @@ function App() {
       { to: '/organizer/create-event', label: 'Tạo sự kiện', icon: 'add_circle' },
       { to: '/organizer/guests', label: 'Khách mời & Check-in', icon: 'groups' },
       { to: '/organizer/timeline', label: 'Kịch bản & Timeline', icon: 'timeline' },
-      { to: '/organizer/hr', label: 'Nhân sự & KPI', icon: 'badge' },
       { to: '/organizer/finance', label: 'Quyết toán tài chính', icon: 'account_balance' },
       { to: '/organizer/feedback', label: 'Phản hồi khách mời', icon: 'feedback' },
       { to: '/organizer/profile', label: 'Hồ sơ doanh nghiệp', icon: 'business' },
