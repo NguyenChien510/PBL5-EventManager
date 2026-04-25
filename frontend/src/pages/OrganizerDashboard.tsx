@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Icon, StatCard } from '../components/ui'
+import { Icon, StatCard, Loader } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig'
 import { EventService } from '../services/eventService'
@@ -46,9 +46,8 @@ const OrganizerDashboard = () => {
   if (loading) {
     return (
       <DashboardLayout sidebarProps={sidebarConfig}>
-        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-          <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-          <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Đang tải dữ liệu...</p>
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <Loader className="w-12 h-12 text-primary" />
         </div>
       </DashboardLayout>
     );

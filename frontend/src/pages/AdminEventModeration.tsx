@@ -1,4 +1,4 @@
-import { Icon, StatCard, Pagination, StatusBadge } from '../components/ui'
+import { Icon, StatCard, Pagination, StatusBadge, Loader } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { adminSidebarConfig } from '../config/adminSidebarConfig'
 import { useState, useEffect, useCallback } from 'react'
@@ -16,23 +16,15 @@ const recentActivities = [
 const AdminEventModeration = () => {
   const [events, setEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('Danh sách chờ duyệt')
   const [pagination, setPagination] = useState<any>(null)
   const [stats, setStats] = useState({ pending: 0, processed: 0 })
   const [currentPage, setCurrentPage] = useState(0)
   const navigate = useNavigate()
-
-  const getStatusesByTab = (tab: string) => {
-    if (tab === 'Danh sách chờ duyệt') return ['pending']
-    if (tab === 'Lịch sử xử lý') return ['upcoming', 'rejected', 'sold_out', 'ended']
-    return []
-  }
-
-  const fetchEvents = useCallback(async (page = 0, tab = activeTab) => {
+  const filteredEvents = events
+  const fetchEvents = useCallback(async (page = 0) => {
     try {
       setLoading(true)
-      const statuses = getStatusesByTab(tab)
-      const data = await EventService.getAllAdminEvents(page, 5, statuses)
+      const data = await EventService.getAllAdminEvents(page, 5, ['pending'])
       setEvents(data.events.content)
       setPagination({
         totalPages: data.events.totalPages,
@@ -50,54 +42,44 @@ const AdminEventModeration = () => {
     } finally {
       setLoading(false)
     }
-  }, [activeTab])
-
-  useEffect(() => {
-    setCurrentPage(0)
-  }, [activeTab])
+  }, [])
 
   useEffect(() => {
     fetchEvents(currentPage)
   }, [currentPage, fetchEvents])
 
-  // No more local filtering needed
-  const filteredEvents = events
-
 
   return (
     <DashboardLayout sidebarProps={sidebarConfig}>
-      <PageHeader title="Danh sách Kiểm duyệt" searchPlaceholder="Tìm tên sự kiện, nhà tổ chức..." />
+      <PageHeader title="Kiểm duyệt Sự kiện" searchPlaceholder="Tìm tên sự kiện, nhà tổ chức..." />
 
-      <div className="p-8 space-y-8">
+      <div className="p-6 space-y-6 animate-slide-up">
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <StatCard label="Danh sách chờ duyệt" value={stats.pending} icon="pending_actions" iconBg="bg-primary/10" iconColor="text-primary" />
-          <StatCard label="Lịch sử xử lý" value={stats.processed} icon="history" iconBg="bg-green-100" iconColor="text-green-600" />
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between group hover:border-primary transition-all cursor-pointer" onClick={() => navigate('/admin/events')}>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-green-600">
+                <Icon name="history" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Lịch sử xử lý</p>
+                <p className="text-2xl font-black text-slate-900">{stats.processed}</p>
+              </div>
+            </div>
+            <Icon name="arrow_forward" className="text-slate-300 group-hover:text-primary transition-colors" />
+          </div>
         </div>
 
-        {/* Tabs */}
+        {/* List Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between border-b border-slate-200">
-            <div className="flex gap-8">
-              {[`Danh sách chờ duyệt (${stats.pending})`, `Lịch sử xử lý (${stats.processed})`].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab.split(' (')[0])}
-                  className={`border-b-2 pb-4 px-2 text-sm font-bold transition-all ${
-                    activeTab === tab.split(' (')[0]
-                      ? 'border-primary text-primary'
-                      : 'border-transparent text-slate-400 hover:text-primary'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
+            <h2 className="text-sm font-bold text-primary border-b-2 border-primary pb-4 px-2">Danh sách chờ duyệt ({stats.pending})</h2>
           </div>
 
           {/* Table */}
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-            <table className="w-full text-left border-collapse">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm relative overflow-visible p-1">
+            <table className="w-full text-left border-separate border-spacing-0">
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-200">
                   {['Thông tin Sự kiện', 'Nhà tổ chức', 'Thể loại', 'Ngày tạo', 'Ngày bắt đầu', 'Trạng thái'].map((h) => (
@@ -108,7 +90,12 @@ const AdminEventModeration = () => {
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-slate-400">Đang tải dữ liệu...</td>
+                    <td colSpan={6} className="p-12 text-center text-slate-400">
+                        <div className="flex flex-col items-center gap-3">
+                            <Loader className="w-8 h-8 text-primary" />
+                            <p className="text-sm font-medium italic">Đang tải danh sách kiểm duyệt...</p>
+                        </div>
+                    </td>
                   </tr>
                 ) : filteredEvents.length === 0 ? (
                   <tr>
@@ -119,17 +106,20 @@ const AdminEventModeration = () => {
                     <tr
                       key={evt.id}
                       onClick={() => navigate(`/admin/review/${evt.id}`)}
-                      className={`group hover:bg-slate-50/30 transition-colors cursor-pointer`}
+                      className="group hover:bg-white transition-all duration-300 cursor-pointer hover:scale-[1.01] relative hover:z-10 hover:shadow-xl"
                     >
-                      <td className="p-4">
-                        <div className="flex items-center gap-4">
+                      <td className="p-4 relative">
+                        {/* Hover Border Accent */}
+                        <div className="absolute left-0 top-2 bottom-2 w-1 bg-primary scale-y-0 group-hover:scale-y-100 transition-transform duration-300 rounded-r-full" />
+                        
+                        <div className="flex items-center gap-3">
                           <div
                             className="w-12 h-12 rounded-lg bg-cover bg-center shrink-0"
                             style={{ backgroundImage: `url('${evt.posterUrl || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=2070&auto=format&fit=crop'}')` }}
                           />
-                          <div>
-                            <p className="font-bold text-sm">{evt.title}</p>
-                            <p className="text-xs text-slate-400 line-clamp-1">{evt.location}</p>
+                          <div className="flex-grow min-w-0 max-w-[250px]">
+                            <p className="font-bold text-sm text-slate-900 leading-tight mb-0.5 whitespace-normal">{evt.title}</p>
+                            <p className="text-xs text-slate-400 truncate">{evt.location}</p>
                           </div>
                         </div>
                       </td>
@@ -142,7 +132,7 @@ const AdminEventModeration = () => {
                         </div>
                       </td>
                       <td className="p-4">
-                        <span 
+                        <span
                           className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${!evt.categoryColor?.startsWith('#') ? (evt.categoryColor || 'bg-slate-100 text-slate-600') : 'text-white'}`}
                           style={evt.categoryColor?.startsWith('#') ? { backgroundColor: evt.categoryColor } : {}}
                         >
@@ -150,7 +140,7 @@ const AdminEventModeration = () => {
                         </span>
                       </td>
 
-                       <td className="p-4 text-sm font-medium">
+                      <td className="p-4 text-sm font-medium">
                         {evt.createdAt ? new Date(evt.createdAt).toLocaleDateString('vi-VN') : '---'}
                       </td>
                       <td className="p-4 text-sm font-medium">
@@ -165,52 +155,17 @@ const AdminEventModeration = () => {
               </tbody>
             </table>
             <div className="p-4 bg-slate-50/30 border-t border-slate-200">
-              <Pagination 
-                current={currentPage + 1} 
-                total={pagination?.totalPages || 1} 
+              <Pagination
+                current={currentPage + 1}
+                total={pagination?.totalPages || 1}
                 onPageChange={(page) => setCurrentPage(page - 1)}
-                label={`Hiển thị ${filteredEvents.length} trên ${pagination?.totalElements || 0} sự kiện`} 
+                label={`Hiển thị ${filteredEvents.length} trên ${pagination?.totalElements || 0} sự kiện`}
               />
             </div>
 
           </div>
         </div>
 
-        {/* Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-4">
-            {/* You can put some other global moderation stats or info here if needed */}
-            <div className="bg-primary/5 border border-primary/20 rounded-2xl p-8 flex items-center gap-6">
-              <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-white shrink-0 shadow-lg shadow-primary/20">
-                <Icon name="verified_user" size="lg" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-slate-800">Trung tâm Kiểm duyệt</h3>
-                <p className="text-slate-500 text-sm mt-1">Chọn một sự kiện từ danh sách phía trên để xem chi tiết và thực hiện phê duyệt.</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="text-lg font-bold flex items-center gap-2">
-              <Icon name="history" className="text-primary" /> Hoạt động gần đây
-            </h3>
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-              {recentActivities.map((act, i) => (
-                <div key={i} className="flex items-start gap-3">
-                  <div className={`w-8 h-8 rounded-full ${act.iconBg} flex items-center justify-center shrink-0`}>
-                    <Icon name={act.icon} className={act.iconColor} size="sm" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold">{act.title}</p>
-                    <p className="text-[10px] text-slate-400 font-medium">Bởi {act.by} • {act.time}</p>
-                  </div>
-                </div>
-              ))}
-              <button className="w-full py-2 text-xs font-bold text-primary hover:underline">Xem tất cả nhật ký</button>
-            </div>
-          </div>
-        </div>
       </div>
     </DashboardLayout>
   )

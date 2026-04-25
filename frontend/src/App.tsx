@@ -26,8 +26,10 @@ import AdminEventReview from './pages/AdminEventReview'
 import AdminUserManagement from './pages/AdminUserManagement'
 import AdminFinanceConfig from './pages/AdminFinanceConfig'
 import AdminPaymentHistory from './pages/AdminPaymentHistory'
+import AdminEventManagement from './pages/AdminEventManagement'
 import Homepage from './pages/Homepage'
 import OrganizerEventManage from './pages/OrganizerEventManage'
+import AdminEventManage from './pages/AdminEventManage'
 import SignInPage from './pages/SignInPage'
 import SignUpPage from './pages/SignUpPage'
 import PaymentResult from './pages/PaymentResult'
@@ -48,6 +50,15 @@ function App() {
   useEffect(() => {
     const verifyAuth = async () => {
       if (accessToken) {
+        // 1. Check local expiration first (fast)
+        const { isTokenExpired, signOut } = useAuthStore.getState();
+        if (isTokenExpired(accessToken)) {
+          console.warn('Token expired locally. Logging out...');
+          signOut();
+          return;
+        }
+
+        // 2. Double check with backend
         try {
           await AuthService.getCurrentUser()
         } catch (error) {
@@ -104,6 +115,7 @@ function App() {
     title: '🛡️ Admin',
     links: [
       { to: '/admin/moderation', label: 'Kiểm duyệt sự kiện', icon: 'verified_user' },
+      { to: '/admin/events', label: 'Quản lý sự kiện', icon: 'event_note' },
       { to: '/admin/users', label: 'Quản lý người dùng', icon: 'manage_accounts' },
       { to: '/admin/finance', label: 'Cấu hình tài chính', icon: 'settings' },
       { to: '/admin/payments', label: 'Lịch sử giao dịch', icon: 'payments' },
@@ -225,7 +237,9 @@ function App() {
         <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
           <Route path="/admin" element={<Navigate to="/admin/moderation" replace />} />
           <Route path="/admin/moderation" element={<AdminEventModeration />} />
+          <Route path="/admin/events" element={<AdminEventManagement />} />
           <Route path="/admin/review/:id" element={<AdminEventReview />} />
+          <Route path="/admin/event/manage/:id" element={<AdminEventManage />} />
           <Route path="/admin/users" element={<AdminUserManagement />} />
           <Route path="/admin/finance" element={<AdminFinanceConfig />} />
           <Route path="/admin/payments" element={<AdminPaymentHistory />} />

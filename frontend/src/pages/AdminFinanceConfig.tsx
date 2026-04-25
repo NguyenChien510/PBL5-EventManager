@@ -7,34 +7,44 @@ import { toast } from 'react-toastify'
 
 const sidebarConfig = adminSidebarConfig
 
-const categories = [
-  { name: 'Âm nhạc', commission: '10%', fee: '5.000đ', status: true },
-  { name: 'Công nghệ', commission: '8%', fee: '10.000đ', status: true },
-  { name: 'Nghệ thuật', commission: '12%', fee: '3.000đ', status: true },
-  { name: 'Thể thao', commission: '10%', fee: '5.000đ', status: false },
-  { name: 'Ẩm thực', commission: '15%', fee: '2.000đ', status: true },
-]
+interface FinanceStats {
+  totalRevenue: number
+  totalPlatformFee: number
+  totalOrders: number
+}
 
 const AdminFinanceConfig = () => {
   const [config, setConfig] = useState({
     defaultCommissionRate: '10',
-    fixedFeePerTicket: '5000',
-    minWithdrawalAmount: '500000',
-    withdrawalProcessTime: '1-3 ngày làm việc'
   })
+  
+  const [stats, setStats] = useState<FinanceStats>({
+    totalRevenue: 0,
+    totalPlatformFee: 0,
+    totalOrders: 0,
+  })
+
   const [loading, setLoading] = useState(false)
+  const [fetching, setFetching] = useState(true)
 
   useEffect(() => {
-    fetchConfig()
+    fetchData()
   }, [])
 
-  const fetchConfig = async () => {
+  const fetchData = async () => {
+    setFetching(true)
     try {
-      const res = await apiClient.get('/admin/finance/config')
-      if (res.data) setConfig(res.data)
+      const [configRes, statsRes] = await Promise.all([
+        apiClient.get('/admin/finance/config'),
+        apiClient.get('/admin/finance/overview')
+      ])
+      if (configRes.data) setConfig(configRes.data)
+      if (statsRes.data) setStats(statsRes.data)
     } catch (err) {
       console.error(err)
-      toast.error('Không thể tải cấu hình tài chính')
+      toast.error('Không thể tải dữ liệu tài chính')
+    } finally {
+      setFetching(false)
     }
   }
 
@@ -43,6 +53,7 @@ const AdminFinanceConfig = () => {
     try {
       await apiClient.post('/admin/finance/config', config)
       toast.success('Lưu cấu hình thành công')
+      fetchData()
     } catch (err) {
       console.error(err)
       toast.error('Lưu cấu hình thất bại')
@@ -51,80 +62,127 @@ const AdminFinanceConfig = () => {
     }
   }
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
+  }
+
   return (
     <DashboardLayout sidebarProps={sidebarConfig}>
-      <PageHeader title="Cấu hình Tài chính" subtitle="Quản lý phí nền tảng & hoa hồng" />
-      <div className="p-5 space-y-5 animate-slide-down">
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <StatCard label="Chờ thanh toán" value="125M" icon="hourglass_empty" iconBg="bg-orange-100" iconColor="text-orange-500" />
-          <StatCard label="Hoa hồng mặc định" value={`${config.defaultCommissionRate}%`} icon="percent" />
-          <StatCard label="Phí cố định / vé" value={`${parseInt(config.fixedFeePerTicket).toLocaleString('vi-VN')}đ`} icon="receipt" iconBg="bg-green-100" iconColor="text-green-600" />
+      <PageHeader title="Cấu hình Tài chính" subtitle="Hệ thống thuế & phí dịch vụ nền tảng" />
+      
+      <div className="p-6 space-y-6 animate-slide-up max-w-7xl">
+        {/* Balanced Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <StatCard 
+            label="Tổng doanh thu (Gross)" 
+            value={formatCurrency(stats.totalRevenue)} 
+            icon="payments" 
+            iconBg="bg-blue-100" 
+            iconColor="text-blue-600" 
+          />
+          <StatCard 
+            label="Lợi nhuận hệ thống" 
+            value={formatCurrency(stats.totalPlatformFee)} 
+            icon="account_balance_wallet" 
+            iconBg="bg-indigo-100" 
+            iconColor="text-indigo-600" 
+          />
+          <StatCard 
+            label="Tổng số vé bán ra" 
+            value={stats.totalOrders.toString()} 
+            icon="confirmation_number" 
+            iconBg="bg-purple-100" 
+            iconColor="text-purple-600" 
+          />
         </div>
 
-        {/* Settings */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5" style={{ animationDelay: '100ms' }}>
-          <div className="bg-white rounded-[1.5rem] border border-slate-200 p-6 shadow-sm space-y-5">
-            <h3 className="font-bold flex items-center gap-2"><Icon name="tune" className="text-indigo-600" /> Cài đặt chung</h3>
-            <div>
-              <label className="text-sm font-bold text-slate-600 mb-2 block">Tỷ lệ hoa hồng mặc định (%)</label>
-              <input type="number" value={config.defaultCommissionRate} onChange={e => setConfig({...config, defaultCommissionRate: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none" />
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6" style={{ animationDelay: '100ms' }}>
+          {/* Config Card - Balanced Size */}
+          <div className="xl:col-span-2 bg-white rounded-3xl border border-slate-200 p-8 shadow-sm space-y-8">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+                  <Icon name="tune" className="text-indigo-600" />
+                </div>
+                Thiết lập thuế nền tảng
+              </h3>
+              <div className="px-4 py-1.5 bg-green-50 text-green-600 text-xs font-bold rounded-full border border-green-100 flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                Auto-apply
+              </div>
             </div>
-            <div>
-              <label className="text-sm font-bold text-slate-600 mb-2 block">Phí cố định trên mỗi vé (VNĐ)</label>
-              <input type="number" value={config.fixedFeePerTicket} onChange={e => setConfig({...config, fixedFeePerTicket: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none" />
+
+            <div className="space-y-6">
+              <div className="max-w-md">
+                <label className="text-sm font-bold text-slate-500 mb-3 block flex items-center gap-2">
+                  Tỷ lệ thuế hệ thống (%)
+                </label>
+                <div className="relative group">
+                  <input 
+                    type="number" 
+                    value={config.defaultCommissionRate} 
+                    onChange={e => setConfig({...config, defaultCommissionRate: e.target.value})} 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-xl font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none group-hover:bg-white"
+                  />
+                  <span className="absolute right-5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-lg">%</span>
+                </div>
+                <p className="mt-3 text-sm text-slate-400 leading-relaxed">
+                  Tỷ lệ phần trăm này sẽ được tự động khấu trừ trực tiếp từ tổng tiền thanh toán của mỗi vé bán ra. 
+                  Admin sẽ nhận được khoản này như lợi nhuận vận hành hệ thống.
+                </p>
+              </div>
+
+              <div className="pt-4 border-t border-slate-50">
+                <button 
+                  onClick={handleSave} 
+                  disabled={loading} 
+                  className="px-8 py-3.5 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-70 flex items-center gap-3"
+                >
+                  <Icon name={loading ? 'sync' : 'save'} className={loading ? 'animate-spin' : ''} />
+                  {loading ? 'Đang cập nhật...' : 'Cập nhật cấu hình'}
+                </button>
+              </div>
             </div>
-            <div>
-              <label className="text-sm font-bold text-slate-600 mb-2 block">Ngưỡng rút tiền tối thiểu (VNĐ)</label>
-              <input type="number" value={config.minWithdrawalAmount} onChange={e => setConfig({...config, minWithdrawalAmount: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none" />
-            </div>
-            <div>
-              <label className="text-sm font-bold text-slate-600 mb-2 block">Thời gian xử lý rút tiền</label>
-              <select value={config.withdrawalProcessTime} onChange={e => setConfig({...config, withdrawalProcessTime: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none">
-                <option value="1-3 ngày làm việc">1-3 ngày làm việc</option>
-                <option value="3-5 ngày">3-5 ngày</option>
-                <option value="7 ngày">7 ngày</option>
-              </select>
-            </div>
-            <button onClick={handleSave} disabled={loading} className="px-6 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-xl shadow-sm hover:bg-indigo-700 transition-colors w-full sm:w-auto">
-              {loading ? 'Đang lưu...' : 'Lưu cài đặt'}
-            </button>
           </div>
 
-          <div className="bg-white rounded-[1.5rem] border border-slate-200 p-6 shadow-sm">
-            <h3 className="font-bold mb-4 flex items-center gap-2"><Icon name="category" className="text-indigo-600" /> Hoa hồng theo thể loại</h3>
-            <div className="space-y-3">
-              {categories.map((cat) => (
-                <div key={cat.name} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${cat.status ? 'bg-green-500' : 'bg-slate-300'}`} />
-                    <span className="text-sm font-bold">{cat.name}</span>
+          {/* Info Card - Improved Visibility */}
+          <div className="bg-slate-900 rounded-3xl p-8 text-white shadow-xl shadow-slate-200 relative overflow-hidden flex flex-col justify-between">
+            <div className="relative z-10 space-y-6">
+              <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-indigo-400">
+                <Icon name="auto_awesome" size="lg" />
+              </div>
+              <h4 className="text-xl font-bold">Cơ chế vận hành</h4>
+              
+              <div className="space-y-4">
+                <div className="flex gap-4">
+                  <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0">
+                    <Icon name="verified" size="sm" className="text-indigo-400" />
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-xs text-slate-400">Hoa hồng</p>
-                      <p className="text-sm font-bold text-primary">{cat.commission}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-slate-400">Phí/vé</p>
-                      <p className="text-sm font-bold">{cat.fee}</p>
-                    </div>
-                    <div className="flex gap-1">
-                      <button className="w-7 h-7 rounded-lg bg-white border border-slate-200 flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all">
-                        <Icon name="edit" size="sm" />
-                      </button>
-                      <button className={`w-7 h-7 rounded-lg border flex items-center justify-center transition-all ${
-                        cat.status
-                          ? 'bg-green-50 border-green-200 text-green-600'
-                          : 'bg-slate-50 border-slate-200 text-slate-400'
-                      }`}>
-                        <Icon name={cat.status ? 'visibility' : 'visibility_off'} size="sm" />
-                      </button>
-                    </div>
+                  <div>
+                    <p className="text-sm font-bold text-white mb-1">Khấu trừ tự động</p>
+                    <p className="text-xs text-slate-400 leading-relaxed">Thuế được tính và khấu trừ ngay tại thời điểm thanh toán thành công.</p>
                   </div>
                 </div>
-              ))}
+
+                <div className="flex gap-4">
+                  <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
+                    <Icon name="account_balance" size="sm" className="text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white mb-1">Thanh khoản doanh nghiệp</p>
+                    <p className="text-xs text-slate-400 leading-relaxed">Tiền thực nhận của doanh nghiệp là số tiền sau khi đã trừ thuế hệ thống.</p>
+                  </div>
+                </div>
+              </div>
             </div>
+
+            <div className="relative z-10 pt-8 mt-8 border-t border-white/10 flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-500">
+              <span>Smart Finance v2.0</span>
+              <Icon name="security" size="sm" />
+            </div>
+
+            {/* Background Decorations */}
+            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-indigo-600/20 rounded-full blur-3xl" />
           </div>
         </div>
       </div>

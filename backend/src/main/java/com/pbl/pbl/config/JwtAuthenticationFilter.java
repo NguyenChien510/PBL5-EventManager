@@ -35,6 +35,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } else if (token != null) {
             System.err.println(">>> JWT VALIDATION FAILED FOR TOKEN: " + token.substring(0, Math.min(token.length(), 10)) + "...");
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"message\": \"Invalid or expired token\", \"status\": 401}");
+            return;
         }
         filterChain.doFilter(request, response);
     }

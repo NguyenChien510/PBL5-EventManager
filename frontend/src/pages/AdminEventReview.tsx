@@ -127,6 +127,7 @@ const AdminEventReview = () => {
       <PageHeader
         title="Kiểm duyệt Chi tiết"
         breadcrumb={['Kiểm duyệt', event.title]}
+        backTo="/admin/moderation"
       />
       <div className="p-8 space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

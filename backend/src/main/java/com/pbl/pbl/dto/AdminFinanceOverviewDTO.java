@@ -5,10 +5,14 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class FinanceConfigDTO {
-    private String defaultCommissionRate;
+public class AdminFinanceOverviewDTO {
+    private BigDecimal totalRevenue;
+    private BigDecimal totalPlatformFee;
+    private long totalOrders;
 }

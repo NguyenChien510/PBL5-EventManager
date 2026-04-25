@@ -5,7 +5,7 @@ import { Loader } from '../components/ui/loader';
 import toast from 'react-hot-toast';
 import { DashboardLayout, PageHeader } from '../components/layout';
 import { adminSidebarConfig } from '../config/adminSidebarConfig';
-import { Icon } from '../components/ui';
+import { Icon, Pagination } from '../components/ui';
 import AdminSeatMap from '../components/domain/AdminSeatMap';
 
 interface TicketDetailDTO {
@@ -22,6 +22,7 @@ interface OrderDTO {
     userEmail: string;
     userName: string;
     totalAmount: number;
+    platformFee: number | null;
     status: string;
     paymentMethod: string;
     purchaseDate: string;
@@ -34,25 +35,60 @@ interface OrderDTO {
 
 const AdminPaymentHistory = () => {
     const [orders, setOrders] = useState<OrderDTO[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
+    const [isTableLoading, setIsTableLoading] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState<OrderDTO | null>(null);
     const [sessionSeats, setSessionSeats] = useState<any[]>([]);
     const [isLoadingSeats, setIsLoadingSeats] = useState(false);
+    const [currentPage, setCurrentPage] = useState(0);
+    const [pagination, setPagination] = useState<any>(null);
+    const [stats, setStats] = useState({ totalOrders: 0, totalRevenue: 0, totalPlatformFee: 0 });
 
     useEffect(() => {
-        const fetchOrders = async () => {
+        if (selectedOrder) {
+            document.body.classList.add('modal-open');
+        } else {
+            document.body.classList.remove('modal-open');
+        }
+        return () => document.body.classList.remove('modal-open');
+    }, [selectedOrder]);
+
+    useEffect(() => {
+        const fetchStats = async () => {
             try {
-                const response = await apiClient.get('/admin/orders');
-                setOrders(response.data);
+                const response = await apiClient.get('/admin/finance/overview');
+                setStats(response.data);
+            } catch (error) {
+                console.error("Failed to fetch finance overview:", error);
+            } finally {
+                setIsInitialLoading(false);
+            }
+        };
+
+        const fetchOrders = async (page: number) => {
+            try {
+                setIsTableLoading(true);
+                const response = await apiClient.get(`/admin/orders?page=${page}&size=5`);
+                setOrders(response.data.content);
+                setPagination({
+                    totalPages: response.data.totalPages,
+                    totalElements: response.data.totalElements,
+                    size: response.data.size,
+                    number: response.data.number
+                });
             } catch (error) {
                 console.error("Failed to fetch orders:", error);
                 toast.error("Không thể tải lịch sử thanh toán");
             } finally {
-                setIsLoading(false);
+                setIsTableLoading(false);
             }
         };
-        fetchOrders();
-    }, []);
+
+        if (currentPage === 0 && orders.length === 0) {
+            fetchStats();
+        }
+        fetchOrders(currentPage);
+    }, [currentPage]);
 
     useEffect(() => {
         if (selectedOrder?.eventSessionId) {
@@ -88,16 +124,15 @@ const AdminPaymentHistory = () => {
 
     return (
         <DashboardLayout sidebarProps={adminSidebarConfig}>
-            {isLoading ? (
+            <PageHeader title="Lịch sử Giao dịch" searchPlaceholder="Tìm mã đơn, email..." />
+
+            {isInitialLoading ? (
                 <div className="flex justify-center items-center h-[60vh]">
                     <Loader className="w-10 h-10 text-primary" />
                 </div>
             ) : (
-                <>
-                    <PageHeader title="Lịch sử Giao dịch" searchPlaceholder="Tìm mã đơn, email..." />
-
-                    <div className="p-8 space-y-8">
-                        {/* Stats Summary */}
+                <div className="p-6 space-y-6 animate-slide-up">
+                    {/* Stats Summary */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
@@ -105,7 +140,7 @@ const AdminPaymentHistory = () => {
                                 </div>
                                 <div>
                                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tổng đơn hàng</p>
-                                    <p className="text-2xl font-black text-slate-900">{orders.length}</p>
+                                    <p className="text-2xl font-black text-slate-900">{stats.totalOrders}</p>
                                 </div>
                             </div>
 
@@ -116,42 +151,48 @@ const AdminPaymentHistory = () => {
                                 <div>
                                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tổng doanh thu</p>
                                     <p className="text-2xl font-black text-emerald-600">
-                                        {orders.filter(o => o.status === 'COMPLETED').reduce((sum, o) => sum + o.totalAmount, 0).toLocaleString()}đ
+                                        {stats.totalRevenue.toLocaleString()}đ
                                     </p>
                                 </div>
                             </div>
 
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600">
-                                    <Icon name="history" />
+                                <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600">
+                                    <Icon name="account_balance" />
                                 </div>
                                 <div>
-                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Đang chờ</p>
-                                    <p className="text-2xl font-black text-amber-600">
-                                        {orders.filter(o => o.status === 'PENDING').length} đơn
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tổng phí hệ thống</p>
+                                    <p className="text-2xl font-black text-indigo-600">
+                                        {stats.totalPlatformFee.toLocaleString()}đ
                                     </p>
                                 </div>
                             </div>
                         </div>
 
                         {/* Table */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left text-sm whitespace-nowrap">
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 relative min-h-[400px] overflow-visible p-1">
+                            {isTableLoading && (
+                                <div className="absolute inset-0 z-10 bg-white/50 backdrop-blur-[1px] flex items-center justify-center">
+                                    <Loader className="w-8 h-8 text-primary" />
+                                </div>
+                            )}
+                            <div className="overflow-visible">
+                                <table className="w-full text-left text-sm whitespace-nowrap border-separate border-spacing-0">
                                     <thead className="bg-slate-50 border-b border-slate-200">
                                         <tr>
-                                            <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Mã Đơn</th>
-                                            <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Khách hàng</th>
-                                            <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Số tiền</th>
-                                            <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Cổng T.Toán</th>
-                                            <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Thời gian</th>
-                                            <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Trạng thái</th>
+                                            <th className="px-6 py-3 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Mã Đơn</th>
+                                            <th className="px-6 py-3 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Khách hàng</th>
+                                            <th className="px-6 py-3 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Tổng thu</th>
+                                            <th className="px-6 py-3 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Phí hệ thống</th>
+                                            <th className="px-6 py-3 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Cổng T.Toán</th>
+                                            <th className="px-6 py-3 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Thời gian</th>
+                                            <th className="px-6 py-3 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Trạng thái</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 text-slate-600">
-                                        {orders.length === 0 ? (
+                                        {orders.length === 0 && !isTableLoading ? (
                                             <tr>
-                                                <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
+                                                <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
                                                     Chưa có giao dịch nào được ghi nhận.
                                                 </td>
                                             </tr>
@@ -159,36 +200,48 @@ const AdminPaymentHistory = () => {
                                             orders.map((order) => (
                                                 <tr
                                                     key={order.id}
-                                                    className="hover:bg-primary/5 transition-colors cursor-pointer group"
+                                                    className="group hover:bg-white transition-all duration-300 cursor-pointer hover:scale-[1.01] relative hover:z-10 hover:shadow-xl"
                                                     onClick={() => setSelectedOrder(order)}
                                                 >
-                                                    <td className="px-6 py-5">
+                                                    <td className="px-6 py-3.5 relative">
+                                                        {/* Hover Border Accent */}
+                                                        <div className="absolute left-0 top-2 bottom-2 w-1 bg-primary scale-y-0 group-hover:scale-y-100 transition-transform duration-300 rounded-r-full" />
+                                                        
                                                         <span className="font-mono font-bold text-primary group-hover:underline">
                                                             #{order.id.toString().padStart(6, '0')}
                                                         </span>
                                                     </td>
-                                                    <td className="px-6 py-5">
+                                                    <td className="px-6 py-3.5">
                                                         <div className="flex flex-col">
                                                             <span className="font-bold text-slate-900">{order.userName}</span>
                                                             <span className="text-[10px] text-slate-400 uppercase tracking-tighter">{order.userEmail}</span>
                                                         </div>
                                                     </td>
-                                                    <td className="px-6 py-5">
+                                                    <td className="px-6 py-3.5">
                                                         <span className="font-extrabold text-slate-900">
                                                             {order.totalAmount.toLocaleString()}đ
                                                         </span>
                                                     </td>
-                                                    <td className="px-6 py-5">
-                                                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 font-bold text-[10px] uppercase">
-                                                            <Icon name="point_of_sale" size="sm" />
+                                                    <td className="px-6 py-3.5">
+                                                        <span className="font-bold text-rose-500">
+                                                            {order.platformFee ? `${order.platformFee.toLocaleString()}đ` : '0đ'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-3.5">
+                                                        <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-50 border border-slate-100 text-slate-700 font-bold text-[10px] uppercase shadow-sm w-fit">
+                                                            {order.paymentMethod?.toLowerCase().includes('momo') ? (
+                                                                <img src="https://developers.momo.vn/v3/assets/images/MOMO-Logo-App-6262c3743a290ef02396a24ea2b66c35.png" alt="MoMo" className="w-4 h-4 rounded-sm object-cover" />
+                                                            ) : (
+                                                                <img src="https://vnpay.vn/s1/statics.vnpay.vn/2023/9/06ncktiwd6dc1694418196384.png" alt="VNPAY" className="w-4 h-4 rounded-sm object-contain" />
+                                                            )}
                                                             {order.paymentMethod || 'VNPAY'}
                                                         </span>
                                                     </td>
-                                                    <td className="px-6 py-5 text-xs">
+                                                    <td className="px-6 py-3.5 text-xs">
                                                         {new Date(order.purchaseDate).toLocaleString('vi-VN')}
                                                     </td>
-                                                    <td className="px-6 py-5">
-                                                        <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest border ${getStatusStyle(order.status)}`}>
+                                                    <td className="px-6 py-3.5">
+                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black tracking-widest border ${getStatusStyle(order.status)}`}>
                                                             {order.status}
                                                         </span>
                                                     </td>
@@ -198,9 +251,20 @@ const AdminPaymentHistory = () => {
                                     </tbody>
                                 </table>
                             </div>
+                            
+                            {/* Pagination */}
+                            {pagination && pagination.totalPages > 1 && (
+                                <div className="p-6 bg-slate-50 border-t border-slate-100">
+                                    <Pagination
+                                        current={currentPage + 1}
+                                        total={pagination.totalPages}
+                                        onPageChange={(page) => setCurrentPage(page - 1)}
+                                        label={`Hiển thị ${orders.length} trên ${pagination.totalElements} giao dịch`}
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
-                </>
             )}
 
 
@@ -255,7 +319,14 @@ const AdminPaymentHistory = () => {
                                 </div>
                                 <div>
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Thanh toán qua</p>
-                                    <p className="font-bold text-slate-900 capitalize">{selectedOrder.paymentMethod}</p>
+                                    <div className="flex items-center gap-2">
+                                        {selectedOrder.paymentMethod?.toLowerCase().includes('momo') ? (
+                                            <img src="https://developers.momo.vn/v3/assets/images/MOMO-Logo-App-6262c3743a290ef02396a24ea2b66c35.png" alt="MoMo" className="w-5 h-5 rounded-md object-cover" />
+                                        ) : (
+                                            <img src="https://vnpay.vn/s1/statics.vnpay.vn/2023/9/06ncktiwd6dc1694418196384.png" alt="VNPAY" className="w-5 h-5 rounded-md object-contain" />
+                                        )}
+                                        <p className="font-bold text-slate-900 capitalize">{selectedOrder.paymentMethod || 'VNPAY'}</p>
+                                    </div>
                                     <p className="text-xs text-slate-500">{new Date(selectedOrder.purchaseDate).toLocaleString('vi-VN')}</p>
                                 </div>
                             </div>

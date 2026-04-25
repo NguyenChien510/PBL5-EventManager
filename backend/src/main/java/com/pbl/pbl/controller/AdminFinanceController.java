@@ -1,35 +1,53 @@
 package com.pbl.pbl.controller;
 
+import com.pbl.pbl.dto.AdminFinanceOverviewDTO;
 import com.pbl.pbl.dto.FinanceConfigDTO;
 import com.pbl.pbl.entity.SystemConfig;
+import com.pbl.pbl.repository.OrderRepository;
 import com.pbl.pbl.repository.SystemConfigRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/admin/finance/config")
+@RequestMapping("/api/admin/finance")
 @RequiredArgsConstructor
 public class AdminFinanceController {
 
     private final SystemConfigRepository systemConfigRepository;
+    private final OrderRepository orderRepository;
 
-    @GetMapping
-    public ResponseEntity<FinanceConfigDTO> getConfig() {
-        return ResponseEntity.ok(FinanceConfigDTO.builder()
-                .defaultCommissionRate(getConfigValue("DEFAULT_COMMISSION_RATE", "10"))
-                .fixedFeePerTicket(getConfigValue("FIXED_FEE_PER_TICKET", "5000"))
-                .minWithdrawalAmount(getConfigValue("MIN_WITHDRAWAL_AMOUNT", "500000"))
-                .withdrawalProcessTime(getConfigValue("WITHDRAWAL_PROCESS_TIME", "1-3 ngày làm việc"))
+    @GetMapping("/overview")
+    public ResponseEntity<AdminFinanceOverviewDTO> getOverview() {
+        var orders = orderRepository.findAll();
+        
+        java.math.BigDecimal totalRevenue = orders.stream()
+                .filter(o -> com.pbl.pbl.entity.OrderStatus.COMPLETED.equals(o.getStatus()))
+                .map(com.pbl.pbl.entity.Order::getTotalAmount)
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+                
+        java.math.BigDecimal totalPlatformFee = orders.stream()
+                .filter(o -> com.pbl.pbl.entity.OrderStatus.COMPLETED.equals(o.getStatus()))
+                .map(o -> o.getPlatformFee() != null ? o.getPlatformFee() : java.math.BigDecimal.ZERO)
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+
+        return ResponseEntity.ok(AdminFinanceOverviewDTO.builder()
+                .totalRevenue(totalRevenue)
+                .totalPlatformFee(totalPlatformFee)
+                .totalOrders((long) orders.size())
                 .build());
     }
 
-    @PostMapping
+    @GetMapping("/config")
+    public ResponseEntity<FinanceConfigDTO> getConfig() {
+        return ResponseEntity.ok(FinanceConfigDTO.builder()
+                .defaultCommissionRate(getConfigValue("DEFAULT_COMMISSION_RATE", "10"))
+                .build());
+    }
+
+    @PostMapping("/config")
     public ResponseEntity<Void> updateConfig(@RequestBody FinanceConfigDTO configDTO) {
-        saveConfig("DEFAULT_COMMISSION_RATE", configDTO.getDefaultCommissionRate(), "Tỷ lệ hoa hồng mặc định (%)");
-        saveConfig("FIXED_FEE_PER_TICKET", configDTO.getFixedFeePerTicket(), "Phí cố định trên mỗi vé (VNĐ)");
-        saveConfig("MIN_WITHDRAWAL_AMOUNT", configDTO.getMinWithdrawalAmount(), "Ngưỡng rút tiền tối thiểu (VNĐ)");
-        saveConfig("WITHDRAWAL_PROCESS_TIME", configDTO.getWithdrawalProcessTime(), "Thời gian xử lý rút tiền");
+        saveConfig("DEFAULT_COMMISSION_RATE", configDTO.getDefaultCommissionRate(), "Tỷ lệ thuế/phí nền tảng mặc định (%)");
         return ResponseEntity.ok().build();
     }
 

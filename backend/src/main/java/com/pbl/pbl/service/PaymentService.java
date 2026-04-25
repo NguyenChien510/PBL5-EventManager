@@ -58,8 +58,11 @@ public class PaymentService {
         String taxRateStr = systemConfigRepository.findById("DEFAULT_COMMISSION_RATE")
                 .map(SystemConfig::getConfigValue)
                 .orElse("10"); // Default 10%
+        
         BigDecimal taxRate = new BigDecimal(taxRateStr);
         BigDecimal amount = BigDecimal.valueOf(paymentDTO.getAmount());
+        
+        // platformFee = amount * taxRate / 100
         BigDecimal platformFee = amount.multiply(taxRate).divide(new BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP);
 
         Order order = Order.builder()

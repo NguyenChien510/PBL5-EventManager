@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Icon, Avatar } from '../components/ui'
+import { Icon, Avatar, Loader } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig'
 import { EventService } from '../services/eventService'
@@ -36,9 +36,7 @@ const OrganizerFeedback = () => {
     return (
       <DashboardLayout sidebarProps={sidebarConfig}>
         <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin text-primary">
-            <Icon name="sync" size="xl" />
-          </div>
+          <Loader className="w-12 h-12 text-primary" />
         </div>
       </DashboardLayout>
     );

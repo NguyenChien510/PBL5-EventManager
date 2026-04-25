@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { DashboardLayout, PageHeader } from '../components/layout';
-import { organizerSidebarConfig } from '../config/organizerSidebarConfig';
+import { adminSidebarConfig } from '../config/adminSidebarConfig';
 import { Icon, Loader } from '../components/ui';
 import { EventService } from '../services/eventService';
 import toast from 'react-hot-toast';
@@ -42,7 +42,7 @@ const RosterCard = ({ shift }: any) => (
   </div>
 )
 
-const OrganizerEventManage = () => {
+const AdminEventManage = () => {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState<'overview' | 'guests' | 'finance' | 'feedback' | 'edit'>('overview');
   const [event, setEvent] = useState<any>(null);
@@ -239,6 +239,16 @@ const OrganizerEventManage = () => {
   const [editSchedules, setEditSchedules] = useState<any[]>([]);
 
   useEffect(() => {
+    const isModalOpen = !!selectedSeatInfo || isGeneratingPlan || !!activeEditType;
+    if (isModalOpen) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => document.body.classList.remove('modal-open');
+  }, [selectedSeatInfo, isGeneratingPlan, activeEditType]);
+
+  useEffect(() => {
     if (event) {
       setEditForm({
         title: event.title,
@@ -250,16 +260,6 @@ const OrganizerEventManage = () => {
       setEditSchedules(event.schedules || []);
     }
   }, [event]);
-
-  useEffect(() => {
-    const isModalOpen = !!selectedSeatInfo || isGeneratingPlan || !!activeEditType;
-    if (isModalOpen) {
-      document.body.classList.add('modal-open');
-    } else {
-      document.body.classList.remove('modal-open');
-    }
-    return () => document.body.classList.remove('modal-open');
-  }, [selectedSeatInfo, isGeneratingPlan, activeEditType]);
 
 
 
@@ -303,7 +303,7 @@ const OrganizerEventManage = () => {
 
   if (loading && !event) {
     return (
-      <DashboardLayout sidebarProps={organizerSidebarConfig}>
+      <DashboardLayout sidebarProps={adminSidebarConfig}>
         <div className="flex items-center justify-center min-h-[60vh]">
           <Loader className="w-12 h-12 text-primary" />
         </div>
@@ -344,7 +344,7 @@ const OrganizerEventManage = () => {
 
 
   return (
-    <DashboardLayout sidebarProps={organizerSidebarConfig}>
+    <DashboardLayout sidebarProps={adminSidebarConfig}>
       <div className="min-h-screen bg-slate-50/50" style={{ scrollbarGutter: 'stable' }}>
         <PageHeader
           title={event?.title || 'Quản lý sự kiện'}
@@ -355,7 +355,7 @@ const OrganizerEventManage = () => {
           {/* Tab Navigation - Fixed structure with sticky behavior */}
           <div className="sticky top-[72px] z-40 py-4 bg-slate-50/50 backdrop-blur-sm -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 transition-all flex justify-start items-center gap-4">
             <Link
-              to="/organizer/events"
+              to="/admin/events"
               className="w-12 h-12 bg-white rounded-2xl shadow-md border border-slate-200 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all group shrink-0 animate-in fade-in slide-in-from-left-4 duration-500"
               title="Quay lại danh sách"
             >
@@ -1666,4 +1666,4 @@ const OrganizerEventManage = () => {
 };
 
 
-export default OrganizerEventManage;
+export default AdminEventManage;

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import axios from "axios";
+import { jwtDecode } from "jwt-decode";
 import type {
   AuthState,
   User,
@@ -19,6 +20,7 @@ interface AuthStore extends AuthState {
   clearError: () => void;
   setUser: (user: User) => void;
   setAccessToken: (token: string) => void;
+  isTokenExpired: (token: string) => boolean;
 }
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
@@ -144,6 +146,17 @@ export const useAuthStore = create<AuthStore>()(
 
       setAccessToken: (token: string) => {
         set({ accessToken: token });
+      },
+
+      isTokenExpired: (token: string) => {
+        if (!token) return true;
+        try {
+          const decoded = jwtDecode(token);
+          const currentTime = Date.now() / 1000;
+          return (decoded.exp ?? 0) < currentTime;
+        } catch {
+          return true;
+        }
       },
     }),
     {

@@ -22,5 +22,4 @@ export const organizerSidebarConfig = {
       ],
     },
   ],
-  user: { name: 'Hoàng Nguyễn', role: 'Event Director' },
 }

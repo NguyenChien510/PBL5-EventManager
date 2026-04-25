@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Icon, StatusBadge, Pagination } from '../components/ui'
+import { Icon, StatusBadge, Pagination, Loader } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig'
 import { useAuthStore } from '../stores/useAuthStore'
@@ -196,11 +196,8 @@ const OrganizerEventList = () => {
         {/* Events Grid */}
         <div className="grid grid-cols-1 gap-4">
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-              <div className="animate-spin mb-4 text-primary">
-                <Icon name="sync" size="xl" />
-              </div>
-              <p className="font-bold">Đang tải danh sách sự kiện...</p>
+            <div className="flex flex-col items-center justify-center py-20">
+              <Loader className="w-12 h-12 text-primary" />
             </div>
           ) : events.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-slate-50/50 rounded-3xl border border-slate-200">

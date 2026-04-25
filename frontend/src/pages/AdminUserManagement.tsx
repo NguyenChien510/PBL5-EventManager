@@ -1,4 +1,4 @@
-import { Icon, StatCard, Pagination } from '../components/ui'
+import { Icon, StatCard, Pagination, Loader } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { adminSidebarConfig } from '../config/adminSidebarConfig'
 import { useState, useEffect } from 'react'
@@ -11,6 +11,19 @@ const AdminUserManagement = () => {
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('Tất cả')
+  const [selectedUser, setSelectedUser] = useState<any>(null)
+
+  useEffect(() => {
+    if (selectedUser) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => document.body.classList.remove('modal-open');
+  }, [selectedUser]);
+
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 5
 
   const fetchUsers = async () => {
     try {
@@ -29,11 +42,21 @@ const AdminUserManagement = () => {
     fetchUsers()
   }, [])
 
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [activeTab])
+
   const filteredUsers = users.filter(user => {
     if (activeTab === 'Tất cả') return true
     const role = (user.role?.name || '').replace('ROLE_', '').toLowerCase()
     return role === activeTab.toLowerCase()
   })
+
+  const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE)
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
 
   const stats = {
     total: users.length,
@@ -50,7 +73,7 @@ const AdminUserManagement = () => {
           </button>
         }
       />
-      <div className="p-8 space-y-8">
+      <div className="p-6 space-y-6 animate-slide-up">
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <StatCard label="Tổng người dùng" value={stats.total} icon="people" />
@@ -77,51 +100,70 @@ const AdminUserManagement = () => {
               <Icon name="download" size="sm" /> Xuất danh sách
             </button>
           </div>
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-slate-50/50">
-                {['Người dùng', 'Vai trò', 'Ngày tham gia', 'Thao tác'].map((h) => (
-                  <th key={h} className={`p-4 text-xs font-bold text-slate-400 uppercase ${h === 'Thao tác' ? 'text-right' : ''}`}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                <tr><td colSpan={4} className="p-8 text-center text-slate-400">Đang tải dữ liệu...</td></tr>
-              ) : filteredUsers.length === 0 ? (
-                <tr><td colSpan={4} className="p-8 text-center text-slate-400">Không có người dùng nào.</td></tr>
-              ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-slate-50/30">
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm uppercase">
-                          {user.fullName?.charAt(0) || '?'}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm relative overflow-visible p-1">
+          <div className="overflow-visible">
+            <table className="w-full text-left border-separate border-spacing-0">
+              <thead>
+                <tr className="bg-slate-50/50 border-b border-slate-200">
+                  {['Người dùng', 'Vai trò', 'Ngày tham gia', 'Thao tác'].map((h) => (
+                    <th key={h} className={`p-4 text-xs font-bold uppercase tracking-wider text-slate-400 ${h === 'Thao tác' ? 'text-right' : ''}`}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={4} className="p-12 text-center">
+                        <Loader className="w-8 h-8 text-primary mx-auto mb-2" />
+                        <p className="text-sm text-slate-400 font-medium italic">Đang tải dữ liệu...</p>
+                    </td>
+                  </tr>
+                ) : paginatedUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="p-12 text-center text-slate-400 italic">Không có người dùng nào.</td>
+                  </tr>
+                ) : (
+                  paginatedUsers.map((user) => (
+                    <tr 
+                        key={user.id} 
+                        className="group hover:bg-white transition-all duration-300 cursor-default hover:scale-[1.01] relative hover:z-10 hover:shadow-xl"
+                    >
+                      <td className="p-4 relative">
+                        {/* Hover Border Accent */}
+                        <div className="absolute left-0 top-2 bottom-2 w-1 bg-primary scale-y-0 group-hover:scale-y-100 transition-transform duration-300 rounded-r-full" />
+                        
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm uppercase">
+                            {user.fullName?.charAt(0) || '?'}
+                          </div>
+                          <div>
+                            <p className="font-bold text-sm text-slate-900">{user.fullName}</p>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{user.email}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-bold text-sm">{user.fullName}</p>
-                          <p className="text-xs text-slate-400">{user.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <span className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider inline-block ${
-                        (user.role?.name || '').toUpperCase().includes('ADMIN') ? 'bg-red-600 text-white' :
-                        (user.role?.name || '').toUpperCase().includes('ORGANIZER') ? 'bg-orange-500 text-white' :
-                        'bg-blue-600 text-white'
-                      }`}>
-                        {user.role?.name?.replace('ROLE_', '') || 'USER'}
-                      </span>
-                    </td>
-                    <td className="p-4 text-sm text-slate-500 whitespace-nowrap">
-                      {user.createdAt ? new Date(user.createdAt).toLocaleDateString('vi-VN') : '---'}
-                    </td>
-                    <td className="p-4 text-right">
+                      </td>
+                      <td className="p-4">
+                        <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider inline-block ${
+                          (user.role?.name || '').toUpperCase().includes('ADMIN') ? 'bg-red-600 text-white shadow-sm shadow-red-200' :
+                          (user.role?.name || '').toUpperCase().includes('ORGANIZER') ? 'bg-orange-500 text-white shadow-sm shadow-orange-200' :
+                          'bg-blue-600 text-white shadow-sm shadow-blue-200'
+                        }`}>
+                          {user.role?.name?.replace('ROLE_', '') || 'USER'}
+                        </span>
+                      </td>
+                      <td className="p-4 text-xs font-bold text-slate-500 whitespace-nowrap">
+                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString('vi-VN') : '---'}
+                      </td>
+                      <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button className="w-9 h-9 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-primary hover:text-white transition-all shadow-sm border border-slate-100" title="Reset mật khẩu">
                           <Icon name="key" size="sm" />
                         </button>
-                        <button className="w-9 h-9 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-primary hover:text-white transition-all shadow-sm border border-slate-100" title="Chỉnh sửa">
+                        <button 
+                          onClick={() => setSelectedUser(user)}
+                          className="w-9 h-9 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-primary hover:text-white transition-all shadow-sm border border-slate-100" 
+                          title="Chỉnh sửa"
+                        >
                           <Icon name="edit" size="sm" />
                         </button>
                         <button className="w-9 h-9 rounded-xl bg-rose-50 text-rose-400 flex items-center justify-center hover:bg-rose-600 hover:text-white transition-all shadow-sm border border-rose-100" title="Xóa người dùng">
@@ -134,13 +176,108 @@ const AdminUserManagement = () => {
               )}
             </tbody>
           </table>
+          </div>
           <div className="p-4 bg-slate-50/30 border-t border-slate-200">
-            <Pagination current={1} total={1} label={`Hiển thị ${filteredUsers.length} người dùng`} />
+            <Pagination 
+                current={currentPage} 
+                total={totalPages} 
+                onPageChange={(page) => setCurrentPage(page)}
+                label={`Hiển thị ${paginatedUsers.length} trên ${filteredUsers.length} người dùng`} 
+            />
           </div>
         </div>
       </div>
-    </DashboardLayout>
-  )
+    </div>
+
+    {/* Edit User Modal */}
+    {selectedUser && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div 
+          className="absolute inset-0 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300" 
+          onClick={() => setSelectedUser(null)} 
+        />
+        <div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 border border-white/20">
+          <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-primary/10 text-primary rounded-2xl flex items-center justify-center shadow-inner">
+                <Icon name="manage_accounts" size="sm" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-900">Chi tiết người dùng</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID: #{selectedUser.id}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setSelectedUser(null)}
+              className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors"
+            >
+              <Icon name="close" size="sm" />
+            </button>
+          </div>
+
+          <div className="p-8 space-y-6">
+            <div className="flex items-center gap-5 p-6 bg-slate-50 rounded-3xl border border-slate-100">
+              <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary text-3xl font-black uppercase">
+                {selectedUser.fullName?.charAt(0)}
+              </div>
+              <div>
+                <h4 className="text-lg font-black text-slate-900">{selectedUser.fullName}</h4>
+                <p className="text-sm font-bold text-slate-500">{selectedUser.email}</p>
+                <div className="mt-2 flex gap-2">
+                   <span className="px-2 py-1 bg-primary text-white text-[10px] font-black uppercase rounded-lg tracking-wider">
+                     {selectedUser.role?.name?.replace('ROLE_', '')}
+                   </span>
+                   <span className="px-2 py-1 bg-slate-200 text-slate-600 text-[10px] font-black uppercase rounded-lg tracking-wider">
+                     {selectedUser.status || 'ACTIVE'}
+                   </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Họ và tên</label>
+                <input 
+                  type="text" 
+                  disabled
+                  value={selectedUser.fullName}
+                  className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-400 cursor-not-allowed"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Số điện thoại</label>
+                <input 
+                  type="text" 
+                  disabled
+                  value={selectedUser.phone || 'Chưa cập nhật'}
+                  className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-400 cursor-not-allowed"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex gap-4">
+            <button
+              onClick={() => setSelectedUser(null)}
+              className="flex-1 py-4 bg-white border border-slate-200 text-slate-500 rounded-2xl font-black text-xs tracking-widest hover:bg-slate-50 transition-all uppercase"
+            >
+              Đóng
+            </button>
+            <button
+              onClick={() => {
+                toast.success('Đã gửi yêu cầu reset mật khẩu');
+                setSelectedUser(null);
+              }}
+              className="flex-1 py-4 bg-primary text-white rounded-2xl font-black text-xs tracking-widest shadow-xl shadow-primary/20 hover:bg-primary/90 transition-all uppercase"
+            >
+              Reset mật khẩu
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+  </DashboardLayout>
+)
 }
 
 export default AdminUserManagement
