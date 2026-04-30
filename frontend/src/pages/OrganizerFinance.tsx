@@ -44,7 +44,7 @@ const OrganizerFinance = () => {
   const platformFee = orders.filter(o => o.status === 'COMPLETED').reduce((sum, o) => sum + (o.platformFee || 0), 0)
   const netIncome = totalRevenue - platformFee
   
-  const pendingOrders = orders.filter(o => o.status === 'PENDING').reduce((sum, o) => sum + o.totalAmount, 0)
+
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
@@ -75,11 +75,39 @@ const OrganizerFinance = () => {
       <PageHeader title="Quyết toán Tài chính" subtitle="Tổng quan doanh thu & chi phí" />
       <div className="p-6 space-y-5">
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 animate-slide-down">
-          <StatCard label="Tổng doanh thu" value={formatCurrency(totalRevenue)} icon="payments" iconBg="bg-emerald-50" iconColor="text-emerald-600" trend={{ value: 'Cập nhật tự động', positive: true }} />
-          <StatCard label="Thu nhập ròng (Thực nhận)" value={formatCurrency(netIncome)} icon="account_balance" iconBg="bg-indigo-50" iconColor="text-indigo-600" />
-          <StatCard label="Thuế / Phí nền tảng" value={formatCurrency(platformFee)} icon="receipt_long" iconBg="bg-rose-50" iconColor="text-rose-600" />
-          <StatCard label="Đơn hàng chờ User thanh toán" value={formatCurrency(pendingOrders)} icon="hourglass_empty" iconBg="bg-orange-50" iconColor="text-orange-500" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-slide-down">
+          {/* Total Revenue - Emerald Gradient */}
+          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-8 rounded-[2rem] shadow-xl shadow-emerald-200/50 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-125 transition-transform duration-700">
+              <Icon name="payments" size="xl" className="text-white scale-[3]" />
+            </div>
+            <div className="relative z-10">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-50/80 mb-1">Tổng doanh thu</p>
+              <p className="text-3xl font-black text-white tracking-tighter">{formatCurrency(totalRevenue)}</p>
+            </div>
+          </div>
+
+          {/* Net Income - Indigo Gradient */}
+          <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-8 rounded-[2rem] shadow-xl shadow-indigo-200/50 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-125 transition-transform duration-700">
+              <Icon name="account_balance" size="xl" className="text-white scale-[3]" />
+            </div>
+            <div className="relative z-10">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-50/80 mb-1">Thu nhập ròng (Thực nhận)</p>
+              <p className="text-3xl font-black text-white tracking-tighter">{formatCurrency(netIncome)}</p>
+            </div>
+          </div>
+
+          {/* Platform Fee - Rose Gradient */}
+          <div className="bg-gradient-to-br from-rose-500 to-red-600 p-8 rounded-[2rem] shadow-xl shadow-rose-200/50 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-125 transition-transform duration-700">
+              <Icon name="receipt_long" size="xl" className="text-white scale-[3]" />
+            </div>
+            <div className="relative z-10">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-50/80 mb-1">Thuế / Phí nền tảng</p>
+              <p className="text-3xl font-black text-white tracking-tighter">{formatCurrency(platformFee)}</p>
+            </div>
+          </div>
         </div>
 
         {/* Chart */}
@@ -119,48 +147,48 @@ const OrganizerFinance = () => {
 
         {/* Transactions Table */}
         <div className="bg-white rounded-[1.5rem] border border-slate-200 shadow-sm overflow-hidden animate-slide-down" style={{ animationDelay: '200ms', animationFillMode: 'both' }}>
-          <div className="p-5 flex items-center justify-between border-b border-slate-100 bg-slate-50/50">
-            <h3 className="font-black text-slate-900 flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center">
+          <div className="p-6 flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+            <h3 className="font-black text-slate-900 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200">
                 <Icon name="receipt" size="sm" />
               </div>
               Lịch sử giao dịch
             </h3>
-            <button className="text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-4 py-2 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2">
+            <button className="text-[10px] font-black uppercase tracking-widest text-white bg-slate-900 px-6 py-3 rounded-xl shadow-lg shadow-slate-200 hover:scale-105 active:scale-95 transition-all flex items-center gap-2">
               <Icon name="download" size="sm" /> Xuất CSV
             </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="border-b border-slate-100">
+                <tr className="bg-slate-50/50">
                   {['Mã GD', 'Sự kiện', 'Tổng thu', 'Phí nền tảng', 'Thực nhận', 'Ngày', 'Trạng thái'].map((h) => (
-                    <th key={h} className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{h}</th>
+                    <th key={h} className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {orders.length === 0 && !loading && (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-slate-500 font-medium text-sm">Chưa có giao dịch nào</td>
+                    <td colSpan={7} className="p-12 text-center text-slate-400 font-bold text-sm italic">Chưa có giao dịch nào phát sinh</td>
                   </tr>
                 )}
                 {paginatedOrders.map((tx) => {
                   const txFee = tx.platformFee || 0;
                   const txNet = tx.totalAmount - txFee;
                   return (
-                    <tr key={tx.id} className="hover:bg-slate-50/50 transition-colors group">
-                      <td className="p-4 text-xs font-bold text-slate-500 font-mono">#{tx.id}</td>
-                      <td className="p-4 text-sm font-bold text-slate-900">{tx.eventTitle}</td>
-                      <td className="p-4 text-sm font-black whitespace-nowrap text-emerald-600">{formatCurrency(tx.totalAmount)}</td>
-                      <td className="p-4 text-sm font-bold whitespace-nowrap text-rose-500">-{formatCurrency(txFee)}</td>
-                      <td className="p-4 text-sm font-black whitespace-nowrap text-indigo-600">{formatCurrency(txNet)}</td>
-                      <td className="p-4 text-xs font-medium text-slate-500 whitespace-nowrap">{new Date(tx.purchaseDate).toLocaleString('vi-VN')}</td>
-                      <td className="p-4 whitespace-nowrap">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider inline-block border ${
-                          tx.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
-                          tx.status === 'PENDING' ? 'bg-orange-50 text-orange-500 border-orange-200' :
-                          'bg-slate-50 text-slate-500 border-slate-200'
+                    <tr key={tx.id} className="hover:bg-indigo-50/30 transition-colors group">
+                      <td className="p-6 text-xs font-bold text-slate-400 font-mono">#{tx.id}</td>
+                      <td className="p-6 text-sm font-black text-slate-800 tracking-tight">{tx.eventTitle}</td>
+                      <td className="p-6 text-sm font-black whitespace-nowrap text-emerald-600">{formatCurrency(tx.totalAmount)}</td>
+                      <td className="p-6 text-sm font-bold whitespace-nowrap text-rose-500">-{formatCurrency(txFee)}</td>
+                      <td className="p-6 text-sm font-black whitespace-nowrap text-indigo-600">{formatCurrency(txNet)}</td>
+                      <td className="p-6 text-xs font-bold text-slate-500 whitespace-nowrap">{new Date(tx.purchaseDate).toLocaleString('vi-VN')}</td>
+                      <td className="p-6 whitespace-nowrap">
+                        <span className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest inline-block border shadow-sm ${
+                          tx.status === 'COMPLETED' ? 'bg-emerald-500 text-white border-emerald-600 shadow-emerald-100' :
+                          tx.status === 'PENDING' ? 'bg-orange-400 text-white border-orange-500 shadow-orange-100' :
+                          'bg-slate-400 text-white border-slate-500 shadow-slate-100'
                         }`}>{tx.status}</span>
                       </td>
                     </tr>

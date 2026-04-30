@@ -164,6 +164,7 @@ const EventDetail = () => {
   const [ticketTypes, setTicketTypes] = useState<any[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -292,11 +293,30 @@ const EventDetail = () => {
           <aside className="space-y-6">
             <div className="sticky top-24 space-y-6">
               {/* Compact Event Calendar */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 px-1">
+              <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-2">
                   <div className="w-1 h-4 bg-emerald-500 rounded-full" />
                   <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Thời gian biểu</span>
                 </div>
+                <div className="flex bg-white p-1 rounded-xl shadow-xl border border-slate-100 ring-4 ring-slate-50">
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5
+                        ${viewMode === 'list' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-slate-400 hover:text-slate-600'}`}
+                  >
+                    <Icon name="format_list_bulleted" size="xs" />
+                  </button>
+                    <button
+                      onClick={() => setViewMode('calendar')}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5
+                        ${viewMode === 'calendar' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      <Icon name="calendar_month" size="xs" />
+                    </button>
+                </div>
+              </div>
+
+              {viewMode === 'calendar' ? (
                 <EventCalendar
                   sessions={event.sessions || []}
                   defaultDate={new Date(event.startTime)}
@@ -304,7 +324,49 @@ const EventDetail = () => {
                   onSelectSession={(id) => setSelectedSessionId(id)}
                   compact={true}
                 />
-              </div>
+              ) : (
+                <div className="space-y-2 animate-fade-in">
+                  {(event.sessions || []).map((session: any) => {
+                    const isSelected = session.id === selectedSessionId;
+                    // sessionDate is [year, month, day]
+                    const date = Array.isArray(session.sessionDate)
+                      ? new Date(session.sessionDate[0], session.sessionDate[1] - 1, session.sessionDate[2])
+                      : new Date(session.sessionDate);
+
+                    return (
+                      <button
+                        key={session.id}
+                        onClick={() => setSelectedSessionId(session.id)}
+                        className={`w-full p-4 rounded-2xl border text-left transition-all duration-300 group
+                            ${isSelected
+                            ? 'bg-primary border-primary shadow-lg shadow-primary/20 scale-[1.02]'
+                            : 'bg-white border-slate-100 hover:border-primary/30 hover:bg-slate-50'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 ${isSelected ? 'bg-white/20' : 'bg-primary/5'}`}>
+                              <Icon name="event" className={isSelected ? 'text-white' : 'text-primary'} size="sm" />
+                            </div>
+                            <div>
+                              <p className={`text-sm font-black ${isSelected ? 'text-white' : 'text-slate-900'}`}>
+                                {date.toLocaleDateString('vi-VN', { weekday: 'long' })}
+                              </p>
+                              <p className={`text-xs font-bold ${isSelected ? 'text-white/80' : 'text-slate-500'}`}>
+                                Ngày {date.getDate()} tháng {date.getMonth() + 1}, {date.getFullYear()}
+                              </p>
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
+                              <Icon name="check" size="xs" className="text-white" />
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               <div className="glass-widget rounded-[32px] p-6 overflow-hidden relative">
                 <div className="mb-6">
@@ -323,34 +385,9 @@ const EventDetail = () => {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-4 mb-8">
-                    <div className="p-4 bg-white/40 backdrop-blur-sm rounded-2xl border border-white/50 shadow-sm">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Quy mô phiên</p>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-xl font-black">
-                          {selectedSessionId
-                            ? (ticketTypes.filter(tt => tt.sessionId === selectedSessionId).reduce((acc, curr) => acc + curr.totalQuantity, 0))
-                            : '0'}
-                        </span>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">Chỗ</span>
-                      </div>
-                    </div>
-                    <div className="p-4 bg-primary/5 backdrop-blur-sm rounded-2xl border border-primary/10 shadow-sm relative overflow-hidden group">
-                      <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Đã đặt</p>
-                      <div className="flex items-baseline gap-1.5">
-                        <span className="text-xl font-black text-primary">0</span>
-                        <span className="text-xs font-bold text-primary/30 tracking-tighter">
-                          / {selectedSessionId
-                            ? (ticketTypes.filter(tt => tt.sessionId === selectedSessionId).reduce((acc, curr) => acc + curr.totalQuantity, 0))
-                            : '0'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
 
                   {/* Ticket Categories */}
                   <div className="space-y-3 mb-8">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Phân loại & Giá vé</p>
                     {selectedSessionId ? (
                       ticketTypes
                         .filter(tt => tt.sessionId === selectedSessionId)
@@ -399,78 +436,134 @@ const EventDetail = () => {
                 </div>
               </div>
 
-              {/* Support Widget */}
-              <div className="mt-8 p-6 bg-white rounded-3xl border border-slate-200/50 flex items-center gap-4 shadow-sm">
-                <div className="w-12 h-12 rounded-full bg-slate-900 flex items-center justify-center shrink-0">
-                  <Icon name="support_agent" className="text-white" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-900 text-sm">Hỗ trợ đặc quyền</h4>
-                  <div className="flex gap-3 mt-1">
-                    <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">Chat ngay</button>
-                    <span className="text-slate-300">•</span>
-                    <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">1900 1234</button>
+              {/* Compact Timeline */}
+              {event.schedules && event.schedules.length > 0 && (
+                <div className="mt-8 p-6 bg-white rounded-[2rem] border border-slate-200/50 shadow-sm relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl -mr-12 -mt-12 group-hover:bg-primary/10 transition-colors" />
+                  <div className="flex items-center gap-2 mb-6 px-1 relative z-10">
+                    <div className="w-1 h-4 bg-primary rounded-full" />
+                    <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Lịch trình sự kiện</span>
+                  </div>
+                  <div className="space-y-0 relative z-10">
+                    {event.schedules.map((item: any, idx: number) => (
+                      <div key={idx} className="flex gap-4 group/item">
+                        <div className="flex flex-col items-center">
+                          <div className={`w-3 h-3 rounded-full border-2 border-white shadow-sm z-10 transition-all group-hover/item:scale-125 
+                            ${idx === 0 ? 'bg-primary' : 'bg-slate-200 group-hover/item:bg-primary/50'}`} />
+                          {idx !== event.schedules.length - 1 && (
+                            <div className="w-px flex-1 bg-slate-100 group-hover/item:bg-primary/20 transition-colors" />
+                          )}
+                        </div>
+                        <div className={`${idx !== event.schedules.length - 1 ? 'pb-6' : ''}`}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-black text-primary bg-primary/5 px-2 py-0.5 rounded-md">
+                              {item.startTime ? String(item.startTime).substring(0, 5) : item.time}
+                            </span>
+                          </div>
+                          <p className="text-xs font-black text-slate-800 leading-snug group-hover/item:text-primary transition-colors">
+                            {item.activity || item.title}
+                          </p>
+                          <p className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-tighter opacity-0 group-hover/item:opacity-100 transition-opacity">Confirmed</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </aside>
         </div>
 
-        {/* Timeline (Single Column Full Width) */}
-        {event.schedules && event.schedules.length > 0 && (
-          <div className="mt-20 pt-16 border-t border-slate-200">
-            <div className="max-w-4xl mx-auto space-y-12">
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="inline-flex items-center gap-3 px-4 py-1.5 bg-primary/5 rounded-full border border-primary/10">
-                  <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
-                  <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Flow of Event</span>
-                </div>
-                <h2 className="text-4xl font-black text-slate-900 tracking-tight uppercase px-4">Chi tiết lịch trình</h2>
-                <p className="text-sm text-slate-400 font-medium max-w-md">Theo dõi dòng chảy thời gian và các hoạt động chính thức của chương trình</p>
+        {/* Reviews Section */}
+        <div className="mt-20 pt-16 border-t border-slate-200">
+          <div className="flex flex-col lg:flex-row gap-12">
+            {/* Review Summary */}
+            <div className="lg:w-1/3 space-y-6">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900 mb-2">Đánh giá từ cộng đồng</h2>
+                <p className="text-sm text-slate-500 font-medium">Lắng nghe trải nghiệm thực tế từ những người tham gia trước đó</p>
               </div>
 
-              <div className="relative px-4 sm:px-0">
-                {/* Vertical Line */}
-                <div className="absolute left-[39px] sm:left-1/2 top-10 bottom-10 w-px bg-gradient-to-b from-transparent via-slate-200 to-transparent hidden sm:block" />
+              <div className="p-8 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm text-center relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-yellow-400/10 transition-colors duration-700" />
+                
+                <p className="text-5xl font-black text-slate-900 mb-2">4.9</p>
+                <div className="flex justify-center gap-1 mb-4">
+                  {[1, 2, 3, 4, 5].map(s => (
+                    <Icon key={s} name="star" className="text-yellow-400" size="sm" />
+                  ))}
+                </div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Dựa trên 2,450 đánh giá</p>
 
-                <div className="space-y-12">
-                  {event.schedules.map((item: any, idx: number, arr: any[]) => {
-                    const displayTime = item.startTime ? String(item.startTime).substring(0, 5) : item.time;
-                    const displayTitle = item.activity || item.title;
-                    const isEven = idx % 2 === 0;
-
-                    return (
-                      <div key={idx} className={`flex flex-col sm:flex-row items-center gap-8 relative group ${isEven ? 'sm:flex-row' : 'sm:flex-row-reverse'}`}>
-                        {/* Time Label */}
-                        <div className={`sm:w-1/2 flex ${isEven ? 'sm:justify-end' : 'sm:justify-start'}`}>
-                          <div className={`flex flex-col ${isEven ? 'sm:items-end' : 'sm:items-start'}`}>
-                            <span className="text-sm font-black text-primary bg-primary/5 px-3 py-1 rounded-lg border border-primary/10 mb-2">{displayTime}</span>
-                            <p className={`text-xs text-slate-400 font-bold uppercase tracking-widest ${isEven ? 'sm:text-right' : 'sm:text-left'}`}>Activity {idx + 1}</p>
-                          </div>
-                        </div>
-
-                        {/* Dot */}
-                        <div className="absolute left-10 sm:left-1/2 top-0 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-20">
-                          <div className="w-5 h-5 bg-white border-4 border-slate-100 rounded-full group-hover:border-primary group-hover:scale-125 transition-all duration-500" />
-                        </div>
-
-                        {/* Content Card */}
-                        <div className="sm:w-1/2 w-full pl-20 sm:pl-0">
-                          <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm group-hover:shadow-xl group-hover:border-primary/10 transition-all duration-500 relative overflow-hidden">
-                            <div className={`absolute top-0 bottom-0 w-1 ${isEven ? 'left-0' : 'sm:right-0 left-0 sm:left-auto'} bg-primary opacity-20`} />
-                            <h4 className="text-lg font-black text-slate-800 mb-2">{displayTitle}</h4>
-                            <p className="text-xs text-slate-500 leading-relaxed font-medium">Hạng mục chương trình đã được ban tổ chức xác nhận chính thức.</p>
-                          </div>
-                        </div>
+                <div className="mt-8 space-y-3">
+                  {[5, 4, 3, 2, 1].map(rating => (
+                    <div key={rating} className="flex items-center gap-3">
+                      <span className="text-[10px] font-black text-slate-400 w-3">{rating}</span>
+                      <div className="flex-1 h-1.5 bg-slate-50 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-yellow-400 rounded-full" 
+                          style={{ width: rating === 5 ? '85%' : rating === 4 ? '10%' : '5%' }} 
+                        />
                       </div>
-                    )
-                  })}
+                      <span className="text-[10px] font-bold text-slate-400 w-8 text-right">{rating === 5 ? '85%' : rating === 4 ? '10%' : '5%'}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
+
+            {/* Review List & Input */}
+            <div className="lg:w-2/3 space-y-8">
+
+              {/* Individual Reviews */}
+              <div className="space-y-6">
+                {[
+                  { id: 1, user: 'Hoàng Nam', avatar: 'https://i.pravatar.cc/150?u=1', rating: 5, date: '2 ngày trước', comment: 'Sự kiện tuyệt vời! Âm thanh ánh sáng đỉnh cao, ban tổ chức rất chuyên nghiệp. Rất đáng tiền vé.' },
+                  { id: 2, user: 'Minh Anh', avatar: 'https://i.pravatar.cc/150?u=2', rating: 4, date: '1 tuần trước', comment: 'Trải nghiệm rất tốt, tuy nhiên lúc vào cổng hơi đông một chút. Mong lần sau sẽ được cải thiện.' },
+                  { id: 3, user: 'Lê Tuấn', avatar: 'https://i.pravatar.cc/150?u=3', rating: 5, date: '2 tuần trước', comment: 'Show diễn quá bùng nổ! Nghệ sĩ biểu diễn hết mình. Đã có một đêm không thể quên.' },
+                ].map(rev => (
+                  <div key={rev.id} className="flex gap-5 group">
+                    <img src={rev.avatar} alt={rev.user} className="w-12 h-12 rounded-2xl object-cover shadow-sm group-hover:scale-105 transition-transform" />
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-black text-slate-800 text-sm">{rev.user}</h4>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <div className="flex gap-0.5">
+                              {[...Array(rev.rating)].map((_, i) => (
+                                <Icon key={i} name="star" className="text-yellow-400" size="xs" />
+                              ))}
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">• {rev.date}</span>
+                          </div>
+                        </div>
+                        <button className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 hover:bg-slate-50 hover:text-slate-400 transition-all">
+                          <Icon name="more_horiz" size="sm" />
+                        </button>
+                      </div>
+                      <p className="text-sm text-slate-600 leading-relaxed font-medium">
+                        {rev.comment}
+                      </p>
+                      <div className="flex items-center gap-4 pt-1">
+                        <button className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-primary transition-colors">
+                          <Icon name="thumb_up" size="xs" /> Hữu ích (12)
+                        </button>
+                        <button className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-primary transition-colors">
+                          Phản hồi
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                <button className="w-full py-4 rounded-2xl border-2 border-dashed border-slate-100 text-xs font-black text-slate-400 uppercase tracking-widest hover:border-primary/20 hover:text-primary hover:bg-primary/5 transition-all">
+                  Xem thêm đánh giá
+                </button>
+              </div>
+            </div>
           </div>
-        )}
+        </div>
+
       </div>
     </div>
   )
