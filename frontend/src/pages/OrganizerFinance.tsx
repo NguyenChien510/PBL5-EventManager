@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Icon, StatCard } from '../components/ui'
+import { Icon, StatCard, Loader } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig'
 import { apiClient } from '@/utils/axios'
@@ -58,6 +58,16 @@ const OrganizerFinance = () => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page)
     }
+  }
+
+  if (loading) {
+    return (
+      <DashboardLayout sidebarProps={sidebarConfig}>
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <Loader className="w-12 h-12 text-primary" />
+        </div>
+      </DashboardLayout>
+    );
   }
 
   return (
@@ -133,11 +143,6 @@ const OrganizerFinance = () => {
                 {orders.length === 0 && !loading && (
                   <tr>
                     <td colSpan={7} className="p-8 text-center text-slate-500 font-medium text-sm">Chưa có giao dịch nào</td>
-                  </tr>
-                )}
-                {loading && (
-                  <tr>
-                    <td colSpan={7} className="p-8 text-center text-slate-500 font-medium text-sm">Đang tải dữ liệu...</td>
                   </tr>
                 )}
                 {paginatedOrders.map((tx) => {

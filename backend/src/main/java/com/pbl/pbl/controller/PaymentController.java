@@ -51,10 +51,16 @@ public class PaymentController {
         // Set up the Frontend specific URL
         String frontendUrl = "http://localhost:5173/payment-result";
         
-        // Return a spring RedirectView to redirect VNPay back to our frontend page
-        return new RedirectView(frontendUrl + "?status=" + statusText 
-                + "&orderInfo=" + (orderInfo != null ? orderInfo : "") 
-                + "&transactionId=" + (transactionId != null ? transactionId : ""));
+        try {
+            String encodedOrderInfo = java.net.URLEncoder.encode(orderInfo != null ? orderInfo : "", java.nio.charset.StandardCharsets.UTF_8);
+            String encodedTransactionId = java.net.URLEncoder.encode(transactionId != null ? transactionId : "", java.nio.charset.StandardCharsets.UTF_8);
+            
+            return new RedirectView(frontendUrl + "?status=" + statusText 
+                    + "&orderInfo=" + encodedOrderInfo
+                    + "&transactionId=" + encodedTransactionId);
+        } catch (Exception e) {
+            return new RedirectView(frontendUrl + "?status=error&message=" + java.net.URLEncoder.encode(e.getMessage(), java.nio.charset.StandardCharsets.UTF_8));
+        }
     }
 
     @GetMapping("/api/public/payment/momo-return")
@@ -71,8 +77,15 @@ public class PaymentController {
 
         String frontendUrl = "http://localhost:5173/payment-result";
         
-        return new RedirectView(frontendUrl + "?status=" + statusText 
-                + "&orderInfo=" + (orderInfo != null ? orderInfo : "") 
-                + "&transactionId=" + (transactionId != null ? transactionId : ""));
+        try {
+            String encodedOrderInfo = java.net.URLEncoder.encode(orderInfo != null ? orderInfo : "", java.nio.charset.StandardCharsets.UTF_8);
+            String encodedTransactionId = java.net.URLEncoder.encode(transactionId != null ? transactionId : "", java.nio.charset.StandardCharsets.UTF_8);
+            
+            return new RedirectView(frontendUrl + "?status=" + statusText 
+                    + "&orderInfo=" + encodedOrderInfo
+                    + "&transactionId=" + encodedTransactionId);
+        } catch (Exception e) {
+            return new RedirectView(frontendUrl + "?status=error&message=" + java.net.URLEncoder.encode(e.getMessage(), java.nio.charset.StandardCharsets.UTF_8));
+        }
     }
 }

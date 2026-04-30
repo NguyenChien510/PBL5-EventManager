@@ -10,6 +10,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -89,7 +90,17 @@ public class EventService {
             eventsPage = eventRepository.findAll(pageable);
         }
 
-        Page<EventAdminSummaryDTO> summaryPage = eventsPage.map(this::convertToSummaryDTO);
+        List<Long> eventIds = eventsPage.getContent().stream().map(Event::getId).collect(Collectors.toList());
+        Map<Long, Long> bookedSeatsMap = new HashMap<>();
+        if (!eventIds.isEmpty()) {
+            List<Object[]> counts = seatRepository.countSeatsGroupedByEventIds(eventIds, SeatStatus.BOOKED);
+            for (Object[] row : counts) {
+                bookedSeatsMap.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue());
+            }
+        }
+
+        Page<EventAdminSummaryDTO> summaryPage = eventsPage
+                .map(event -> convertToSummaryDTOWithSold(event, bookedSeatsMap.getOrDefault(event.getId(), 0L)));
 
         long pendingCount = eventRepository.countByStatus(EventStatus.pending);
         long processedCount = eventRepository.countByStatusIn(
@@ -117,12 +128,27 @@ public class EventService {
         } else {
             eventsPage = eventRepository.findByOrganizer_Id(organizerId, pageable);
         }
-        Page<com.pbl.pbl.dto.EventAdminSummaryDTO> summaryPage = eventsPage.map(this::convertToSummaryDTO);
+
+        List<Long> eventIds = eventsPage.getContent().stream().map(Event::getId).collect(Collectors.toList());
+        Map<Long, Long> bookedSeatsMap = new HashMap<>();
+        if (!eventIds.isEmpty()) {
+            List<Object[]> counts = seatRepository.countSeatsGroupedByEventIds(eventIds, SeatStatus.BOOKED);
+            for (Object[] row : counts) {
+                bookedSeatsMap.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue());
+            }
+        }
+
+        Page<com.pbl.pbl.dto.EventAdminSummaryDTO> summaryPage = eventsPage
+                .map(event -> convertToSummaryDTOWithSold(event, bookedSeatsMap.getOrDefault(event.getId(), 0L)));
+
+        long rejectedCount = eventRepository.countByOrganizer_IdAndStatus(organizerId,
+                com.pbl.pbl.entity.EventStatus.rejected);
 
         return com.pbl.pbl.dto.OrganizerDashboardResponseDTO.builder()
                 .totalEvents(totalEvents)
                 .totalTicketsSold(ticketsSold)
                 .totalRevenue(revenue)
+                .rejectedCount(rejectedCount)
                 .events(summaryPage)
                 .build();
     }
@@ -488,9 +514,13 @@ public class EventService {
     }
 
     private EventAdminSummaryDTO convertToSummaryDTO(Event event) {
-        int total = event.getTotalTickets() != null ? event.getTotalTickets() : 0;
         long sold = seatRepository.countByEventSession_Event_IdAndStatus(event.getId(), SeatStatus.BOOKED);
-        
+        return convertToSummaryDTOWithSold(event, sold);
+    }
+
+    private EventAdminSummaryDTO convertToSummaryDTOWithSold(Event event, long sold) {
+        int total = event.getTotalTickets() != null ? event.getTotalTickets() : 0;
+
         return EventAdminSummaryDTO.builder()
                 .id(event.getId())
                 .title(event.getTitle())
@@ -505,6 +535,7 @@ public class EventService {
                 .organizerEmail(event.getOrganizer() != null ? event.getOrganizer().getEmail() : "")
                 .ticketsSold((int) sold)
                 .totalTickets(total)
+                .rejectReason(event.getRejectReason())
                 .build();
     }
 
@@ -538,7 +569,8 @@ public class EventService {
                 .filter(t -> t.getStatus() != com.pbl.pbl.entity.TicketStatus.CANCELLED)
                 .collect(Collectors.groupingBy(
                         t -> t.getPurchaseDate().toLocalDate().toString(),
-                        Collectors.reducing(BigDecimal.ZERO, t -> t.getSeat().getTicketType().getPrice(), BigDecimal::add)));
+                        Collectors.reducing(BigDecimal.ZERO, t -> t.getSeat().getTicketType().getPrice(),
+                                BigDecimal::add)));
 
         return com.pbl.pbl.dto.EventManagementStatsDTO.builder()
                 .totalSeats(totalSeats)

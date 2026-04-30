@@ -99,8 +99,27 @@ const OrganizerEventCreate = () => {
 
   // Schedule State
   const [schedules, setSchedules] = useState([
-    { id: 1, startTime: '08:00', activity: 'Đón khách' }
+    { id: 1, startTime: '', activity: '' }
   ]);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploading(true);
+      const data = await EventService.uploadImage(file);
+      setPosterUrl(data.url);
+    } catch (err) {
+      console.error("Upload failed", err);
+      alert("Tải ảnh thất bại. Vui lòng thử lại.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
 
   // Keep wizard UX consistent: each step starts from top
@@ -615,12 +634,30 @@ const OrganizerEventCreate = () => {
                     </div>
                     <div className="flex flex-col">
                       <label className={`text-sm font-bold mb-2 block ${stepColor.text}`}>Ảnh bìa (Cover Image)</label>
-                      <div className={`flex-1 w-full bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center cursor-pointer hover:border-blue-400/50 hover:bg-blue-50/10 transition-all group min-h-[220px] overflow-hidden relative`}>
+                      <div
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`flex-1 w-full bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center cursor-pointer hover:border-blue-400/50 hover:bg-blue-50/10 transition-all group min-h-[220px] overflow-hidden relative ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
+                      >
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          className="hidden"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                        />
 
-
-                        {posterUrl ? <img src={posterUrl} alt="Preview" className="w-full h-full object-cover" /> : (
+                        {isUploading ? (
+                          <div className="flex flex-col items-center">
+                            <Icon name="sync" className="text-primary text-3xl animate-spin mb-2" />
+                            <p className="text-sm font-bold text-slate-500">Đang tải lên...</p>
+                          </div>
+                        ) : posterUrl ? (
+                          <img src={posterUrl} alt="Preview" className="w-full h-full object-cover" />
+                        ) : (
                           <>
-                            <div className="w-20 h-20 bg-white rounded-full shadow-sm flex items-center justify-center mb-5 group-hover:scale-110 transition-transform"><Icon name="cloud_upload" className="text-primary text-3xl" /></div>
+                            <div className="w-20 h-20 bg-white rounded-full shadow-sm flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+                              <Icon name="cloud_upload" className="text-primary text-3xl" />
+                            </div>
                             <p className="text-base font-bold text-slate-700 mb-1">Tải ảnh sự kiện lên</p>
                             <p className="text-sm font-medium text-slate-400">PNG, JPG (Tối đa 5MB) - Tỉ lệ 16:9</p>
                           </>
@@ -659,7 +696,7 @@ const OrganizerEventCreate = () => {
                           }}
                           className={`px-4 py-2 ${stepColor.gradient} text-white font-bold rounded-xl hover:brightness-110 transition-all flex items-center gap-1.5 text-sm shadow-md shadow-blue-200/50`}
                         >
-                          <Icon name="add" size="xs" /> Thêm phiên
+                          <Icon name="add" size="xs" />
                         </button>
 
 

@@ -97,4 +97,15 @@ export class EventService {
     const response = await apiClient.get(`/comments/organizer/${organizerId}`);
     return response.data;
   }
+
+  static async uploadImage(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post('/upload/events', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
 }

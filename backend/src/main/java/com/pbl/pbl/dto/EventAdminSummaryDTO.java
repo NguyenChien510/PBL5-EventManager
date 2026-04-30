@@ -28,4 +28,5 @@ public class EventAdminSummaryDTO {
     private String organizerEmail;
     private int ticketsSold;
     private int totalTickets;
+    private String rejectReason;
 }

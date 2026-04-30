@@ -18,7 +18,6 @@ export const organizerSidebarConfig = {
         // { to: '/organizer/timeline', label: 'Kịch bản', icon: 'timeline' },
         { to: '/organizer/finance', label: 'Tài chính', icon: 'account_balance' },
         { to: '/organizer/feedback', label: 'Phản hồi', icon: 'rate_review' },
-        { to: '/organizer/profile', label: 'Hồ sơ DN', icon: 'business' },
       ],
     },
   ],

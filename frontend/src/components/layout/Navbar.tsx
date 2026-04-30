@@ -51,51 +51,41 @@ const Navbar = () => {
                 </div>
                 <div className="hidden md:flex flex-col items-start text-xs">
                   <span className="text-slate-500 font-medium">Xin chào,</span>
-                  <span className="text-slate-900 font-bold max-w-[100px] truncate">{user.fullName || user.email}</span>
+                  <span className="text-slate-900 font-bold max-w-[200px] truncate">{user.fullName || user.email}</span>
                 </div>
                 <Icon name="expand_more" className="text-slate-400" size="sm" />
               </button>
-              
+
               {isUserMenuOpen && (
-                <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="px-4 py-2 mb-2 border-b border-slate-50">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tài khoản cá nhân</p>
-                  </div>
+                <div className="absolute top-full right-0 mt-2 w-58 bg-white rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                   {roleName === 'ORGANIZER' ? (
                     <>
                       <Link
                         to="/organizer/dashboard"
                         onClick={() => setIsUserMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors font-medium"
+                        className="flex items-center gap-3 px-4 py-3 text-sm text-slate-900 hover:bg-primary/5 hover:text-primary transition-colors font-medium whitespace-nowrap"
                       >
                         <Icon name="dashboard" size="sm" /> Trung tâm điều hành
                       </Link>
-                      <Link
-                        to="/organizer/profile"
-                        onClick={() => setIsUserMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors font-medium"
-                      >
-                        <Icon name="business" size="sm" /> Hồ sơ doanh nghiệp
-                      </Link>
-                      <div className="my-2 border-t border-slate-50" />
+                      <div className="my-1 border-t border-slate-100" />
                     </>
                   ) : roleName === 'ADMIN' ? (
                     <>
                       <Link
                         to="/admin/moderation"
                         onClick={() => setIsUserMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors font-medium"
+                        className="flex items-center gap-3 px-4 py-3 text-sm text-slate-900 hover:bg-primary/5 hover:text-primary transition-colors font-medium whitespace-nowrap"
                       >
                         <Icon name="verified_user" size="sm" /> Kiểm duyệt sự kiện
                       </Link>
                       <Link
                         to="/admin/users"
                         onClick={() => setIsUserMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors font-medium"
+                        className="flex items-center gap-3 px-4 py-3 text-sm text-slate-900 hover:bg-primary/5 hover:text-primary transition-colors font-medium whitespace-nowrap"
                       >
                         <Icon name="manage_accounts" size="sm" /> Quản lý người dùng
                       </Link>
-                      <div className="my-2 border-t border-slate-50" />
+                      <div className="my-1 border-t border-slate-100" />
                     </>
                   ) : (
                     <>
@@ -113,7 +103,7 @@ const Navbar = () => {
                       >
                         <Icon name="confirmation_number" size="sm" /> Vé của tôi
                       </Link>
-                      <div className="my-2 border-t border-slate-50" />
+                      <div className="my-1 border-t border-slate-100" />
                     </>
                   )}
                   <button
@@ -121,7 +111,7 @@ const Navbar = () => {
                       signOut();
                       setIsUserMenuOpen(false);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors font-medium"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors font-medium whitespace-nowrap"
                   >
                     <Icon name="logout" size="sm" /> Đăng xuất
                   </button>
