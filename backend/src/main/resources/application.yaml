@@ -44,4 +44,9 @@ momo:
   redirectUrl: "http://localhost:8080/api/public/payment/momo-return"
   ipnUrl: "http://localhost:8080/api/public/payment/momo-ipn"
 
+cloudinary:
+  cloud-name: dtyqksfic
+  api-key: "572615717297474"
+  api-secret: "rqy__CPlTP8PLRc8AYz-NoNRDr4"
+
 

@@ -14,6 +14,51 @@ const Chatbot: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Dragging state
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartPos = useRef({ x: 0, y: 0 });
+  const hasMoved = useRef(false);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    hasMoved.current = false;
+    dragStartPos.current = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    };
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      hasMoved.current = true;
+      setPosition({
+        x: e.clientX - dragStartPos.current.x,
+        y: e.clientY - dragStartPos.current.y
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
+  const handleIconClick = () => {
+    if (!hasMoved.current) {
+      setIsOpen(!isOpen);
+    }
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -55,11 +100,17 @@ const Chatbot: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-24 z-[100]">
+    <div 
+      className="fixed bottom-6 right-24 z-[100]"
+      style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
+    >
       {/* Floating Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 transform hover:scale-110 ${
+        onMouseDown={handleMouseDown}
+        onClick={handleIconClick}
+        className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-colors duration-300 ${
+          !isDragging ? 'hover:scale-110 transform cursor-pointer' : 'cursor-grabbing'
+        } ${
           isOpen ? 'bg-slate-700 text-white' : 'bg-electric text-white shadow-electric/30'
         }`}
       >

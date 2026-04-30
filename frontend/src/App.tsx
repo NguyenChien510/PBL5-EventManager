@@ -107,7 +107,6 @@ function App() {
       { to: '/organizer/timeline', label: 'Kịch bản & Timeline', icon: 'timeline' },
       { to: '/organizer/finance', label: 'Quyết toán tài chính', icon: 'account_balance' },
       { to: '/organizer/feedback', label: 'Phản hồi khách mời', icon: 'feedback' },
-      { to: '/organizer/profile', label: 'Hồ sơ doanh nghiệp', icon: 'business' },
     ],
   };
 
@@ -134,6 +133,7 @@ function App() {
   return (
     <div className="min-h-screen bg-background-light">
       {/* Floating Navigation Button */}
+      {/* Floating Navigation Button - Tạm ẩn theo yêu cầu
       <button
         onClick={() => setNavOpen(!navOpen)}
         className="fixed bottom-6 right-6 z-[100] w-14 h-14 bg-primary text-white rounded-full shadow-2xl shadow-primary/30 flex items-center justify-center hover:scale-110 transition-all duration-300"
@@ -143,6 +143,7 @@ function App() {
           {navOpen ? 'close' : 'menu'}
         </span>
       </button>
+      */}
 
       {/* Navigation Panel */}
       {navOpen && (

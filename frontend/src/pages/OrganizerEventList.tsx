@@ -12,6 +12,7 @@ interface DashboardStats {
   totalEvents: number
   totalTicketsSold: number
   totalRevenue: number
+  rejectedCount: number
 }
 
 const OrganizerEventList = () => {
@@ -36,11 +37,12 @@ const OrganizerEventList = () => {
   const fetchDashboardData = async (page: number, status?: string) => {
     setLoading(true)
     try {
-      const data = await EventService.getOrganizerDashboard(page, 10, status)
+      const data = await EventService.getOrganizerDashboard(page, 5, status)
       setStats({
         totalEvents: data.totalEvents,
         totalTicketsSold: data.totalTicketsSold,
-        totalRevenue: data.totalRevenue
+        totalRevenue: data.totalRevenue,
+        rejectedCount: data.rejectedCount
       })
       setEvents(data.events.content)
       setTotalPages(data.events.totalPages)
@@ -128,15 +130,15 @@ const OrganizerEventList = () => {
           </div>
 
           {/* Rejected Events Card */}
-          <div className={`rounded-3xl p-6 border transition-all duration-500 ${events.some(e => e.status === 'REJECTED') ? 'bg-red-50 border-red-200 shadow-lg' : 'bg-slate-50 border-slate-200 opacity-60'}`}>
+          <div className={`rounded-3xl p-6 border transition-all duration-500 ${(stats?.rejectedCount || 0) > 0 ? 'bg-red-50 border-red-200 shadow-lg' : 'bg-slate-50 border-slate-200 opacity-60'}`}>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${events.some(e => e.status === 'REJECTED') ? 'bg-red-500 text-white' : 'bg-slate-200 text-slate-400'}`}>
-                  <Icon name={events.some(e => e.status === 'REJECTED') ? 'report' : 'check_circle'} size="xs" />
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${(stats?.rejectedCount || 0) > 0 ? 'bg-red-500 text-white' : 'bg-slate-200 text-slate-400'}`}>
+                  <Icon name={(stats?.rejectedCount || 0) > 0 ? 'report' : 'check_circle'} size="xs" />
                 </div>
-                <p className={`text-[10px] font-black uppercase tracking-widest ${events.some(e => e.status === 'REJECTED') ? 'text-red-500' : 'text-slate-400'}`}>Bị từ chối</p>
+                <p className={`text-[10px] font-black uppercase tracking-widest ${(stats?.rejectedCount || 0) > 0 ? 'text-red-500' : 'text-slate-400'}`}>Bị từ chối</p>
               </div>
-              {events.some(e => e.status === 'REJECTED') && (
+              {(stats?.rejectedCount || 0) > 0 && (
                 <span className="flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-red-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
@@ -144,19 +146,19 @@ const OrganizerEventList = () => {
               )}
             </div>
 
-            {events.some(e => e.status === 'REJECTED') ? (
-              <div className="space-y-2">
-                {events.filter(e => e.status === 'REJECTED').slice(0, 2).map(e => (
-                  <div key={e.id} className="flex items-center gap-2 bg-white/60 backdrop-blur-sm p-1.5 rounded-xl border border-red-100 group/item hover:bg-white transition-all cursor-pointer" onClick={() => setSelectedStatus('rejected')}>
-                    <img src={e.posterUrl} className="w-7 h-7 rounded-lg object-cover shadow-sm" alt="" />
-                    <p className="text-[10px] font-bold text-slate-700 truncate flex-1">{e.title}</p>
-                    <Icon name="chevron_right" size="xs" className="text-red-300 group-hover/item:translate-x-0.5 transition-transform" />
+            {(stats?.rejectedCount || 0) > 0 ? (
+              <button 
+                onClick={() => { setSelectedStatus('rejected'); setCurrentPage(0); }}
+                className="w-full text-left group/card"
+              >
+                <div className="bg-white/40 backdrop-blur-sm p-3 rounded-2xl border border-red-100 group-hover/card:bg-white transition-all flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold text-red-600 leading-tight">Phát hiện sự kiện lỗi</p>
+                    <p className="text-[9px] text-red-400 font-medium">Nhấn để kiểm tra ngay</p>
                   </div>
-                ))}
-                {events.filter(e => e.status === 'REJECTED').length > 2 && (
-                  <p className="text-[9px] text-red-400 font-bold text-center mt-1">+{events.filter(e => e.status === 'REJECTED').length - 2} sự kiện khác</p>
-                )}
-              </div>
+                  <Icon name="arrow_forward" size="xs" className="text-red-400 group-hover/card:translate-x-1 transition-transform" />
+                </div>
+              </button>
             ) : (
               <div className="flex flex-col items-center justify-center py-2">
                 <p className="text-[10px] font-bold text-slate-400 uppercase italic">Không có sự kiện lỗi</p>
@@ -207,7 +209,7 @@ const OrganizerEventList = () => {
           ) : (
             events.map((evt, index) => {
               const progress = evt.totalTickets > 0 ? Math.min(Math.round((evt.ticketsSold / evt.totalTickets) * 100), 100) : 0;
-              
+
               return (
                 <Link
                   key={evt.id}
@@ -237,11 +239,20 @@ const OrganizerEventList = () => {
                       <StatusBadge status={evt.status} />
                       <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">{evt.categoryName}</span>
                     </div>
-                    
-                    <h3 className="text-lg font-black text-slate-900 mb-3 group-hover:text-primary transition-colors tracking-tight truncate">
+
+                    <h3 className="text-lg font-black text-slate-900 mb-1 group-hover:text-primary transition-colors tracking-tight truncate">
                       {evt.title}
                     </h3>
-                    
+
+                    {evt.status === 'rejected' && evt.rejectReason && (
+                      <div className="mb-3 p-2 bg-red-50 border border-red-100 rounded-xl flex items-start gap-2 animate-pulse">
+                        <Icon name="info" size="xs" className="text-red-500 mt-0.5" />
+                        <p className="text-[10px] text-red-600 font-bold leading-tight">
+                          Lý do: {evt.rejectReason}
+                        </p>
+                      </div>
+                    )}
+
                     <div className="flex flex-wrap items-center gap-4 text-slate-500">
                       <div className="flex items-center gap-2">
                         <Icon name="calendar_month" size="xs" className="text-slate-300" />
@@ -249,7 +260,7 @@ const OrganizerEventList = () => {
                           {new Date(evt.startTime).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center gap-2">
                         <Icon name="location_on" size="xs" className="text-slate-300 shrink-0" />
                         <span className="text-xs font-bold text-slate-500 leading-relaxed">
@@ -270,15 +281,15 @@ const OrganizerEventList = () => {
                         <span className="text-xs font-bold text-slate-400">/ {evt.totalTickets}</span>
                       </div>
                     </div>
-                    
+
                     {/* Progress Bar */}
                     <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200/50 shadow-inner">
-                      <div 
+                      <div
                         className="h-full bg-primary transition-all duration-1000 ease-out rounded-full shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)]"
                         style={{ width: `${progress}%` }}
                       />
                     </div>
-                    
+
                     <p className="text-[10px] text-right font-black text-primary uppercase tracking-tighter">{progress}% đã lấp đầy</p>
                   </div>
                 </Link>

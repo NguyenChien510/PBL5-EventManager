@@ -62,7 +62,7 @@ public class OrganizerManagementController {
         User organizer = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Organizer not found"));
 
-        List<Order> orders = orderRepository.findByOrganizerId(organizer.getId());
+        List<Order> orders = orderRepository.findOrdersWithDetailsByOrganizerId(organizer.getId());
         List<OrderDTO> dtos = orders.stream()
                 .sorted(Comparator.comparing(Order::getPurchaseDate).reversed())
                 .map(order -> {

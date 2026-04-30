@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, Link } from 'react-router-dom';
 import { DashboardLayout, PageHeader } from '../components/layout';
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig';
@@ -353,7 +354,7 @@ const OrganizerEventManage = () => {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 pb-10">
           {/* Tab Navigation - Fixed structure with sticky behavior */}
-          <div className="sticky top-[72px] z-40 py-4 bg-slate-50/50 backdrop-blur-sm -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 transition-all flex justify-start items-center gap-4">
+          <div className="sticky top-[72px] z-40 py-4 bg-slate-50 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 transition-all flex justify-start items-center gap-4">
             <Link
               to="/organizer/events"
               className="w-12 h-12 bg-white rounded-2xl shadow-md border border-slate-200 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all group shrink-0 animate-in fade-in slide-in-from-left-4 duration-500"
@@ -629,7 +630,7 @@ const OrganizerEventManage = () => {
                         <div className="overflow-x-auto">
                           <table className="w-full border-separate border-spacing-0">
                             <thead>
-                              <tr className="bg-slate-50/80 backdrop-blur-md">
+                              <tr className="bg-slate-50 border-b border-slate-100">
                                 <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">Khách mời</th>
                                 <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">Thông tin vé</th>
                                 <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">Trạng thái</th>
@@ -795,8 +796,8 @@ const OrganizerEventManage = () => {
                       </div>
 
                       {/* Attendee Detail Modal for Seat Map */}
-                      {selectedSeatInfo && (
-                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+                      {selectedSeatInfo && createPortal(
+                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 animate-in fade-in duration-300">
                           <div className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 border border-slate-100">
                             <div className="p-8 space-y-6">
                               <div className="flex justify-between items-start">
@@ -864,7 +865,8 @@ const OrganizerEventManage = () => {
                               </div>
                             </div>
                           </div>
-                        </div>
+                        </div>,
+                        document.body
                       )}
                     </div>
                   </div>
@@ -1154,7 +1156,7 @@ const OrganizerEventManage = () => {
                     )}
 
                     {isGeneratingPlan && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center space-y-8 bg-slate-50/50 backdrop-blur-sm">
+                      <div className="absolute inset-0 flex flex-col items-center justify-center space-y-8 bg-slate-50/80">
                         <div className="relative w-32 h-32">
                           <div className="absolute inset-0 border-4 border-purple-100 rounded-full"></div>
                           <div className="absolute inset-0 border-4 border-t-purple-600 rounded-full animate-spin"></div>
@@ -1493,9 +1495,9 @@ const OrganizerEventManage = () => {
         </div>
 
         {/* Edit Event Modal - Localized & Dynamic */}
-        {activeEditType && (
+        {activeEditType && createPortal(
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setActiveEditType(null)} />
+            <div className="absolute inset-0 bg-slate-900/60 animate-in fade-in duration-300" onClick={() => setActiveEditType(null)} />
             <div className="relative bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 border border-white/20">
               <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                 <div className="flex items-center gap-4">
@@ -1598,36 +1600,42 @@ const OrganizerEventManage = () => {
                     </div>
                     <div className="space-y-3">
                       {editSchedules.map((item, idx) => (
-                        <div key={idx} className="flex gap-3 items-start bg-slate-50 p-4 rounded-2xl border border-slate-100 group">
-                          <div className="w-24 shrink-0">
-                            <input
-                              type="time"
-                              className="w-full bg-white px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold outline-none"
-                              value={formatTime(item.startTime)}
-                              onChange={(e) => {
-                                const [h, m] = e.target.value.split(':').map(Number);
-                                const newSchedules = [...editSchedules];
-                                newSchedules[idx].startTime = [h, m];
-                                setEditSchedules(newSchedules);
-                              }}
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <input
-                              type="text"
-                              placeholder="Hoạt động..."
-                              className="w-full bg-white px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold outline-none"
-                              value={item.activity}
-                              onChange={(e) => {
-                                const newSchedules = [...editSchedules];
-                                newSchedules[idx].activity = e.target.value;
-                                setEditSchedules(newSchedules);
-                              }}
-                            />
+                        <div key={idx} className="flex gap-4 items-start bg-slate-50 p-4 rounded-2xl border border-slate-100 group">
+                          <div className="flex-1 space-y-4">
+                            <div className="flex gap-4">
+                              <div className="flex-1">
+                                <label className="text-[9px] font-black text-slate-400 uppercase block mb-1 ml-1">Thời gian</label>
+                                <input
+                                  type="text"
+                                  placeholder="08:00"
+                                  className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-primary transition-all"
+                                  value={formatTime(item.startTime)}
+                                  onChange={(e) => {
+                                    const newSchedules = [...editSchedules];
+                                    newSchedules[idx].startTime = e.target.value;
+                                    setEditSchedules(newSchedules);
+                                  }}
+                                />
+                              </div>
+                              <div className="flex-[3]">
+                                <label className="text-[9px] font-black text-slate-400 uppercase block mb-1 ml-1">Hoạt động</label>
+                                <input
+                                  type="text"
+                                  placeholder="Tên hoạt động..."
+                                  className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-primary transition-all"
+                                  value={item.activity}
+                                  onChange={(e) => {
+                                    const newSchedules = [...editSchedules];
+                                    newSchedules[idx].activity = e.target.value;
+                                    setEditSchedules(newSchedules);
+                                  }}
+                                />
+                              </div>
+                            </div>
                           </div>
                           <button
                             onClick={() => setEditSchedules(editSchedules.filter((_, i) => i !== idx))}
-                            className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                            className="p-2 text-slate-300 hover:text-rose-500 transition-colors mt-6"
                           >
                             <Icon name="delete" size="xs" />
                           </button>

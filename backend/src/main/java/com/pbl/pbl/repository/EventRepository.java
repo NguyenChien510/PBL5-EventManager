@@ -37,6 +37,8 @@ public interface EventRepository extends JpaRepository<Event, Long> {
 
     
     long countByStatusIn(java.util.List<EventStatus> statuses);
+
+    long countByOrganizer_IdAndStatus(java.util.UUID organizerId, EventStatus status);
 }
 
 

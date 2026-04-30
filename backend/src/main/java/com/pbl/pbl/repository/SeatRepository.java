@@ -16,4 +16,7 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
 
     @org.springframework.data.jpa.repository.Query("SELECT SUM(s.ticketType.price) FROM Seat s WHERE s.eventSession.event.organizer.id = :organizerId AND s.status = com.pbl.pbl.entity.SeatStatus.BOOKED")
     java.math.BigDecimal sumRevenueByOrganizerIdAndStatus(@org.springframework.data.repository.query.Param("organizerId") java.util.UUID organizerId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT s.eventSession.event.id, COUNT(s) FROM Seat s WHERE s.eventSession.event.id IN :eventIds AND s.status = :status GROUP BY s.eventSession.event.id")
+    java.util.List<Object[]> countSeatsGroupedByEventIds(@org.springframework.data.repository.query.Param("eventIds") java.util.List<Long> eventIds, @org.springframework.data.repository.query.Param("status") com.pbl.pbl.entity.SeatStatus status);
 }
