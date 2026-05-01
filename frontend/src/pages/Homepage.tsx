@@ -37,7 +37,6 @@ interface NearbyMapEvent {
 }
 
 const provinceFallbackCoords: Record<string, { lat: number; lng: number }> = {
-  'TP. Hồ Chí Minh': { lat: 10.7769, lng: 106.7009 },
   'Hồ Chí Minh': { lat: 10.7769, lng: 106.7009 },
   'Hà Nội': { lat: 21.0285, lng: 105.8542 },
   'Đà Nẵng': { lat: 16.0544, lng: 108.2022 },
@@ -45,6 +44,16 @@ const provinceFallbackCoords: Record<string, { lat: number; lng: number }> = {
   'Hải Phòng': { lat: 20.8449, lng: 106.6881 },
   'Khánh Hòa': { lat: 12.2388, lng: 109.1967 },
   'Lâm Đồng': { lat: 11.9404, lng: 108.4583 },
+  'Thừa Thiên Huế': { lat: 16.4637, lng: 107.5908 },
+  'Quảng Nam': { lat: 15.5673, lng: 108.4812 },
+  'Bà Rịa - Vũng Tàu': { lat: 10.4116, lng: 107.1358 },
+  'Quảng Ninh': { lat: 20.9599, lng: 107.0445 },
+  'Bình Dương': { lat: 10.9804, lng: 106.6519 },
+  'Đồng Nai': { lat: 10.9419, lng: 106.8401 },
+  'Kiên Giang': { lat: 10.0124, lng: 105.0809 },
+  'An Giang': { lat: 10.3731, lng: 105.4358 },
+  'Bình Thuận': { lat: 10.9324, lng: 108.1039 },
+  'Đắk Lắk': { lat: 12.6713, lng: 108.0383 },
 }
 
 const Homepage = () => {
@@ -114,13 +123,26 @@ const Homepage = () => {
     }
 
     const getFallbackCoords = (provinceName?: string, location?: string) => {
-      if (provinceName && provinceFallbackCoords[provinceName]) {
-        return provinceFallbackCoords[provinceName]
+      if (!provinceName) return { lat: 10.7769, lng: 106.7009 }
+
+      const cleanProvince = provinceName.replace(/^(Tỉnh|Thành phố|TP\.)\s+/i, '').trim()
+
+      if (provinceFallbackCoords[cleanProvince]) {
+        return provinceFallbackCoords[cleanProvince]
       }
 
+      const matched = Object.entries(provinceFallbackCoords).find(([key]) =>
+        cleanProvince.toLowerCase().includes(key.toLowerCase()) ||
+        key.toLowerCase().includes(cleanProvince.toLowerCase())
+      )
+
+      if (matched) return matched[1]
+
       if (location) {
-        const matched = Object.entries(provinceFallbackCoords).find(([key]) => location.includes(key))
-        if (matched) return matched[1]
+        const matchedLoc = Object.entries(provinceFallbackCoords).find(([key]) =>
+          location.toLowerCase().includes(key.toLowerCase())
+        )
+        if (matchedLoc) return matchedLoc[1]
       }
 
       return { lat: 10.7769, lng: 106.7009 }
@@ -140,14 +162,26 @@ const Homepage = () => {
             let lat: number | null = null
             let lng: number | null = null
             try {
+              // Attempt 1: Full query
+              const query = [event.location, event.provinceName, 'Viet Nam'].filter(Boolean).join(', ')
               const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`)
               const data = await res.json()
+
               if (Array.isArray(data) && data.length > 0) {
                 lat = Number(data[0].lat)
                 lng = Number(data[0].lon)
+              } else {
+                // Attempt 2: Province only
+                const provinceQuery = [event.provinceName, 'Viet Nam'].filter(Boolean).join(', ')
+                const resProv = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(provinceQuery)}`)
+                const dataProv = await resProv.json()
+                if (Array.isArray(dataProv) && dataProv.length > 0) {
+                  lat = Number(dataProv[0].lat)
+                  lng = Number(dataProv[0].lon)
+                }
               }
-            } catch {
-              // fall through to province-level fallback
+            } catch (err) {
+              console.warn(`Geocoding failed for ${event.title}:`, err)
             }
 
             if (lat === null || lng === null || Number.isNaN(lat) || Number.isNaN(lng)) {
