@@ -175,6 +175,20 @@ public class EventService {
         return eventRepository.save(event);
     }
 
+    @Transactional
+    public Event resubmitEvent(Long id, UUID organizerId) {
+        Event event = getEventById(id);
+        if (!event.getOrganizer().getId().equals(organizerId)) {
+            throw new RuntimeException("Unauthorized: Only the organizer can resubmit this event");
+        }
+        if (event.getStatus() != EventStatus.rejected) {
+            throw new RuntimeException("Chỉ có thể gửi lại yêu cầu phê duyệt cho sự kiện đang bị từ chối");
+        }
+        event.setStatus(EventStatus.pending);
+        event.setRejectReason(null);
+        return eventRepository.save(event);
+    }
+
     @Transactional(readOnly = true)
     public List<com.pbl.pbl.dto.TicketTypeResponseDTO> getTicketTypesByEventId(Long eventId) {
         return ticketTypeRepository.findByEventSession_Event_Id(eventId)

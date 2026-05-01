@@ -190,7 +190,21 @@ const OrganizerEventManage = () => {
       setComments(commentsData || []);
     } catch (error) {
       console.error('Error fetching data:', error);
+    } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResubmit = async () => {
+    if (!id) return;
+    const loadingToast = toast.loading('Đang gửi lại yêu cầu...');
+    try {
+      await EventService.resubmitEvent(id);
+      toast.success('Đã gửi lại yêu cầu phê duyệt thành công', { id: loadingToast });
+      fetchData();
+    } catch (error: any) {
+      console.error('Error resubmitting event:', error);
+      toast.error(error.response?.data?.message || 'Gửi lại yêu cầu thất bại', { id: loadingToast });
     }
   };
 
@@ -397,6 +411,36 @@ const OrganizerEventManage = () => {
           <div className="space-y-6 pt-4">
             {activeTab === 'overview' && (
               <div className="space-y-8">
+                {/* Rejection Alert */}
+                {event?.status === 'rejected' && (
+                  <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-3xl flex flex-col md:flex-row items-start gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center text-red-600 shrink-0">
+                      <Icon name="error" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-red-900 font-black text-sm uppercase tracking-widest">Sự kiện bị từ chối</h4>
+                        <span className="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded-lg font-black uppercase">Cần chỉnh sửa</span>
+                      </div>
+                      <p className="text-red-700 text-sm font-medium leading-relaxed bg-white/50 p-4 rounded-2xl border border-red-100 mb-4">
+                        <span className="text-red-400 font-black mr-2">LÝ DO:</span>
+                        {event?.rejectReason || 'Quản trị viên chưa cung cấp lý do cụ thể. Vui lòng liên hệ hỗ trợ.'}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-4">
+                        <button 
+                          onClick={handleResubmit}
+                          className="px-6 py-2.5 bg-blue-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200 transition-all flex items-center gap-2"
+                        >
+                          <Icon name="send" size="sm" /> Gửi lại yêu cầu phê duyệt
+                        </button>
+                        <div className="flex items-center gap-2 text-red-600">
+                          <Icon name="info" size="xs" />
+                          <p className="text-[10px] font-bold uppercase tracking-wider italic">Cập nhật thông tin dựa trên phản hồi trước khi gửi lại.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {/* Event Hero Banner */}
                 <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-xl shadow-slate-200/50 flex flex-col lg:flex-row group">
                   <div className="lg:w-1/2 relative overflow-hidden min-h-[300px] lg:min-h-0">

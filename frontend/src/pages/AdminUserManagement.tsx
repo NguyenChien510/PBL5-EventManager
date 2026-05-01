@@ -66,13 +66,7 @@ const AdminUserManagement = () => {
   }
   return (
     <DashboardLayout sidebarProps={sidebarConfig}>
-      <PageHeader title="Quản lý Người dùng" searchPlaceholder="Tìm người dùng..."
-        actions={
-          <button className="px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm">
-            <Icon name="person_add" size="sm" /> Thêm mới
-          </button>
-        }
-      />
+      <PageHeader title="Quản lý Người dùng" searchPlaceholder="Tìm người dùng..." />
       <div className="p-6 space-y-6 animate-slide-up">
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -90,23 +84,21 @@ const AdminUserManagement = () => {
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`text-sm font-bold transition-all ${activeTab === tab ? 'text-primary' : 'text-slate-400 hover:text-primary'}`}
+                  className={`text-sm font-bold transition-all cursor-pointer ${activeTab === tab ? 'text-primary' : 'text-slate-400 hover:text-primary'}`}
                 >
                   {tab}
                 </button>
               ))}
             </div>
-            <button className="px-4 py-2 text-xs font-bold border border-slate-200 rounded-lg flex items-center gap-2 hover:bg-slate-50">
-              <Icon name="download" size="sm" /> Xuất danh sách
-            </button>
+
           </div>
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm relative overflow-visible p-1">
           <div className="overflow-visible">
             <table className="w-full text-left border-separate border-spacing-0">
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-200">
-                  {['Người dùng', 'Vai trò', 'Ngày tham gia', 'Thao tác'].map((h) => (
-                    <th key={h} className={`p-4 text-xs font-bold uppercase tracking-wider text-slate-400 ${h === 'Thao tác' ? 'text-right' : ''}`}>{h}</th>
+                  {['Người dùng', 'Vai trò', 'Ngày tham gia'].map((h) => (
+                    <th key={h} className={`p-4 text-xs font-bold uppercase tracking-wider text-slate-400`}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -126,7 +118,8 @@ const AdminUserManagement = () => {
                   paginatedUsers.map((user) => (
                     <tr 
                         key={user.id} 
-                        className="group hover:bg-white transition-all duration-300 cursor-default hover:scale-[1.01] relative hover:z-10 hover:shadow-xl"
+                        onClick={() => setSelectedUser(user)}
+                        className="group hover:bg-white transition-all duration-300 cursor-pointer hover:scale-[1.01] relative hover:z-10 hover:shadow-xl"
                     >
                       <td className="p-4 relative">
                         {/* Hover Border Accent */}
@@ -154,23 +147,7 @@ const AdminUserManagement = () => {
                       <td className="p-4 text-xs font-bold text-slate-500 whitespace-nowrap">
                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString('vi-VN') : '---'}
                       </td>
-                      <td className="p-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button className="w-9 h-9 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-primary hover:text-white transition-all shadow-sm border border-slate-100" title="Reset mật khẩu">
-                          <Icon name="key" size="sm" />
-                        </button>
-                        <button 
-                          onClick={() => setSelectedUser(user)}
-                          className="w-9 h-9 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-primary hover:text-white transition-all shadow-sm border border-slate-100" 
-                          title="Chỉnh sửa"
-                        >
-                          <Icon name="edit" size="sm" />
-                        </button>
-                        <button className="w-9 h-9 rounded-xl bg-rose-50 text-rose-400 flex items-center justify-center hover:bg-rose-600 hover:text-white transition-all shadow-sm border border-rose-100" title="Xóa người dùng">
-                          <Icon name="delete" size="sm" />
-                        </button>
-                      </div>
-                    </td>
+
                   </tr>
                 ))
               )}

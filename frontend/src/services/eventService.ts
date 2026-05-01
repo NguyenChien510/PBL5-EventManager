@@ -59,6 +59,11 @@ export class EventService {
     return response.data;
   }
 
+  static async resubmitEvent(id: number | string) {
+    const response = await apiClient.patch(`/events/organizer/${id}/resubmit`);
+    return response.data;
+  }
+
   static async getOrganizerDashboard(page: number = 0, size: number = 10, status?: string) {
     let url = `/events/organizer/dashboard?page=${page}&size=${size}`;
     if (status && status !== 'all') {

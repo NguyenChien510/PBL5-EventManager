@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { apiClient } from '../utils/axios';
 import { Loader } from '../components/ui/loader';
 import toast from 'react-hot-toast';
@@ -34,6 +34,7 @@ interface OrderDTO {
 }
 
 const AdminPaymentHistory = () => {
+    const navigate = useNavigate();
     const [orders, setOrders] = useState<OrderDTO[]>([]);
     const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [isTableLoading, setIsTableLoading] = useState(false);
@@ -181,6 +182,7 @@ const AdminPaymentHistory = () => {
                                     <thead className="bg-slate-50 border-b border-slate-200">
                                         <tr>
                                             <th className="px-6 py-3 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Mã Đơn</th>
+                                            <th className="px-6 py-3 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Sự kiện</th>
                                             <th className="px-6 py-3 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Khách hàng</th>
                                             <th className="px-6 py-3 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Tổng thu</th>
                                             <th className="px-6 py-3 font-bold text-slate-400 uppercase tracking-wider text-[10px]">Phí hệ thống</th>
@@ -210,6 +212,26 @@ const AdminPaymentHistory = () => {
                                                         <span className="font-mono font-bold text-primary group-hover:underline">
                                                             #{order.id.toString().padStart(6, '0')}
                                                         </span>
+                                                    </td>
+                                                    <td className="px-6 py-3.5">
+                                                        <div 
+                                                            className="flex items-center gap-3 cursor-pointer group/event"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                navigate(`/admin/event/manage/${order.eventId}?tab=finance`);
+                                                            }}
+                                                        >
+                                                            <div 
+                                                                className="w-10 h-10 rounded-lg bg-cover bg-center shrink-0 shadow-sm group-hover/event:scale-110 transition-transform duration-300"
+                                                                style={{ backgroundImage: `url('${order.eventPosterUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=2070&auto=format&fit=crop'}')` }}
+                                                            />
+                                                            <div className="flex flex-col min-w-0 max-w-[180px]">
+                                                                <span className="font-bold text-slate-900 truncate group-hover/event:text-primary transition-colors">{order.eventTitle || 'Sự kiện không xác định'}</span>
+                                                                <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest flex items-center gap-1 group-hover/event:text-emerald-500 transition-colors">
+                                                                    Tài chính <Icon name="trending_up" size="xs" />
+                                                                </span>
+                                                            </div>
+                                                        </div>
                                                     </td>
                                                     <td className="px-6 py-3.5">
                                                         <div className="flex flex-col">

@@ -133,6 +133,20 @@ const AdminEventReview = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Event Details */}
           <div className="lg:col-span-2 space-y-6">
+            {event.status === 'rejected' && (
+              <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-2xl flex items-start gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500 mb-6">
+                <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center text-red-600 shrink-0">
+                  <Icon name="error" size="sm" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-red-900 font-bold text-sm uppercase tracking-wider mb-1">Sự kiện này đã bị từ chối trước đó</h4>
+                  <p className="text-red-700 text-sm leading-relaxed">
+                    <span className="font-bold mr-2 text-red-500 uppercase text-[10px]">Lý do từ chối:</span>
+                    {event.rejectReason || 'Chưa cập nhật lý do cụ thể.'}
+                  </p>
+                </div>
+              </div>
+            )}
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm border-l-4 border-l-blue-500">
 
               <div className="aspect-[21/9] bg-slate-100 relative">

@@ -54,22 +54,7 @@ const AdminEventModeration = () => {
       <PageHeader title="Kiểm duyệt Sự kiện" searchPlaceholder="Tìm tên sự kiện, nhà tổ chức..." />
 
       <div className="p-6 space-y-6 animate-slide-up">
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <StatCard label="Danh sách chờ duyệt" value={stats.pending} icon="pending_actions" iconBg="bg-primary/10" iconColor="text-primary" />
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between group hover:border-primary transition-all cursor-pointer" onClick={() => navigate('/admin/events')}>
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-green-600">
-                <Icon name="history" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Lịch sử xử lý</p>
-                <p className="text-2xl font-black text-slate-900">{stats.processed}</p>
-              </div>
-            </div>
-            <Icon name="arrow_forward" className="text-slate-300 group-hover:text-primary transition-colors" />
-          </div>
-        </div>
+
 
         {/* List Section */}
         <div className="space-y-4">

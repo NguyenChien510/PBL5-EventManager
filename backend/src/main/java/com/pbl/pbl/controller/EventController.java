@@ -144,4 +144,11 @@ public class EventController {
     public ResponseEntity<Event> updateEventStatus(@PathVariable Long id, @RequestParam com.pbl.pbl.entity.EventStatus status, @RequestParam(required = false) String rejectReason) {
         return ResponseEntity.ok(eventService.updateEventStatus(id, status, rejectReason));
     }
+
+    @PatchMapping("/organizer/{id}/resubmit")
+    public ResponseEntity<?> resubmitEvent(@PathVariable Long id, Authentication auth) {
+        User user = getCurrentUser(auth);
+        if (user == null) return ResponseEntity.status(401).body("Unauthorized");
+        return ResponseEntity.ok(eventService.resubmitEvent(id, user.getId()));
+    }
 }

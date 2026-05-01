@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { DashboardLayout, PageHeader } from '../components/layout';
 import { adminSidebarConfig } from '../config/adminSidebarConfig';
 import { Icon, Loader } from '../components/ui';
@@ -44,7 +44,9 @@ const RosterCard = ({ shift }: any) => (
 
 const AdminEventManage = () => {
   const { id } = useParams<{ id: string }>();
-  const [activeTab, setActiveTab] = useState<'overview' | 'guests' | 'finance' | 'feedback' | 'edit'>('overview');
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') as 'overview' | 'guests' | 'finance' | 'feedback' | 'edit';
+  const [activeTab, setActiveTab] = useState<'overview' | 'guests' | 'finance' | 'feedback' | 'edit'>(initialTab || 'overview');
   const [event, setEvent] = useState<any>(null);
   const [stats, setStats] = useState<ManageStats | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);

@@ -143,7 +143,25 @@ const AdminEventManagement = () => {
                         {evt.createdAt ? new Date(evt.createdAt).toLocaleDateString('vi-VN') : '---'}
                       </td>
                       <td className="p-4">
-                        <StatusBadge status={evt.status} />
+                        <div className="flex flex-col items-start gap-1.5">
+                          <StatusBadge status={evt.status} />
+                          {evt.status === 'rejected' && evt.rejectReason && (
+                            <div 
+                              className="group relative flex items-center gap-1 text-[10px] text-red-500 font-bold bg-red-50/50 px-2 py-0.5 rounded border border-red-100 max-w-[150px] cursor-help"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Icon name="info" size="xs" />
+                              <span className="truncate italic font-medium text-red-400">Lý do: {evt.rejectReason}</span>
+                              
+                              {/* Tooltip on hover */}
+                              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-56 p-3 bg-slate-800 text-white text-[10px] rounded-xl shadow-2xl z-[100] leading-relaxed font-medium animate-in fade-in zoom-in-95 duration-200">
+                                <div className="text-red-400 font-black mb-1 uppercase tracking-widest text-[9px]">Lý do từ chối:</div>
+                                {evt.rejectReason}
+                                <div className="absolute top-full left-4 border-8 border-transparent border-t-slate-800"></div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="p-4">
                         <button 
