@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useCategoryStore } from '../stores/useCategoryStore'
 import { useLocationStore } from '../stores/useLocationStore'
 import { Icon, Pagination } from '../components/ui'
@@ -20,15 +20,15 @@ const EventExplore = () => {
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | 'all'>('all');
   
   const { provinces, fetchProvinces } = useLocationStore()
-  const [selectedProvince, setSelectedProvince] = useState('Chọn khu vực');
+  const [searchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('keyword') || '');
+  const [selectedProvince, setSelectedProvince] = useState(searchParams.get('province') || 'Chọn khu vực');
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   const locationRef = useRef<HTMLDivElement>(null);
 
-  const [selectedDate, setSelectedDate] = useState('Tất cả thời gian');
+  const [selectedDate, setSelectedDate] = useState(searchParams.get('date') || 'Tất cả thời gian');
   const [isDateOpen, setIsDateOpen] = useState(false);
   const dateRef = useRef<HTMLDivElement>(null);
-
-  const [searchQuery, setSearchQuery] = useState('');
   
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const [selectedSort, setSelectedSort] = useState(sorts[0]);

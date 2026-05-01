@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { Icon } from '../components/ui'
 import { Navbar } from '../components/layout'
@@ -60,6 +60,20 @@ const Homepage = () => {
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([])
   const [nearbyMapEvents, setNearbyMapEvents] = useState<NearbyMapEvent[]>([])
   const [isMapLoading, setIsMapLoading] = useState(false)
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const navigate = useNavigate()
+
+  const handleSearch = () => {
+    const params = new URLSearchParams()
+    if (searchKeyword.trim()) params.append('keyword', searchKeyword.trim())
+    if (selectedProvince !== 'Chọn khu vực' && selectedProvince !== 'Tất cả khu vực') {
+      params.append('province', selectedProvince)
+    }
+    if (selectedDate !== 'Tất cả thời gian') {
+      params.append('date', selectedDate)
+    }
+    navigate(`/explore?${params.toString()}`)
+  }
 
   useEffect(() => {
     fetchCategories()
@@ -261,6 +275,11 @@ const Homepage = () => {
                     <div className="flex-1 flex items-center gap-2 px-4 py-2 rounded-full bg-slate-50 border border-slate-200 transition-all">
                       <Icon name="search" className="text-slate-400" />
                       <input
+                        value={searchKeyword}
+                        onChange={(e) => setSearchKeyword(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSearch()
+                        }}
                         placeholder="Tìm tên sự kiện, nghệ sĩ, hội thảo..."
                         className="w-full bg-transparent text-[13px] md:text-sm text-slate-800 placeholder:text-slate-400 outline-none border-none focus:outline-none focus:ring-0"
                       />
@@ -349,13 +368,13 @@ const Homepage = () => {
                       )}
                     </div>
 
-                    <Link
-                      to="/explore"
+                    <button
+                      onClick={handleSearch}
                       className="mt-1 md:mt-0 md:ml-3 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-sky-500 hover:bg-sky-600 text-sm font-black text-white whitespace-nowrap shadow-lg shadow-sky-500/25 transition-all hover:scale-105 active:scale-95"
                     >
                       <Icon name="search" size="sm" />
                       Tìm ngay
-                    </Link>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -461,19 +480,31 @@ const Homepage = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { icon: 'search', title: 'Tìm sự kiện', desc: 'Lọc theo chủ đề, địa điểm, thời gian và ngân sách.' },
-              { icon: 'shopping_cart', title: 'Chọn vé', desc: 'Xem chi tiết, chỗ ngồi (nếu có) và số lượng vé còn lại.' },
-              { icon: 'qr_code_2', title: 'Nhận vé', desc: 'Nhận e-ticket nhanh chóng và check-in tiện lợi tại cổng.' },
+              { icon: 'search', title: 'Tìm sự kiện', desc: 'Lọc theo chủ đề, địa điểm, thời gian và ngân sách.', color: 'blue' },
+              { icon: 'shopping_cart', title: 'Chọn vé', desc: 'Xem chi tiết, chỗ ngồi (nếu có) và số lượng vé còn lại.', color: 'purple' },
+              { icon: 'qr_code_2', title: 'Nhận vé', desc: 'Nhận e-ticket nhanh chóng và check-in tiện lợi tại cổng.', color: 'emerald' },
             ].map((step, idx) => (
-              <div key={step.title} className="rounded-2xl border border-slate-100 bg-slate-50/40 p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
-                    <Icon name={step.icon} />
+              <div key={step.title} className={`rounded-3xl border border-transparent p-8 group hover:shadow-[0_20px_50px_rgba(0,0,0,0.08)] transition-all duration-500 hover:-translate-y-2 ${
+                step.color === 'blue' ? 'bg-blue-50/40 hover:bg-white hover:border-blue-100' : 
+                step.color === 'purple' ? 'bg-purple-50/40 hover:bg-white hover:border-purple-100' : 
+                'bg-emerald-50/40 hover:bg-white hover:border-emerald-100'
+              }`}>
+                <div className="flex items-center justify-between mb-6">
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 group-hover:rotate-12 ${
+                    step.color === 'blue' ? 'bg-blue-600 text-white shadow-xl shadow-blue-200' : 
+                    step.color === 'purple' ? 'bg-purple-600 text-white shadow-xl shadow-purple-200' : 
+                    'bg-emerald-600 text-white shadow-xl shadow-emerald-200'
+                  }`}>
+                    <Icon name={step.icon} size="lg" />
                   </div>
-                  <span className="text-xs font-extrabold text-slate-400">0{idx + 1}</span>
+                  <span className={`text-[10px] font-black tracking-[0.2em] uppercase ${
+                    step.color === 'blue' ? 'text-blue-600/30' : 
+                    step.color === 'purple' ? 'text-purple-600/30' : 
+                    'text-emerald-600/30'
+                  }`}>Step 0{idx + 1}</span>
                 </div>
-                <p className="text-base font-extrabold text-slate-900 mb-2">{step.title}</p>
-                <p className="text-sm text-slate-500 font-medium leading-relaxed">{step.desc}</p>
+                <h4 className="text-lg font-black text-slate-900 mb-3">{step.title}</h4>
+                <p className="text-sm text-slate-500 font-bold leading-relaxed">{step.desc}</p>
               </div>
             ))}
           </div>
