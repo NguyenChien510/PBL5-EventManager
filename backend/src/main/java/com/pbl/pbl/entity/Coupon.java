@@ -31,6 +31,8 @@ public class Coupon {
 
     private LocalDateTime expiryDate;
     
+    private String imageUrl;
+    
     @Builder.Default
     private boolean isUsed = false;
 }

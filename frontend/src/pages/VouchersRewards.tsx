@@ -7,19 +7,29 @@ import { apiClient } from '../utils/axios'
 const sidebarConfig = userSidebarConfig
 
 const VouchersRewards = () => {
-  const [points, setPoints] = useState(12500)
+  const [user, setUser] = useState<any>(null)
   const [availableRewards, setAvailableRewards] = useState<any[]>([])
   const [myCoupons, setMyCoupons] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
+    fetchProfile()
     fetchRewards()
     fetchMyCoupons()
   }, [])
 
+  const fetchProfile = async () => {
+    try {
+      const res = await apiClient.get('/users/me')
+      setUser(res.data)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   const fetchRewards = async () => {
     try {
-      const res = await apiClient.get('/api/coupons/available')
+      const res = await apiClient.get('/coupons/available')
       setAvailableRewards(res.data)
     } catch (err) {
       console.error(err)
@@ -28,9 +38,7 @@ const VouchersRewards = () => {
 
   const fetchMyCoupons = async () => {
     try {
-      // For demo, we use a hardcoded user ID or get it from auth context
-      const userId = '3e498c2d-9467-4222-95f3-524673738f61' // Dummy
-      const res = await apiClient.get(`/api/coupons/my?userId=${userId}`)
+      const res = await apiClient.get('/coupons/my')
       setMyCoupons(res.data)
     } catch (err) {
       console.error(err)
@@ -38,16 +46,15 @@ const VouchersRewards = () => {
   }
 
   const handleExchange = async (couponId: number, cost: number) => {
-    if (points < cost) {
+    if ((user?.loyaltyPoints || 0) < cost) {
       alert('Không đủ điểm để đổi mã này')
       return
     }
 
     setLoading(true)
     try {
-      const userId = '3e498c2d-9467-4222-95f3-524673738f61'
-      await apiClient.post(`/api/coupons/exchange?userId=${userId}&couponId=${couponId}`)
-      setPoints(prev => prev - cost)
+      await apiClient.post(`/coupons/exchange?couponId=${couponId}`)
+      fetchProfile()
       fetchMyCoupons()
       alert('Đổi mã thành công! Kiểm tra trong "Mã của tôi"')
     } catch (err) {
@@ -70,7 +77,7 @@ const VouchersRewards = () => {
             <Icon name="loyalty" className="text-primary" />
             <div className="flex flex-col">
               <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Điểm của bạn</span>
-              <span className="text-lg font-black text-slate-900">{points.toLocaleString()} <span className="text-xs font-medium text-slate-400">pts</span></span>
+              <span className="text-lg font-black text-slate-900">{(user?.loyaltyPoints || 0).toLocaleString()} <span className="text-xs font-medium text-slate-400">pts</span></span>
             </div>
           </div>
           <div className="h-10 w-px bg-slate-200" />
@@ -85,21 +92,25 @@ const VouchersRewards = () => {
         <section>
           <div className="flex items-center justify-between mb-8">
             <h3 className="section-title"><span className="section-dot" /> Đổi điểm nhận mã giảm giá</h3>
-            <div className="flex gap-2">
-              <button className="px-4 py-2 bg-slate-900 text-white text-[10px] font-bold rounded-lg">TẤT CẢ</button>
-              <button className="px-4 py-2 bg-white text-slate-500 text-[10px] font-bold rounded-lg border border-slate-100">GIẢM GIÁ</button>
-              <button className="px-4 py-2 bg-white text-slate-500 text-[10px] font-bold rounded-lg border border-slate-100">ẨM THỰC</button>
-            </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {availableRewards.length > 0 ? availableRewards.map((v) => (
               <div key={v.id} className="group bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-primary/10 transition-all overflow-hidden flex flex-col">
-                <div className="h-40 bg-gradient-to-br from-slate-900 to-slate-800 p-8 relative flex flex-col justify-end">
-                   <div className="absolute top-6 right-6 w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20">
-                     <Icon name="confirmation_number" className="text-white/40" />
+                <div className="h-44 relative flex flex-col justify-end overflow-hidden">
+                   {v.imageUrl ? (
+                     <img src={v.imageUrl} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={v.code} />
+                   ) : (
+                     <div className="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-800" />
+                   )}
+                   <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent" />
+                   
+                   <div className="relative p-8 z-10">
+                     <div className="absolute top-6 right-6 w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20">
+                       <Icon name="confirmation_number" className="text-white/40" />
+                     </div>
+                     <h4 className="text-3xl font-black text-white mb-1">GIẢM {v.discountValue <= 100 ? `${v.discountValue}%` : `${(v.discountValue / 1000).toLocaleString()}K`}</h4>
+                     <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Cho mọi đơn hàng trên hệ thống</p>
                    </div>
-                   <h4 className="text-3xl font-black text-white mb-1">GIẢM {(v.discountValue / 1000).toLocaleString()}K</h4>
-                   <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Cho mọi đơn hàng trên hệ thống</p>
                 </div>
                 <div className="p-8 space-y-6 flex-1 flex flex-col justify-between">
                   <div className="flex items-center justify-between">
@@ -113,15 +124,15 @@ const VouchersRewards = () => {
                     </div>
                   </div>
                   <button 
-                    disabled={points < v.pointCost || loading}
+                    disabled={(user?.loyaltyPoints || 0) < v.pointCost || loading}
                     onClick={() => handleExchange(v.id, v.pointCost)}
                     className={`w-full py-4 rounded-2xl text-xs font-black transition-all ${
-                      points >= v.pointCost 
+                      (user?.loyaltyPoints || 0) >= v.pointCost 
                       ? 'bg-primary text-white shadow-xl shadow-blue-500/20 hover:scale-[1.02] active:scale-95' 
                       : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                     }`}
                   >
-                    {points >= v.pointCost ? 'ĐỔI NGAY' : 'KHÔNG ĐỦ ĐIỂM'}
+                    {(user?.loyaltyPoints || 0) >= v.pointCost ? 'ĐỔI NGAY' : 'KHÔNG ĐỦ ĐIỂM'}
                   </button>
                 </div>
               </div>
