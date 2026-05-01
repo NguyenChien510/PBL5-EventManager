@@ -21,6 +21,6 @@ export const API_ENDPOINTS = {
     SIGNUP: "/auth/signup",
     GOOGLE: "/auth/google",
     REFRESH: "/auth/refresh",
-    LOGOUT: "/auth/logout",
+    LOGOUT: "/auth/signout",
   },
 } as const;

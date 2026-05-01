@@ -47,4 +47,7 @@ public class Comment {
     @org.hibernate.annotations.CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(columnDefinition = "TEXT")
+    private String images; // JSON array of image URLs
 }

@@ -12,10 +12,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CommentDTO {
     private Long id;
-    private String userName;
-    private String userEmail;
     private String content;
     private Integer rating;
     private LocalDateTime createdAt;
     private Long eventId;
+    private String eventName;
+    private String eventThumbnail;
+    private java.util.List<String> images;
+    private UserDTO user;
 }

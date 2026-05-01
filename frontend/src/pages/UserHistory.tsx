@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Icon } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { userSidebarConfig } from '../config/userSidebarConfig'
@@ -7,6 +8,7 @@ import { apiClient } from '../utils/axios'
 const sidebarConfig = userSidebarConfig
 
 const UserHistory = () => {
+  const navigate = useNavigate()
   const [historyEvents, setHistoryEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -87,7 +89,12 @@ const UserHistory = () => {
                           </button>
                         ))}
                       </div>
-                      <button className="text-xs font-bold text-primary hover:underline">Viết đánh giá</button>
+                      <button 
+                        onClick={() => navigate(`/reviews?eventId=${event.eventId}`)}
+                        className="text-xs font-bold text-primary hover:underline"
+                      >
+                        Viết đánh giá
+                      </button>
                     </div>
                   )}
                 </div>

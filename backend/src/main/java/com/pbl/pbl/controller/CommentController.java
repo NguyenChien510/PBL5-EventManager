@@ -32,4 +32,9 @@ public class CommentController {
     public ResponseEntity<List<CommentDTO>> getMyComments() {
         return ResponseEntity.ok(commentService.getCommentsByCurrentUser());
     }
+
+    @org.springframework.web.bind.annotation.PostMapping
+    public ResponseEntity<CommentDTO> createComment(@org.springframework.web.bind.annotation.RequestBody CommentDTO dto) {
+        return ResponseEntity.ok(commentService.createComment(dto));
+    }
 }

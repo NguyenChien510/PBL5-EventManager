@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import { DashboardLayout, PageHeader } from '../components/layout';
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig';
 import { Icon, Loader } from '../components/ui';
+import Avatar from '../components/ui/Avatar';
 import { EventService } from '../services/eventService';
 import toast from 'react-hot-toast';
 
@@ -1470,11 +1471,15 @@ const OrganizerEventManage = () => {
                     <div key={review.id || i} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 hover:shadow-md transition-all">
                       <div className="flex justify-between items-start">
                         <div className="flex gap-3">
-                          <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-black text-xs uppercase">
-                            {review.userName.substring(0, 2)}
-                          </div>
+                          <Avatar 
+                            src={review.user?.avatar} 
+                            alt={review.user?.fullName} 
+                            size="md" 
+                            className="rounded-full ring-2 ring-slate-50"
+                            fallback={review.user?.fullName?.substring(0, 2)}
+                          />
                           <div>
-                            <h4 className="text-sm font-bold text-slate-900">{review.userName}</h4>
+                            <h4 className="text-sm font-bold text-slate-900">{review.user?.fullName || 'Người dùng'}</h4>
                             <span className="text-[10px] text-slate-400">
                               {new Date(review.createdAt).toLocaleDateString('vi-VN')}
                             </span>
@@ -1487,6 +1492,23 @@ const OrganizerEventManage = () => {
                         </div>
                       </div>
                       <p className="text-sm text-slate-600 leading-relaxed font-medium">{review.content}</p>
+                      
+                      {/* Review Images */}
+                      {review.images && review.images.length > 0 && (
+                        <div className="flex gap-3">
+                          {review.images.map((img: string, idx: number) => (
+                            <div key={idx} className="relative group/img cursor-pointer overflow-hidden rounded-2xl border-2 border-white shadow-md hover:shadow-xl transition-all">
+                              <img 
+                                src={img} 
+                                alt="Review" 
+                                className="w-28 h-28 object-cover group-hover/img:scale-110 transition-transform duration-500"
+                                onClick={() => window.open(img, '_blank')}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
                       <div className="flex gap-3">
                         <input type="text" placeholder="Gửi phản hồi cho khách..." className="flex-1 px-4 py-2 bg-slate-50 border-none rounded-xl text-xs outline-none focus:ring-2 ring-primary/20" />
                         <button className="px-4 py-2 bg-slate-900 text-white text-[10px] font-bold rounded-xl shadow-lg">GỬI</button>

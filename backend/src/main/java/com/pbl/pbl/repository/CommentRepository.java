@@ -9,6 +9,9 @@ import com.pbl.pbl.entity.Comment;
 public interface CommentRepository extends JpaRepository<Comment, Long> {
     List<Comment> findByEventIdOrderByCreatedAtDesc(Long eventId);
     List<Comment> findByEventId(Long eventId);
-    List<Comment> findByEventOrganizerIdOrderByCreatedAtDesc(java.util.UUID organizerId);
+    
+    @org.springframework.data.jpa.repository.Query("SELECT c FROM Comment c JOIN FETCH c.user JOIN FETCH c.event WHERE c.event.organizer.id = :organizerId ORDER BY c.createdAt DESC")
+    List<Comment> findByEventOrganizerIdOrderByCreatedAtDesc(@org.springframework.data.repository.query.Param("organizerId") java.util.UUID organizerId);
+    
     List<Comment> findByUserId(java.util.UUID userId);
 }

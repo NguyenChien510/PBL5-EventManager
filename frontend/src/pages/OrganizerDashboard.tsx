@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Icon, StatCard, Loader } from '../components/ui'
+import { Icon, StatCard, Loader, Avatar } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig'
 import { EventService } from '../services/eventService'
@@ -247,16 +247,39 @@ const OrganizerDashboard = () => {
               <div className="space-y-3 flex-1">
                 {recentComments.length > 0 ? (
                   recentComments.slice(0, 4).map((comment, idx) => (
-                    <div key={idx} className="p-3 bg-slate-50 rounded-2xl border border-slate-100 hover:border-violet-200 transition-colors">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold text-slate-900">{comment.userName}</span>
+                    <div key={idx} className="p-4 bg-slate-50/50 rounded-[1.5rem] border border-slate-100 hover:border-violet-200 hover:bg-white hover:shadow-lg hover:shadow-violet-500/5 transition-all duration-300 group">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Avatar 
+                            src={comment.user?.avatar} 
+                            alt={comment.user?.fullName} 
+                            size="xs" 
+                            className="rounded-full ring-2 ring-white"
+                            fallback={comment.user?.fullName?.substring(0, 2)}
+                          />
+                          <span className="text-[11px] font-black text-slate-900 group-hover:text-violet-600 transition-colors">{comment.user?.fullName || 'Người dùng'}</span>
+                        </div>
                         <div className="flex gap-0.5">
                           {Array.from({ length: 5 }, (_, i) => (
                             <Icon key={i} name="star" size="xs" className={i < comment.rating ? "text-yellow-400" : "text-slate-200"} filled />
                           ))}
                         </div>
                       </div>
-                      <p className="text-[11px] text-slate-500 line-clamp-2">{comment.content}</p>
+                      <p className="text-[10px] text-slate-500 line-clamp-2 leading-relaxed mb-3 italic">"{comment.content}"</p>
+                      
+                      {/* Mini Image Preview */}
+                      {comment.images && comment.images.length > 0 && (
+                        <div className="flex gap-1.5">
+                          {comment.images.map((img: string, i: number) => (
+                            <img 
+                              key={i} 
+                              src={img} 
+                              alt="Review" 
+                              className="w-8 h-8 rounded-lg object-cover border border-white shadow-sm" 
+                            />
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))
                 ) : (
