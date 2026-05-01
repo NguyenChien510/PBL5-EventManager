@@ -239,6 +239,18 @@ const OrganizerEventManage = () => {
   const [editForm, setEditForm] = useState<any>(null);
   const [editSchedules, setEditSchedules] = useState<any[]>([]);
 
+  // Scroll lock when modal is open
+  useEffect(() => {
+    if (activeEditType || selectedSeatInfo) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [activeEditType, selectedSeatInfo]);
+
   useEffect(() => {
     if (event) {
       setEditForm({
@@ -537,10 +549,10 @@ const OrganizerEventManage = () => {
                   {/* Description Section */}
                   <div className="lg:col-span-2 space-y-6">
                     <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm relative overflow-hidden h-full">
-                      <div className="absolute top-0 right-0 p-8 opacity-5">
+                      <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
                         <Icon name="format_quote" size="xl" className="text-slate-900" />
                       </div>
-                      <h5 className="font-black text-slate-900 mb-6 uppercase tracking-widest flex items-center justify-between">
+                      <h5 className="font-black text-slate-900 mb-6 uppercase tracking-widest flex items-center justify-between relative z-10">
                         <div className="flex items-center gap-3">
                           <div className="w-1.5 h-6 bg-emerald-500 rounded-full" />
                           Mô tả sự kiện
@@ -797,68 +809,69 @@ const OrganizerEventManage = () => {
 
                       {/* Attendee Detail Modal for Seat Map */}
                       {selectedSeatInfo && createPortal(
-                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 animate-in fade-in duration-300">
-                          <div className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 border border-slate-100">
-                            <div className="p-8 space-y-6">
+                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setSelectedSeatInfo(null)} />
+                          <div className="relative bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-200">
+                            <div className="p-6 space-y-5">
                               <div className="flex justify-between items-start">
                                 <div className="space-y-1">
                                   <div className="flex items-center gap-2">
-                                    <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-black uppercase rounded-lg">Ghế {selectedSeatInfo.seatNumber}</span>
-                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-black uppercase rounded-lg">{selectedSeatInfo.ticketTypeName}</span>
+                                    <span className="px-2 py-0.5 bg-primary/10 text-primary text-[9px] font-black uppercase rounded-lg">Ghế {selectedSeatInfo.seatNumber}</span>
+                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[9px] font-black uppercase rounded-lg">{selectedSeatInfo.ticketTypeName}</span>
                                   </div>
-                                  <h3 className="text-2xl font-black text-slate-900">{selectedSeatInfo.userName}</h3>
+                                  <h3 className="text-xl font-black text-slate-900 leading-tight">{selectedSeatInfo.userName}</h3>
                                 </div>
                                 <button
                                   onClick={() => setSelectedSeatInfo(null)}
-                                  className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400"
+                                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-50 text-slate-400 transition-colors"
                                 >
-                                  <Icon name="close" size="sm" />
+                                  <Icon name="close" size="xs" />
                                 </button>
                               </div>
 
-                              <div className="space-y-4 bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                                <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 border border-slate-100">
+                              <div className="space-y-3 bg-slate-50/50 p-5 rounded-2xl border border-slate-100">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-slate-400 border border-slate-100">
                                     <Icon name="mail" size="xs" />
                                   </div>
                                   <div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email</p>
-                                    <p className="text-sm font-bold text-slate-700">{selectedSeatInfo.userEmail}</p>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Email</p>
+                                    <p className="text-xs font-bold text-slate-700">{selectedSeatInfo.userEmail}</p>
                                   </div>
                                 </div>
 
-                                <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 border border-slate-100">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-slate-400 border border-slate-100">
                                     <Icon name="calendar_today" size="xs" />
                                   </div>
                                   <div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ngày mua</p>
-                                    <p className="text-sm font-bold text-slate-700">
-                                      {new Date(selectedSeatInfo.purchaseDate).toLocaleDateString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Ngày mua</p>
+                                    <p className="text-xs font-bold text-slate-700">
+                                      {new Date(selectedSeatInfo.purchaseDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                                     </p>
                                   </div>
                                 </div>
 
-                                <div className="flex items-center gap-4">
-                                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${selectedSeatInfo.status === 'CHECKED_IN' ? 'bg-emerald-50 text-emerald-500 border-emerald-100' : 'bg-white text-slate-400 border-slate-100'}`}>
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center border ${selectedSeatInfo.status === 'CHECKED_IN' ? 'bg-emerald-50 text-emerald-500 border-emerald-100' : 'bg-white text-slate-400 border-slate-100'}`}>
                                     <Icon name={selectedSeatInfo.status === 'CHECKED_IN' ? 'check_circle' : 'pending'} size="xs" />
                                   </div>
                                   <div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Trạng thái</p>
-                                    <p className={`text-sm font-black uppercase ${selectedSeatInfo.status === 'CHECKED_IN' ? 'text-emerald-600' : 'text-slate-500'}`}>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Trạng thái</p>
+                                    <p className={`text-xs font-black uppercase ${selectedSeatInfo.status === 'CHECKED_IN' ? 'text-emerald-600' : 'text-slate-500'}`}>
                                       {selectedSeatInfo.status === 'CHECKED_IN' ? 'Đã check-in' : 'Chưa đến'}
                                     </p>
                                   </div>
                                 </div>
                               </div>
 
-                              <div className="flex gap-3 pt-2">
+                              <div className="flex gap-2">
                                 <button
                                   onClick={() => {
                                     handleCheckIn(selectedSeatInfo.ticketId, selectedSeatInfo.status);
                                     setSelectedSeatInfo(null);
                                   }}
-                                  className={`flex-1 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${selectedSeatInfo.status === 'CHECKED_IN' ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-primary text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:scale-[1.02]'}`}
+                                  className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${selectedSeatInfo.status === 'CHECKED_IN' ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-primary text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:scale-[1.02]'}`}
                                 >
                                   {selectedSeatInfo.status === 'CHECKED_IN' ? 'Hủy Check-in' : 'Check-in ngay'}
                                 </button>
@@ -1494,72 +1507,70 @@ const OrganizerEventManage = () => {
           </div>
         </div>
 
-        {/* Edit Event Modal - Localized & Dynamic */}
+        {/* Edit Event Modal - Compact & Clean */}
         {activeEditType && createPortal(
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-            <div className="absolute inset-0 bg-slate-900/60 animate-in fade-in duration-300" onClick={() => setActiveEditType(null)} />
-            <div className="relative bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 border border-white/20">
-              <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-primary/10 text-primary rounded-2xl flex items-center justify-center shadow-inner">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setActiveEditType(null)} />
+            <div className="relative bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-2 duration-300 border border-slate-200">
+              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-slate-50 text-primary rounded-xl flex items-center justify-center border border-slate-100">
                     <Icon
                       name={
                         activeEditType === 'title' ? 'edit_note' :
                           activeEditType === 'info' ? 'map' :
                             activeEditType === 'description' ? 'description' : 'schedule'
                       }
-                      size="sm"
+                      size="xs"
                     />
                   </div>
                   <div>
-                    <h3 className="text-xl font-black text-slate-900">
-                      {activeEditType === 'title' ? 'Chỉnh sửa tên sự kiện' :
+                    <h3 className="text-lg font-black text-slate-900 leading-tight">
+                      {activeEditType === 'title' ? 'Chỉnh sửa tên' :
                         activeEditType === 'info' ? 'Thời gian & Địa điểm' :
                           activeEditType === 'description' ? 'Mô tả chi tiết' : 'Quản lý lịch trình'}
                     </h3>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cập nhật nội dung tương ứng</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Cập nhật thông tin sự kiện</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setActiveEditType(null)}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors"
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-50 text-slate-400 transition-colors"
                 >
-                  <Icon name="close" size="sm" />
+                  <Icon name="close" size="xs" />
                 </button>
               </div>
 
-              <div className="p-8 max-h-[65vh] overflow-y-auto custom-scrollbar">
+              <div className="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar space-y-5">
                 {activeEditType === 'title' && (
-                  <div className="space-y-6">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tên sự kiện mới</label>
-                      <input
-                        type="text"
-                        className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-primary rounded-2xl font-bold outline-none transition-all shadow-inner"
-                        value={editForm?.title}
-                        onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                        autoFocus
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Tên sự kiện mới</label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-primary focus:bg-white rounded-xl font-bold outline-none transition-all"
+                      value={editForm?.title}
+                      onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                      autoFocus
+                    />
                   </div>
                 )}
 
                 {activeEditType === 'info' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2 md:col-span-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Địa điểm tổ chức</label>
+                  <div className="space-y-5">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Địa điểm tổ chức</label>
                       <input
                         type="text"
-                        className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-primary rounded-2xl font-bold outline-none transition-all shadow-inner"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-primary focus:bg-white rounded-xl font-bold outline-none transition-all"
                         value={editForm?.location}
                         onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
                       />
                     </div>
-                    <div className="space-y-2 md:col-span-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Ngày & Giờ bắt đầu</label>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Ngày & Giờ bắt đầu</label>
                       <input
                         type="datetime-local"
-                        className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-primary rounded-2xl font-bold outline-none transition-all shadow-inner"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-primary focus:bg-white rounded-xl font-bold outline-none transition-all"
                         value={(() => {
                           try {
                             if (!editForm?.startTime) return '';
@@ -1576,11 +1587,11 @@ const OrganizerEventManage = () => {
 
                 {activeEditType === 'description' && (
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nội dung mô tả</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Nội dung mô tả</label>
                     <textarea
-                      rows={10}
-                      className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-primary rounded-2xl font-bold outline-none transition-all resize-none shadow-inner leading-relaxed"
-                      placeholder="Nhập mô tả chi tiết cho sự kiện..."
+                      rows={8}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-primary focus:bg-white rounded-xl font-bold outline-none transition-all resize-none leading-relaxed"
+                      placeholder="Nhập mô tả chi tiết..."
                       value={editForm?.description}
                       onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                     />
@@ -1588,85 +1599,74 @@ const OrganizerEventManage = () => {
                 )}
 
                 {activeEditType === 'schedule' && (
-                  <div className="space-y-6">
-                    <div className="flex justify-between items-center mb-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Các mốc lịch trình</label>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Các mốc lịch trình</label>
                       <button
                         onClick={() => setEditSchedules([...editSchedules, { startTime: [8, 0], activity: '' }])}
-                        className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline flex items-center gap-1"
+                        className="px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all flex items-center gap-1"
                       >
-                        <Icon name="add" size="xs" /> Thêm mốc mới
+                        <Icon name="add" size="xs" /> Thêm mốc
                       </button>
                     </div>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {editSchedules.map((item, idx) => (
-                        <div key={idx} className="flex gap-4 items-start bg-slate-50 p-4 rounded-2xl border border-slate-100 group">
-                          <div className="flex-1 space-y-4">
-                            <div className="flex gap-4">
-                              <div className="flex-1">
-                                <label className="text-[9px] font-black text-slate-400 uppercase block mb-1 ml-1">Thời gian</label>
-                                <input
-                                  type="text"
-                                  placeholder="08:00"
-                                  className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-primary transition-all"
-                                  value={formatTime(item.startTime)}
-                                  onChange={(e) => {
-                                    const newSchedules = [...editSchedules];
-                                    newSchedules[idx].startTime = e.target.value;
-                                    setEditSchedules(newSchedules);
-                                  }}
-                                />
-                              </div>
-                              <div className="flex-[3]">
-                                <label className="text-[9px] font-black text-slate-400 uppercase block mb-1 ml-1">Hoạt động</label>
-                                <input
-                                  type="text"
-                                  placeholder="Tên hoạt động..."
-                                  className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-primary transition-all"
-                                  value={item.activity}
-                                  onChange={(e) => {
-                                    const newSchedules = [...editSchedules];
-                                    newSchedules[idx].activity = e.target.value;
-                                    setEditSchedules(newSchedules);
-                                  }}
-                                />
-                              </div>
-                            </div>
+                        <div key={idx} className="flex gap-3 items-center bg-slate-50 p-3 rounded-xl border border-slate-100 group">
+                          <div className="w-20">
+                            <input
+                              type="text"
+                              className="w-full px-2 py-2 bg-white border border-slate-200 rounded-lg text-[11px] font-bold outline-none focus:border-primary"
+                              value={formatTime(item.startTime)}
+                              onChange={(e) => {
+                                const newSchedules = [...editSchedules];
+                                newSchedules[idx].startTime = e.target.value;
+                                setEditSchedules(newSchedules);
+                              }}
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <input
+                              type="text"
+                              className="w-full px-2 py-2 bg-white border border-slate-200 rounded-lg text-[11px] font-bold outline-none focus:border-primary"
+                              placeholder="Hoạt động..."
+                              value={item.activity}
+                              onChange={(e) => {
+                                const newSchedules = [...editSchedules];
+                                newSchedules[idx].activity = e.target.value;
+                                setEditSchedules(newSchedules);
+                              }}
+                            />
                           </div>
                           <button
                             onClick={() => setEditSchedules(editSchedules.filter((_, i) => i !== idx))}
-                            className="p-2 text-slate-300 hover:text-rose-500 transition-colors mt-6"
+                            className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
                           >
                             <Icon name="delete" size="xs" />
                           </button>
                         </div>
                       ))}
-                      {editSchedules.length === 0 && (
-                        <div className="text-center py-10 border-2 border-dashed border-slate-100 rounded-3xl">
-                          <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Trống lịch trình</p>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex gap-4">
+              <div className="p-5 border-t border-slate-100 bg-slate-50 flex gap-3">
                 <button
                   onClick={() => setActiveEditType(null)}
-                  className="flex-1 py-4 bg-white border border-slate-200 text-slate-500 rounded-2xl font-black text-xs tracking-widest hover:bg-slate-50 transition-all uppercase"
+                  className="flex-1 py-3 px-4 bg-white border border-slate-200 text-slate-500 rounded-xl font-bold text-xs hover:bg-slate-100 transition-all uppercase tracking-widest"
                 >
-                  Hủy bỏ
+                  Hủy
                 </button>
                 <button
                   onClick={handleUpdateEvent}
-                  className="flex-1 py-4 bg-primary text-white rounded-2xl font-black text-xs tracking-widest shadow-xl shadow-primary/20 hover:bg-primary/90 transition-all uppercase"
+                  className="flex-1 py-3 px-4 bg-primary text-white rounded-xl font-black text-xs shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all uppercase tracking-widest"
                 >
-                  Lưu thay đổi
+                  Cập nhật
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     </DashboardLayout>
