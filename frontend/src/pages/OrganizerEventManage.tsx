@@ -223,7 +223,7 @@ const OrganizerEventManage = () => {
         hasAutoJumped.current = true; // Even if it has data, mark as jumped so we don't interfere with manual navigation later
       }
     }
-    
+
     // Reset jump flag if leaving the tab, so it can re-jump next time they enter
     if (activeTab !== 'finance') {
       hasAutoJumped.current = false;
@@ -358,7 +358,7 @@ const OrganizerEventManage = () => {
 
   return (
     <DashboardLayout sidebarProps={organizerSidebarConfig}>
-      <div className="min-h-screen bg-slate-50/50" style={{ scrollbarGutter: 'stable' }}>
+      <div className="min-h-screen bg-slate-50" style={{ scrollbarGutter: 'stable' }}>
         <PageHeader
           title={event?.title || 'Quản lý sự kiện'}
           subtitle="Theo dõi và quản lý chi tiết sự kiện của bạn"
@@ -366,7 +366,7 @@ const OrganizerEventManage = () => {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 pb-10">
           {/* Tab Navigation - Fixed structure with sticky behavior */}
-          <div className="sticky top-[72px] z-40 py-4 bg-slate-50 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 transition-all flex justify-start items-center gap-4">
+          <div className="sticky top-[80px] z-40 py-4 transition-all flex justify-start items-center gap-4">
             <Link
               to="/organizer/events"
               className="w-12 h-12 bg-white rounded-2xl shadow-md border border-slate-200 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all group shrink-0 animate-in fade-in slide-in-from-left-4 duration-500"
@@ -608,115 +608,115 @@ const OrganizerEventManage = () => {
                 </div>
 
                 {guestViewMode === 'list' ? (
-                    <div className="lg:col-span-2 space-y-4">
+                  <div className="lg:col-span-2 space-y-4">
 
 
-                      {/* Redesigned Table/List */}
-                      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl shadow-slate-200/50 overflow-hidden relative">
-                        <div className="overflow-x-auto">
-                          <table className="w-full border-separate border-spacing-0">
-                            <thead>
-                              <tr className="bg-slate-50 border-b border-slate-100">
-                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">Khách mời</th>
-                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">Thông tin vé</th>
-                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">Trạng thái</th>
-                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100 text-center">Check-in</th>
+                    {/* Redesigned Table/List */}
+                    <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl shadow-slate-200/50 overflow-hidden relative">
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-separate border-spacing-0">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-100">
+                              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">Khách mời</th>
+                              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">Thông tin vé</th>
+                              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">Trạng thái</th>
+                              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100 text-center">Check-in</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-50/80">
+                            {Object.values(filteredAttendees.reduce((acc, current) => {
+                              const key = current.userEmail;
+                              if (!acc[key]) acc[key] = { ...current, tickets: [] };
+                              acc[key].tickets.push(current);
+                              return acc;
+                            }, {} as Record<string, Attendee & { tickets: Attendee[] }>)).map((group, idx) => (
+                              <tr
+                                key={group.userEmail}
+                                className="group hover:bg-slate-50/50 transition-all duration-300 relative"
+                                style={{ animationDelay: `${idx * 50}ms` }}
+                              >
+                                <td className="px-8 py-6 relative">
+                                  {/* Subtle hover accent */}
+                                  <div className="absolute left-0 top-4 bottom-4 w-1 bg-primary scale-y-0 group-hover:scale-y-100 transition-transform duration-300 rounded-r-full" />
+                                  <div className="flex items-center gap-4">
+                                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-black text-sm shadow-sm border border-white">
+                                      {group.userName.substring(0, 1).toUpperCase()}
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="font-black text-slate-900 text-sm tracking-tight group-hover:text-primary transition-colors">{group.userName}</span>
+                                      <span className="text-[10px] text-slate-400 font-bold tracking-tight mt-0.5">{group.userEmail}</span>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-8 py-6">
+                                  <div className="flex flex-wrap gap-1.5 mb-2">
+                                    {group.tickets.map((t, tidx) => (
+                                      <div key={tidx} className={`px-2.5 py-1 rounded-xl text-[10px] font-black shadow-sm border ${t.ticketTypeName.toUpperCase().includes('VIP')
+                                        ? 'bg-amber-500 text-white border-amber-400 shadow-amber-200/50'
+                                        : 'bg-primary text-white border-primary/20 shadow-primary/20'}`}>
+                                        {t.seatNumber}
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter flex items-center gap-1.5">
+                                    <span className="w-1 h-1 bg-slate-300 rounded-full" />
+                                    {group.tickets.length} vé • {group.tickets[0].ticketTypeName}
+                                  </p>
+                                </td>
+                                <td className="px-8 py-6">
+                                  {group.tickets.every(t => t.status === 'CHECKED_IN') ? (
+                                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-emerald-100">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                                      Hoàn tất ({group.tickets.length})
+                                    </div>
+                                  ) : group.tickets.some(t => t.status === 'CHECKED_IN') ? (
+                                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-amber-100">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+                                      {group.tickets.filter(t => t.status === 'CHECKED_IN').length}/{group.tickets.length} Đã đến
+                                    </div>
+                                  ) : (
+                                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-wider border border-slate-100">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                                      Chưa đến
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="px-8 py-6 text-center">
+                                  <div className="flex items-center justify-center gap-2.5">
+                                    {group.tickets.map((t, tidx) => (
+                                      <button
+                                        key={tidx}
+                                        onClick={() => handleCheckIn(t.ticketId, t.status)}
+                                        className={`w-10 h-10 rounded-[1.15rem] flex items-center justify-center transition-all shadow-sm font-black text-[11px] relative overflow-hidden group/btn ${t.status === 'CHECKED_IN'
+                                          ? 'bg-emerald-600 text-white shadow-emerald-200 ring-4 ring-emerald-50 border-emerald-500'
+                                          : 'bg-white text-slate-600 border border-slate-200 hover:border-primary hover:text-primary hover:scale-110 active:scale-95 shadow-slate-100'}`}
+                                      >
+                                        {t.status === 'CHECKED_IN' ? <Icon name="done" size="xs" /> : t.seatNumber}
+                                        <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
+                                      </button>
+                                    ))}
+                                  </div>
+                                </td>
                               </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50/80">
-                              {Object.values(filteredAttendees.reduce((acc, current) => {
-                                const key = current.userEmail;
-                                if (!acc[key]) acc[key] = { ...current, tickets: [] };
-                                acc[key].tickets.push(current);
-                                return acc;
-                              }, {} as Record<string, Attendee & { tickets: Attendee[] }>)).map((group, idx) => (
-                                <tr 
-                                  key={group.userEmail} 
-                                  className="group hover:bg-slate-50/50 transition-all duration-300 relative"
-                                  style={{ animationDelay: `${idx * 50}ms` }}
-                                >
-                                  <td className="px-8 py-6 relative">
-                                    {/* Subtle hover accent */}
-                                    <div className="absolute left-0 top-4 bottom-4 w-1 bg-primary scale-y-0 group-hover:scale-y-100 transition-transform duration-300 rounded-r-full" />
-                                    <div className="flex items-center gap-4">
-                                      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-black text-sm shadow-sm border border-white">
-                                        {group.userName.substring(0, 1).toUpperCase()}
-                                      </div>
-                                      <div className="flex flex-col">
-                                        <span className="font-black text-slate-900 text-sm tracking-tight group-hover:text-primary transition-colors">{group.userName}</span>
-                                        <span className="text-[10px] text-slate-400 font-bold tracking-tight mt-0.5">{group.userEmail}</span>
-                                      </div>
+                            ))}
+                            {filteredAttendees.length === 0 && (
+                              <tr>
+                                <td colSpan={4} className="py-20 text-center">
+                                  <div className="flex flex-col items-center gap-3">
+                                    <div className="w-20 h-20 bg-slate-50 rounded-[2.5rem] flex items-center justify-center text-slate-200 mb-2">
+                                      <Icon name="search_off" size="xl" />
                                     </div>
-                                  </td>
-                                  <td className="px-8 py-6">
-                                    <div className="flex flex-wrap gap-1.5 mb-2">
-                                      {group.tickets.map((t, tidx) => (
-                                        <div key={tidx} className={`px-2.5 py-1 rounded-xl text-[10px] font-black shadow-sm border ${t.ticketTypeName.toUpperCase().includes('VIP') 
-                                          ? 'bg-amber-500 text-white border-amber-400 shadow-amber-200/50' 
-                                          : 'bg-primary text-white border-primary/20 shadow-primary/20'}`}>
-                                          {t.seatNumber}
-                                        </div>
-                                      ))}
-                                    </div>
-                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter flex items-center gap-1.5">
-                                      <span className="w-1 h-1 bg-slate-300 rounded-full" />
-                                      {group.tickets.length} vé • {group.tickets[0].ticketTypeName}
-                                    </p>
-                                  </td>
-                                  <td className="px-8 py-6">
-                                    {group.tickets.every(t => t.status === 'CHECKED_IN') ? (
-                                      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-emerald-100">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                                        Hoàn tất ({group.tickets.length})
-                                      </div>
-                                    ) : group.tickets.some(t => t.status === 'CHECKED_IN') ? (
-                                      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-amber-100">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-                                        {group.tickets.filter(t => t.status === 'CHECKED_IN').length}/{group.tickets.length} Đã đến
-                                      </div>
-                                    ) : (
-                                      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-wider border border-slate-100">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                                        Chưa đến
-                                      </div>
-                                    )}
-                                  </td>
-                                  <td className="px-8 py-6 text-center">
-                                    <div className="flex items-center justify-center gap-2.5">
-                                      {group.tickets.map((t, tidx) => (
-                                        <button
-                                          key={tidx}
-                                          onClick={() => handleCheckIn(t.ticketId, t.status)}
-                                          className={`w-10 h-10 rounded-[1.15rem] flex items-center justify-center transition-all shadow-sm font-black text-[11px] relative overflow-hidden group/btn ${t.status === 'CHECKED_IN'
-                                            ? 'bg-emerald-600 text-white shadow-emerald-200 ring-4 ring-emerald-50 border-emerald-500'
-                                            : 'bg-white text-slate-600 border border-slate-200 hover:border-primary hover:text-primary hover:scale-110 active:scale-95 shadow-slate-100'}`}
-                                        >
-                                          {t.status === 'CHECKED_IN' ? <Icon name="done" size="xs" /> : t.seatNumber}
-                                          <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                              {filteredAttendees.length === 0 && (
-                                <tr>
-                                  <td colSpan={4} className="py-20 text-center">
-                                    <div className="flex flex-col items-center gap-3">
-                                      <div className="w-20 h-20 bg-slate-50 rounded-[2.5rem] flex items-center justify-center text-slate-200 mb-2">
-                                        <Icon name="search_off" size="xl" />
-                                      </div>
-                                      <h5 className="font-black text-slate-900">Không tìm thấy khách mời</h5>
-                                      <p className="text-xs text-slate-400 font-bold max-w-[200px] leading-relaxed">Hãy thử tìm kiếm bằng một từ khóa khác</p>
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
+                                    <h5 className="font-black text-slate-900">Không tìm thấy khách mời</h5>
+                                    <p className="text-xs text-slate-400 font-bold max-w-[200px] leading-relaxed">Hãy thử tìm kiếm bằng một từ khóa khác</p>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
+                  </div>
                 ) : (
                   <div className="bg-white p-10 rounded-3xl border border-slate-200 shadow-sm" >
                     <div className="max-w-4xl mx-auto space-y-12" >

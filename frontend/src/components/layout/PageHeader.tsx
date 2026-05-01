@@ -15,7 +15,7 @@ interface PageHeaderProps {
 
 const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, searchPlaceholder, actions, centerContent, breadcrumb, backTo }) => {
   return (
-    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 py-4 flex items-center justify-between min-h-[80px]">
+    <header className="sticky top-0 z-50 bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between min-h-[80px]">
       <div className="flex items-center gap-4 flex-1 min-w-0">
         {backTo && (
           <Link 
