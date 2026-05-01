@@ -46,6 +46,25 @@ const UserProfile = () => {
     }
   }
 
+  const handleDownloadQR = async (qrData: string, orderId: string) => {
+    try {
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${qrData}`
+      const response = await fetch(qrUrl)
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `QRCode_Order_${orderId}.png`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Download QR failed:', err)
+      toast.error('Không thể tải mã QR. Vui lòng thử lại sau.')
+    }
+  }
+
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -147,7 +166,7 @@ const UserProfile = () => {
     <>
       <DashboardLayout sidebarProps={sidebarConfig}>
         {/* Header */}
-        <header className="h-20 px-8 lg:px-12 flex items-center justify-between sticky top-0 z-40 bg-background-light/90 backdrop-blur-sm">
+        <header className="h-20 px-8 lg:px-12 flex items-center justify-between sticky top-0 z-40 bg-white border-b border-slate-100/50">
           <h2 className="text-xl font-bold text-slate-800">Hồ sơ người dùng</h2>
           <div className="flex items-center gap-5">
             <button className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-primary transition-colors">
@@ -157,11 +176,6 @@ const UserProfile = () => {
               <Icon name="notifications" />
               <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full" />
             </button>
-            <div className="h-8 w-px bg-slate-200 mx-2" />
-            <div className="flex items-center gap-3 cursor-pointer group">
-              <Avatar src={user?.avatar || sidebarConfig.user.avatar} size="md" className="rounded-lg ring-2 ring-white shadow-sm" />
-              <span className="text-sm font-semibold text-slate-700 group-hover:text-primary transition-colors">{user?.fullName}</span>
-            </div>
           </div>
         </header>
 
@@ -369,8 +383,16 @@ const UserProfile = () => {
               }) : (
                 <div className="py-20 text-center bg-slate-50 rounded-[2.5rem] border border-dashed border-slate-200">
                   <Icon name="confirmation_number" className="text-slate-200 text-6xl mb-4" />
-                  <p className="text-slate-400 font-medium">Bạn chưa mua vé nào. Khám phá các sự kiện ngay!</p>
-                  <Link to="/explore" className="mt-4 inline-block text-primary font-bold hover:underline">Khám phá ngay</Link>
+                  <p className="text-slate-400 font-medium">
+                    {activeTab === 'Đã check-in'
+                      ? 'Chưa có vé nào check-in'
+                      : activeTab === 'Thanh toán thành công'
+                        ? 'Chưa có vé nào đã thanh toán'
+                        : 'Bạn chưa mua vé nào. Khám phá các sự kiện ngay!'}
+                  </p>
+                  {activeTab === 'Tất cả' && (
+                    <Link to="/explore" className="mt-4 inline-block text-primary font-bold hover:underline">Khám phá ngay</Link>
+                  )}
                 </div>
               )}
             </div>
@@ -394,67 +416,93 @@ const UserProfile = () => {
               </button>
             </div>
 
-            <div className="max-h-[85vh] overflow-y-auto overflow-x-hidden">
+            <div className="max-h-[90vh] overflow-y-auto overflow-x-hidden">
               {/* Simplified Event Header */}
-              <div className="relative h-40">
+              <div className="relative h-32">
                 <img
                   src={Array.isArray(selectedTicket) ? selectedTicket[0].image : selectedTicket.image}
                   className="w-full h-full object-cover"
                   loading="lazy"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                <div className="absolute bottom-0 left-0 p-6">
-                  <h3 className="text-xl font-bold text-white leading-tight">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                <div className="absolute bottom-0 left-0 p-4">
+                  <h3 className="text-lg font-black text-white leading-tight">
                     {Array.isArray(selectedTicket) ? selectedTicket[0].title : selectedTicket.title}
                   </h3>
                 </div>
               </div>
 
-              <div className="p-6 space-y-8">
+              <div className="p-4 space-y-4">
                 {/* QR Section */}
-                <div className="text-center bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Mã QR Đơn Hàng</p>
-                  <div className="inline-block p-4 bg-white rounded-xl shadow-sm mb-4">
+                <div className="text-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Mã QR Đơn Hàng</p>
+                  <div className="inline-block p-2 bg-white rounded-xl shadow-sm mb-3">
                     <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${Array.isArray(selectedTicket) ? selectedTicket[0].orderQrCode : selectedTicket.orderQrCode}`}
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${Array.isArray(selectedTicket) ? selectedTicket[0].orderQrCode : selectedTicket.orderQrCode}`}
                       alt="Order QR Code"
-                      className="w-40 h-40"
+                      className="w-32 h-32"
                     />
                   </div>
-                  <p className="text-xs font-mono font-bold text-slate-600 bg-slate-200/50 py-1 px-3 rounded-full inline-block">
-                    {Array.isArray(selectedTicket) ? selectedTicket[0].orderQrCode : selectedTicket.orderQrCode}
-                  </p>
+                  <div>
+                    <p className="text-[10px] font-mono font-bold text-slate-500 bg-slate-200/50 py-1 px-3 rounded-full inline-block">
+                      {Array.isArray(selectedTicket) ? selectedTicket[0].orderQrCode : selectedTicket.orderQrCode}
+                    </p>
+                  </div>
                 </div>
 
                 {/* Ticket List */}
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <div className="flex items-center justify-between px-1">
-                    <h4 className="text-xs font-bold text-slate-900 uppercase">Danh sách vé</h4>
-                    <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                      {Array.isArray(selectedTicket) ? selectedTicket.length : 1} vé
+                    <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-wider">Danh sách vé</h4>
+                    <span className="text-[9px] font-black bg-primary/10 text-primary px-2.5 py-1 rounded-lg">
+                      {Array.isArray(selectedTicket) ? selectedTicket.length : 1} VÉ
                     </span>
                   </div>
                   <div className="space-y-2">
-                    {(Array.isArray(selectedTicket) ? selectedTicket : [selectedTicket]).map((ticket: any, index: number) => (
-                      <div key={ticket.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-primary font-bold text-xs shadow-sm border border-slate-100">
-                            {index + 1}
+                    {(Array.isArray(selectedTicket) ? selectedTicket : [selectedTicket]).map((ticket: any, index: number) => {
+                      const isVIP = ticket.type?.toUpperCase().includes('VIP')
+                      return (
+                        <div
+                          key={ticket.id}
+                          className={`flex items-center justify-between p-3 rounded-xl border transition-all ${isVIP
+                            ? 'bg-gradient-to-r from-amber-50 to-transparent border-amber-200 shadow-sm'
+                            : 'bg-slate-50 border-slate-100'
+                            }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs shadow-sm border ${isVIP
+                              ? 'bg-amber-100 text-amber-700 border-amber-200'
+                              : 'bg-white text-primary border-slate-100'
+                              }`}>
+                              {isVIP ? <Icon name="stars" size="sm" className="scale-75" /> : index + 1}
+                            </div>
+                            <div>
+                              <p className="text-xs font-black text-slate-900">{ticket.seat}</p>
+                              <p className={`text-[9px] font-black uppercase tracking-wider ${isVIP ? 'text-amber-600' : 'text-slate-400'
+                                }`}>
+                                {ticket.type}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-xs font-bold text-slate-900">{ticket.seat}</p>
-                            <p className="text-[9px] font-medium text-slate-500 uppercase">{ticket.type}</p>
-                          </div>
+                          <span className="text-[9px] font-mono font-bold text-slate-400">{ticket.ticketId}</span>
                         </div>
-                        <span className="text-[9px] font-mono text-slate-400">{ticket.ticketId}</span>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
 
                 {/* Simplified Actions */}
-                <button className="w-full h-12 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-slate-800 transition-colors">
-                  Tải PDF đơn hàng
+                <button
+                  onClick={() => {
+                    const firstTicket = Array.isArray(selectedTicket) ? selectedTicket[0] : selectedTicket
+                    if (firstTicket) {
+                      handleDownloadQR(firstTicket.orderQrCode, firstTicket.orderId?.toString() || 'N/A')
+                    }
+                  }}
+                  className="w-full h-12 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 group"
+                >
+                  <Icon name="download" size="sm" className="group-hover:translate-y-0.5 transition-transform" />
+                  Tải ảnh QRCode
                 </button>
               </div>
             </div>
