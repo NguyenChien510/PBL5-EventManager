@@ -609,33 +609,7 @@ const OrganizerEventManage = () => {
 
                 {guestViewMode === 'list' ? (
                     <div className="lg:col-span-2 space-y-4">
-                      {/* Search & Header Integration */}
-                      <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-xl shadow-slate-200/40 flex flex-col sm:flex-row justify-between items-center gap-6 bg-gradient-to-br from-white via-white to-slate-50/50">
-                        <div className="flex items-center gap-5 w-full sm:w-auto">
-                          <div className="w-14 h-14 bg-primary/10 text-primary rounded-[1.25rem] flex items-center justify-center shrink-0">
-                            <Icon name="groups" size="lg" />
-                          </div>
-                          <div>
-                            <h4 className="text-xl font-black text-slate-900 tracking-tight">Danh sách khách mời</h4>
-                            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-[0.1em] mt-0.5">Quản lý {filteredAttendees.length} người tham gia</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 w-full sm:w-auto">
-                          <div className="relative flex-grow sm:w-64 group">
-                            <Icon name="search" size="xs" className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />
-                            <input
-                              type="text"
-                              placeholder="Tìm kiếm khách mời..."
-                              className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-100 focus:border-primary/30 focus:bg-white rounded-2xl text-sm font-bold outline-none transition-all placeholder:text-slate-300"
-                              value={searchTerm}
-                              onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                          </div>
-                          <button className="p-3.5 bg-white text-slate-400 hover:text-primary hover:border-primary/30 rounded-2xl shadow-sm border border-slate-200 transition-all hover:scale-105 active:scale-95 group" title="Tải xuống danh sách">
-                            <Icon name="download" size="sm" className="group-hover:translate-y-0.5 transition-transform" />
-                          </button>
-                        </div>
-                      </div>
+
 
                       {/* Redesigned Table/List */}
                       <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl shadow-slate-200/50 overflow-hidden relative">
