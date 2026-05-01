@@ -58,4 +58,9 @@ public class TicketController {
 
         return ResponseEntity.ok(dtos);
     }
+
+    @GetMapping("/statuses")
+    public ResponseEntity<List<String>> getStatuses() {
+        return ResponseEntity.ok(List.of("Tất cả", "Thanh toán thành công", "Đã check-in"));
+    }
 }

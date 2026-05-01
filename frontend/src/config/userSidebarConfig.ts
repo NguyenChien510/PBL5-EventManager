@@ -12,12 +12,6 @@ export const userSidebarConfig = {
         { to: '/reviews', label: 'Đánh giá', icon: 'rate_review' },
       ],
     },
-    {
-      title: 'Tài khoản',
-      links: [
-        { to: '/settings', label: 'Cài đặt', icon: 'settings' },
-      ],
-    },
   ],
   user: {
     name: 'Alex Nguyen',

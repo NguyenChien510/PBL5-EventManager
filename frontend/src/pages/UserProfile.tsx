@@ -6,6 +6,8 @@ import { Link } from 'react-router-dom'
 import { useAuthStore } from '../stores/useAuthStore'
 import { apiClient } from '../utils/axios'
 
+import { toast } from 'react-hot-toast'
+
 const sidebarConfig = userSidebarConfig
 
 const UserProfile = () => {
@@ -14,12 +16,72 @@ const UserProfile = () => {
   const [selectedTicket, setSelectedTicket] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('Tất cả')
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [showNameModal, setShowNameModal] = useState(false)
+  const [fullNameInput, setFullNameInput] = useState('')
+  const [nameLoading, setNameLoading] = useState(false)
+
+  useEffect(() => {
+    if (showNameModal && user) {
+      setFullNameInput(user.fullName || '')
+    }
+  }, [showNameModal, user])
+
+  const handleNameUpdate = async () => {
+    if (!fullNameInput.trim()) {
+      toast.error('Họ tên không được để trống')
+      return
+    }
+
+    try {
+      setNameLoading(true)
+      const res = await apiClient.post('/users/update-name', { fullName: fullNameInput })
+      setUser(res.data)
+      toast.success('Cập nhật họ tên thành công')
+      setShowNameModal(false)
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật họ tên')
+    } finally {
+      setNameLoading(false)
+    }
+  }
+
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  })
+  const [passwordLoading, setPasswordLoading] = useState(false)
+
+  const handlePasswordChange = async () => {
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      toast.error('Vui lòng điền đầy đủ thông tin')
+      return
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error('Mật khẩu xác nhận không khớp')
+      return
+    }
+
+    try {
+      setPasswordLoading(true)
+      await apiClient.post('/users/change-password', passwordForm)
+      toast.success('Đổi mật khẩu thành công')
+      setShowPasswordModal(false)
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi đổi mật khẩu')
+    } finally {
+      setPasswordLoading(false)
+    }
+  }
+
+  const [statuses, setStatuses] = useState<string[]>([])
 
   const filteredTickets = tickets.filter(t => {
     if (activeTab === 'Tất cả') return true
-    if (activeTab === 'Sắp tới') return t.status === 'active' || t.status === 'pending'
-    if (activeTab === 'Đã sử dụng') return t.status === 'used'
-    if (activeTab === 'Đã hủy') return t.status === 'cancelled'
+    if (activeTab === 'Thanh toán thành công') return t.status === 'active' || t.status === 'paid' || t.status === 'pending'
+    if (activeTab === 'Đã check-in') return t.status === 'checked_in' || t.status === 'used'
     return true
   })
 
@@ -35,12 +97,14 @@ const UserProfile = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [userRes, ticketsRes] = await Promise.all([
+        const [userRes, ticketsRes, statusesRes] = await Promise.all([
           apiClient.get('/users/me'),
-          apiClient.get('/tickets/my')
+          apiClient.get('/tickets/my'),
+          apiClient.get('/tickets/statuses')
         ])
         setUser(userRes.data)
         setTickets(ticketsRes.data)
+        setStatuses(statusesRes.data)
       } catch (err) {
         console.error('Error fetching profile data:', err)
       } finally {
@@ -50,16 +114,8 @@ const UserProfile = () => {
     fetchData()
   }, [])
 
-  const getMembershipTier = (pts: number) => {
-    if (pts >= 15000) return { label: 'Hạng Kim Cương', icon: 'diamond' }
-    if (pts >= 5000) return { label: 'Hạng Vàng', icon: 'military_tech' }
-    return { label: 'Hạng Chuẩn', icon: 'stars' }
-  }
-
-  const tier = getMembershipTier(user?.loyaltyPoints || 0)
-
   useEffect(() => {
-    if (selectedTicket) {
+    if (showPasswordModal || selectedTicket || showNameModal) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = 'unset'
@@ -67,7 +123,15 @@ const UserProfile = () => {
     return () => {
       document.body.style.overflow = 'unset'
     }
-  }, [selectedTicket])
+  }, [showPasswordModal, selectedTicket, showNameModal])
+
+  const getMembershipTier = (pts: number) => {
+    if (pts >= 15000) return { label: 'Hạng Kim Cương', icon: 'diamond' }
+    if (pts >= 5000) return { label: 'Hạng Vàng', icon: 'military_tech' }
+    return { label: 'Hạng Chuẩn', icon: 'stars' }
+  }
+
+  const tier = getMembershipTier(user?.loyaltyPoints || 0)
 
   if (loading) {
     return (
@@ -103,16 +167,17 @@ const UserProfile = () => {
 
         <div className="px-8 lg:px-12 pb-12 space-y-6">
           {/* Profile Card + Points */}
-          <section className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-stretch">
+          <section className="grid grid-cols-1 xl:grid-cols-12 gap-12">
             {/* Profile Info */}
             <div className="xl:col-span-7 bg-white rounded-3xl p-4 lg:p-5 shadow-sm border border-slate-100 flex flex-col md:flex-row items-center md:items-start gap-5 relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-48 h-48 bg-slate-50 rounded-full blur-3xl -mr-24 -mt-24 opacity-50 group-hover:bg-primary/5 transition-colors duration-700" />
-              
+
               <div className="relative shrink-0">
                 <Avatar src={user?.avatar || sidebarConfig.user.avatar} size="xl" className="w-24 h-24 lg:w-28 lg:h-28 rounded-[1.5rem] shadow-xl border-4 border-white ring-1 ring-slate-100 object-cover" />
-                <div className="absolute -bottom-1 -right-1 bg-primary p-1.5 rounded-xl shadow-lg border-2 border-white animate-bounce-subtle">
-                  <Icon name="verified" className="text-white text-[10px]" filled />
-                </div>
+                <label className="absolute -bottom-2 -right-2 w-10 h-10 bg-primary text-white rounded-xl shadow-lg border-2 border-white flex items-center justify-center cursor-pointer hover:scale-110 active:scale-95 transition-all">
+                  <Icon name="camera_alt" size="sm" />
+                  <input type="file" className="hidden" accept="image/*" onChange={(e) => {/* Handle upload */ }} />
+                </label>
               </div>
 
               <div className="flex-1 flex flex-col justify-between h-full text-center md:text-left py-2">
@@ -123,18 +188,30 @@ const UserProfile = () => {
                       <Icon name={tier.icon} size="sm" className="scale-75" /> {tier.label}
                     </div>
                   </div>
-                  <p className="text-xs font-semibold text-slate-400 mb-6 flex items-center justify-center md:justify-start gap-4">
-                    <span className="flex items-center gap-1.5"><Icon name="mail" size="sm" className="opacity-60" /> {user?.email}</span>
+                  <p className="text-xs text-slate-400 mb-6 flex flex-col md:flex-row items-center justify-center md:justify-start gap-1 md:gap-4">
+                    <span className="flex items-center gap-1.5 font-bold text-slate-800"><Icon name="mail" size="sm" className="opacity-90" /> {user?.email}</span>
                     <span className="w-1.5 h-1.5 bg-slate-200 rounded-full hidden md:block" />
-                    <span className="flex items-center gap-1.5"><Icon name="calendar_today" size="sm" className="opacity-60" /> Tham gia {user?.createdAt ? new Date(user.createdAt).getFullYear() : '2024'}</span>
+                    <span className="flex items-center gap-1.5 font-bold text-slate-800"><Icon name="calendar_today" size="sm" className="opacity-60" /> Tham gia {user?.createdAt ? new Date(user.createdAt).getFullYear() : '2026'}</span>
                   </p>
+
+                  <div className="flex items-center justify-center md:justify-start gap-3">
+                    <button
+                      onClick={() => setShowNameModal(true)}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 text-slate-700 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-primary hover:text-white transition-all shadow-sm hover:shadow-primary/20 group/name"
+                    >
+                      <Icon name="edit" size="sm" className="group-hover/name:scale-110 transition-transform" />
+                      Sửa tên
+                    </button>
+                    <button
+                      onClick={() => setShowPasswordModal(true)}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-primary transition-all shadow-lg shadow-slate-900/10 hover:shadow-primary/20 group/pw"
+                    >
+                      <Icon name="lock" size="sm" className="group-hover/pw:rotate-12 transition-transform" />
+                      Đổi mật khẩu
+                    </button>
+                  </div>
                 </div>
-
               </div>
-
-              <button className="absolute top-8 right-8 p-3 bg-slate-50 text-slate-400 rounded-2xl hover:bg-slate-900 hover:text-white transition-all shadow-sm hidden md:flex items-center gap-2 group-hover:scale-105">
-                <Icon name="settings" size="sm" />
-              </button>
             </div>
 
             {/* Points Card */}
@@ -143,9 +220,9 @@ const UserProfile = () => {
               <div className="absolute bottom-0 left-0 p-6 opacity-10 scale-125 rotate-12 transition-transform group-hover:scale-150 duration-1000">
                 <Icon name="loyalty" className="text-white text-[80px]" />
               </div>
-              
+
               <div className="relative z-10">
-                <p className="text-white/60 text-[10px] font-black uppercase tracking-[0.3em] mb-2">Điểm thưởng hiện có</p>
+                <p className="text-white text-[18px] font-black uppercase mb-2">Điểm thưởng hiện có</p>
                 <div className="flex items-baseline gap-1.5">
                   <h4 className="text-4xl font-black text-white tracking-tighter tabular-nums drop-shadow-md">{(user?.loyaltyPoints || 0).toLocaleString()}</h4>
                   <span className="text-sm font-bold text-white/50 uppercase tracking-widest">pts</span>
@@ -163,27 +240,41 @@ const UserProfile = () => {
           {/* Tickets */}
           <section className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <h3 className="text-xl font-bold text-slate-800 tracking-tight">Vé của tôi</h3>
-                <span className="px-2.5 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-black rounded-full uppercase">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-8 bg-primary rounded-full shadow-[0_0_15px_rgba(var(--primary-rgb),0.4)]" />
+                  <h3 className="text-2xl font-black text-slate-900 tracking-tight">Vé của tôi</h3>
+                </div>
+                <div className="flex items-center justify-center min-w-[32px] h-8 px-2.5 bg-primary/10 border border-primary/20 text-primary text-xs font-black rounded-xl shadow-sm">
                   {tickets.length}
-                </span>
+                </div>
               </div>
-              
-              <div className="flex items-center gap-1 bg-slate-100/50 p-1 rounded-xl self-start">
-                {['Tất cả', 'Sắp tới', 'Đã sử dụng', 'Đã hủy'].map((tab) => (
-                  <button 
-                    key={tab} 
-                    onClick={() => setActiveTab(tab)}
-                    className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${
-                      activeTab === tab 
-                      ? 'bg-white text-primary shadow-sm ring-1 ring-slate-100' 
-                      : 'text-slate-400 hover:text-slate-600'
-                    }`}
-                  >
-                    {tab}
-                  </button>
-                ))}
+
+              <div className="flex items-center gap-2 bg-slate-100/80 p-1.5 rounded-2xl self-start backdrop-blur-md border border-slate-200/50 shadow-sm">
+                {statuses.map((tab) => {
+                  const getIcon = (name: string) => {
+                    switch (name) {
+                      case 'Tất cả': return 'apps'
+                      case 'Thanh toán thành công': return 'verified'
+                      case 'Đã check-in': return 'qr_code_scanner'
+                      default: return 'filter_list'
+                    }
+                  }
+                  const isActive = activeTab === tab
+                  return (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all duration-300 ${isActive
+                        ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-105'
+                        : 'text-slate-500 hover:bg-white hover:text-primary'
+                        }`}
+                    >
+                      <Icon name={getIcon(tab)} size="sm" filled={isActive} />
+                      {tab}
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
@@ -192,83 +283,81 @@ const UserProfile = () => {
                 const ticketsInOrder = groupedTickets[orderId]
                 const firstTicket = ticketsInOrder[0]
                 const seatList = ticketsInOrder.map(t => t.seat).join(', ')
-                
+
                 return (
-                  <div 
-                    key={orderId} 
+                  <div
+                    key={orderId}
                     onClick={() => setSelectedTicket(ticketsInOrder)}
-                    className="group bg-white rounded-[2.5rem] p-5 flex flex-col md:flex-row gap-8 border border-slate-100 hover:border-primary/20 hover:shadow-2xl hover:shadow-primary/5 transition-all cursor-pointer relative overflow-hidden"
+                    className="group bg-white rounded-[2.5rem] p-4 md:p-5 flex flex-col md:flex-row gap-6 md:gap-8 border border-slate-100 hover:border-primary/20 hover:shadow-2xl hover:shadow-primary/10 transition-all cursor-pointer relative overflow-hidden"
                   >
                     {/* Left: Poster & Badges */}
-                    <div className="w-full md:w-32 h-44 flex-shrink-0 rounded-3xl overflow-hidden relative shadow-lg">
+                    <div className="w-full md:w-72 h-44 flex-shrink-0 rounded-[2rem] overflow-hidden relative shadow-xl bg-slate-100">
                       <img src={firstTicket.image} alt={firstTicket.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                      <div className="absolute bottom-3 left-0 right-0 text-center">
-                        <span className="px-3 py-1 bg-white/20 backdrop-blur-md border border-white/30 text-[9px] font-black text-white rounded-full uppercase tracking-widest">
+                      <div className="absolute bottom-4 left-0 right-0 text-center">
+                        <span className="px-4 py-1.5 bg-white/20 backdrop-blur-md border border-white/30 text-[10px] font-black text-white rounded-full uppercase tracking-[0.15em]">
                           {ticketsInOrder.length} Vé
                         </span>
                       </div>
                     </div>
 
                     {/* Right: Info */}
-                    <div className="flex-1 flex flex-col justify-between py-1">
+                    <div className="flex-1 flex flex-col justify-center py-1">
                       <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                            <span className="text-[10px] font-black text-slate-400 tracking-[0.2em] uppercase">Đơn hàng #{orderId}</span>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse" />
+                            <span className="text-xs font-black text-slate-900 uppercase">ĐƠN HÀNG #{orderId}</span>
                           </div>
-                          <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                            firstTicket.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
-                          }`}>
-                            {firstTicket.status === 'active' ? 'Sẵn sàng' : 'Chờ xử lý'}
+                          <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm border ${firstTicket.status === 'paid' || firstTicket.status === 'active'
+                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                            : firstTicket.status === 'checked_in' || firstTicket.status === 'used'
+                              ? 'bg-blue-50 text-blue-600 border-blue-100'
+                              : 'bg-amber-50 text-amber-600 border-amber-100'
+                            }`}>
+                            {firstTicket.status === 'paid' || firstTicket.status === 'active'
+                              ? 'Thanh toán thành công'
+                              : firstTicket.status === 'checked_in' || firstTicket.status === 'used'
+                                ? 'Đã check-in'
+                                : 'Đang xử lý'}
                           </span>
                         </div>
-                        
-                        <h4 className="text-lg font-black text-slate-900 leading-tight mb-4 group-hover:text-primary transition-colors">
+
+                        <h4 className="text-xl md:text-2xl font-black text-slate-900 leading-tight mb-3 group-hover:text-primary transition-colors">
                           {firstTicket.title}
                         </h4>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-8">
-                          <div className="flex items-center gap-3 text-slate-500">
-                            <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center">
-                              <Icon name="calendar_today" size="sm" className="text-slate-400" />
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-10">
+                          <div className="flex items-center gap-4 text-slate-500">
+                            <div className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center border border-slate-100">
+                              <Icon name="calendar_today" className="text-slate-400" />
                             </div>
                             <div>
-                              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Thời gian</p>
-                              <p className="text-[10px] font-black text-slate-800">{firstTicket.date}</p>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Thời gian</p>
+                              <p className="text-sm font-black text-slate-800 tabular-nums">{firstTicket.date}</p>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-3 text-slate-500">
-                            <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center">
-                              <Icon name="event_seat" size="sm" className="text-slate-400" />
+                          <div className="flex items-center gap-4 text-slate-500">
+                            <div className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center border border-slate-100">
+                              <Icon name="event_seat" className="text-slate-400" />
                             </div>
                             <div>
-                              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Vị trí ghế</p>
-                              <p className="text-[10px] font-black text-primary truncate max-w-[150px]">{seatList}</p>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Vị trí ghế</p>
+                              <p className="text-sm font-black text-primary truncate max-w-[200px]">{seatList}</p>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-3 text-slate-500 md:col-span-2">
-                            <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center">
-                              <Icon name="location_on" size="sm" className="text-slate-400" />
+                          <div className="flex items-center gap-4 text-slate-500 md:col-span-2">
+                            <div className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center border border-slate-100">
+                              <Icon name="location_on" className="text-slate-400" />
                             </div>
                             <div>
-                              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Địa điểm</p>
-                              <p className="text-[10px] font-bold text-slate-700 truncate max-w-[350px]">{firstTicket.location}</p>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Địa điểm</p>
+                              <p className="text-sm font-bold text-slate-700 line-clamp-1">{firstTicket.location}</p>
                             </div>
                           </div>
                         </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between pt-5 mt-4 border-t border-dashed border-slate-100">
-                         <div className="flex items-center gap-3 group/btn">
-                            <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center group-hover/btn:bg-primary transition-colors">
-                              <Icon name="qr_code_2" size="sm" className="text-primary group-hover/btn:text-white transition-colors" />
-                            </div>
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover/btn:text-primary">Xem tất cả mã vé →</span>
-                         </div>
                       </div>
                     </div>
 
@@ -293,12 +382,12 @@ const UserProfile = () => {
       {selectedTicket && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/80 transition-opacity" onClick={() => setSelectedTicket(null)} />
-          
+
           <div className="relative bg-white w-full max-w-lg rounded-[2rem] overflow-hidden shadow-xl animate-in fade-in slide-in-from-bottom-4 duration-200">
             {/* Header with Close Button */}
             <div className="absolute top-4 right-4 z-20">
-              <button 
-                onClick={() => setSelectedTicket(null)} 
+              <button
+                onClick={() => setSelectedTicket(null)}
                 className="w-10 h-10 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 text-white backdrop-blur-sm transition-colors"
               >
                 <Icon name="close" size="sm" />
@@ -308,9 +397,9 @@ const UserProfile = () => {
             <div className="max-h-[85vh] overflow-y-auto overflow-x-hidden">
               {/* Simplified Event Header */}
               <div className="relative h-40">
-                <img 
-                  src={Array.isArray(selectedTicket) ? selectedTicket[0].image : selectedTicket.image} 
-                  className="w-full h-full object-cover" 
+                <img
+                  src={Array.isArray(selectedTicket) ? selectedTicket[0].image : selectedTicket.image}
+                  className="w-full h-full object-cover"
                   loading="lazy"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -326,8 +415,8 @@ const UserProfile = () => {
                 <div className="text-center bg-slate-50 p-6 rounded-2xl border border-slate-100">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Mã QR Đơn Hàng</p>
                   <div className="inline-block p-4 bg-white rounded-xl shadow-sm mb-4">
-                    <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${Array.isArray(selectedTicket) ? selectedTicket[0].orderQrCode : selectedTicket.orderQrCode}`} 
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${Array.isArray(selectedTicket) ? selectedTicket[0].orderQrCode : selectedTicket.orderQrCode}`}
                       alt="Order QR Code"
                       className="w-40 h-40"
                     />
@@ -366,6 +455,132 @@ const UserProfile = () => {
                 {/* Simplified Actions */}
                 <button className="w-full h-12 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-slate-800 transition-colors">
                   Tải PDF đơn hàng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Change Password Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setShowPasswordModal(false)} />
+
+          <div className="relative bg-white w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200 p-6">
+            <button
+              onClick={() => setShowPasswordModal(false)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+            >
+              <Icon name="close" size="sm" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Icon name="lock" className="text-primary" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">Đổi mật khẩu</h3>
+            </div>
+
+            <div className="space-y-5">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider ml-1">Mật khẩu hiện tại</label>
+                <input
+                  type="password"
+                  value={passwordForm.currentPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                  className="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-primary/20 transition-all text-slate-900 font-medium placeholder:text-slate-300"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider ml-1">Mật khẩu mới</label>
+                <input
+                  type="password"
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                  className="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-primary/20 transition-all text-slate-900 font-medium placeholder:text-slate-300"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider ml-1">Xác nhận mật khẩu mới</label>
+                <input
+                  type="password"
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                  className="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-primary/20 transition-all text-slate-900 font-medium placeholder:text-slate-300"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              <div className="pt-2 flex flex-col md:flex-row gap-3">
+                <button
+                  disabled={passwordLoading}
+                  className="flex-1 py-3.5 bg-primary text-white font-black rounded-xl shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95 uppercase tracking-widest text-[10px] disabled:opacity-50"
+                  onClick={handlePasswordChange}
+                >
+                  {passwordLoading ? 'Đang xử lý...' : 'Đổi mật khẩu'}
+                </button>
+                <button
+                  disabled={passwordLoading}
+                  className="flex-1 py-3.5 bg-slate-100 text-slate-500 font-black rounded-xl hover:bg-slate-200 transition-all active:scale-95 uppercase tracking-widest text-[10px]"
+                  onClick={() => setShowPasswordModal(false)}
+                >
+                  Hủy bỏ
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Change Name Modal */}
+      {showNameModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setShowNameModal(false)} />
+
+          <div className="relative bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200 p-6">
+            <button
+              onClick={() => setShowNameModal(false)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+            >
+              <Icon name="close" size="sm" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Icon name="edit" className="text-primary" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">Cập nhật họ tên</h3>
+            </div>
+
+            <div className="space-y-5">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider ml-1">Họ và tên mới</label>
+                <input
+                  type="text"
+                  value={fullNameInput}
+                  onChange={(e) => setFullNameInput(e.target.value)}
+                  className="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-primary/20 transition-all text-slate-900 font-medium placeholder:text-slate-300"
+                  placeholder="Nhập họ tên của bạn"
+                />
+              </div>
+
+              <div className="pt-2 flex flex-col md:flex-row gap-3">
+                <button
+                  disabled={nameLoading}
+                  className="flex-1 py-3.5 bg-primary text-white font-black rounded-xl shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95 uppercase tracking-widest text-[10px] disabled:opacity-50"
+                  onClick={handleNameUpdate}
+                >
+                  {nameLoading ? 'Đang cập nhật...' : 'Lưu thay đổi'}
+                </button>
+                <button
+                  disabled={nameLoading}
+                  className="flex-1 py-3.5 bg-slate-100 text-slate-500 font-black rounded-xl hover:bg-slate-200 transition-all active:scale-95 uppercase tracking-widest text-[10px]"
+                  onClick={() => setShowNameModal(false)}
+                >
+                  Hủy bỏ
                 </button>
               </div>
             </div>
