@@ -190,7 +190,7 @@ const Homepage = () => {
       ? nearbyMapEvents
       : nearbyMapEvents.filter(event => event.provinceName === selectedProvince)
 
-  const featuredEventsFromDb = upcomingEvents.slice(0, 3).map((event) => {
+  const featuredEventsFromDb = upcomingEvents.slice(0, 4).map((event) => {
     const dateObj = new Date(event.startTime)
     const validDate = !Number.isNaN(dateObj.getTime())
     const formatVnd = (value?: number) =>
@@ -410,7 +410,7 @@ const Homepage = () => {
             Xem tất cả <Icon name="arrow_forward" size="sm" />
           </Link>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {visibleFeaturedEvents.length > 0 ? (
             visibleFeaturedEvents.map((event, i) => (
               <Link key={event.id || i} to={`/event/${event.id}`}>

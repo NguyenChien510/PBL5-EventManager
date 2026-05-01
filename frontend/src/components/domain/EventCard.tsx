@@ -56,28 +56,28 @@ const EventCard: React.FC<EventCardProps> = ({
       </div>
 
       {/* Content */}
-      <div className="p-5 flex-1 flex flex-col">
-        <h3 className="font-bold text-slate-900 mb-2 line-clamp-2 group-hover:text-primary transition-colors">{title}</h3>
+      <div className="p-4 flex-1 flex flex-col">
+        <h3 className="font-bold text-slate-900 text-sm mb-1.5 line-clamp-2 group-hover:text-primary transition-colors leading-tight">{title}</h3>
 
-        <div className="space-y-2 mb-4 flex-1">
-          <div className="flex items-center gap-2 text-slate-500 text-sm">
-            <Icon name="calendar_today" size="sm" className="text-primary" />
-            <span>{date} • {time}</span>
+        <div className="space-y-1.5 mb-3 flex-1">
+          <div className="flex items-center gap-1.5 text-slate-500 text-[11px]">
+            <Icon name="calendar_today" size="xs" className="text-primary" />
+            <span className="font-medium">{date} • {time}</span>
           </div>
-          <div className="flex items-center gap-2 text-slate-500 text-sm">
-            <Icon name="location_on" size="sm" className="text-primary" />
-            <span className="truncate">{location}</span>
+          <div className="flex items-center gap-1.5 text-slate-500 text-[11px]">
+            <Icon name="location_on" size="xs" className="text-primary" />
+            <span className="truncate font-medium">{location}</span>
           </div>
         </div>
 
         {/* Ticket availability */}
         {ticketsLeft !== undefined && totalTickets && (
-          <div className="mb-4">
-            <div className="flex justify-between text-xs mb-1">
+          <div className="mb-3">
+            <div className="flex justify-between text-[10px] mb-1">
               <span className="text-slate-500">Còn {ticketsLeft} vé</span>
               <span className="font-bold text-primary">{Math.round(ticketPercent)}%</span>
             </div>
-            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
               <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${ticketPercent}%` }} />
             </div>
           </div>
@@ -86,14 +86,14 @@ const EventCard: React.FC<EventCardProps> = ({
         {/* Footer */}
         <div className="flex items-center justify-between pt-3 border-t border-slate-100">
           <div>
-            <p className="text-[10px] text-slate-400 uppercase tracking-wider">Từ</p>
-            <p className="text-lg font-extrabold text-primary">{price}</p>
+            <p className="text-[9px] text-slate-400 uppercase tracking-widest leading-none mb-0.5">Từ</p>
+            <p className="text-base font-black text-primary">{price}</p>
           </div>
           <button
             onClick={onBuyClick}
-            className="px-5 py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-blue-600 transition-colors shadow-sm flex items-center gap-2"
+            className="px-4 py-2 bg-primary text-white text-[10px] font-black rounded-xl hover:bg-blue-600 transition-all hover:scale-105 active:scale-95 shadow-sm flex items-center gap-1.5"
           >
-            <Icon name="confirmation_number" size="sm" />
+            <Icon name="confirmation_number" size="xs" />
             Mua vé
           </button>
         </div>

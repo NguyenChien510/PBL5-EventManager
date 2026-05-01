@@ -233,7 +233,7 @@ public class EventService {
 
     @Transactional(readOnly = true)
     public List<UpcomingEventCardDTO> getUpcomingEventsForHomepage() {
-        return searchEvents("", null, "Tất cả khu vực", null, null, "Tất cả thời gian", "Mới nhất").stream().limit(3)
+        return searchEvents("", null, "Tất cả khu vực", null, null, "Tất cả thời gian", "Mới nhất").stream().limit(4)
                 .toList();
     }
 
