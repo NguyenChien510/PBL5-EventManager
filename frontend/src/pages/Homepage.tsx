@@ -32,6 +32,8 @@ interface NearbyMapEvent {
   location: string
   date: string
   provinceName: string
+  image?: string
+  time?: string
 }
 
 const provinceFallbackCoords: Record<string, { lat: number; lng: number }> = {
@@ -91,6 +93,12 @@ const Homepage = () => {
       return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
     }
 
+    const toDisplayTime = (isoDateTime: string) => {
+      const date = new Date(isoDateTime)
+      if (Number.isNaN(date.getTime())) return '--:--'
+      return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+    }
+
     const getFallbackCoords = (provinceName?: string, location?: string) => {
       if (provinceName && provinceFallbackCoords[provinceName]) {
         return provinceFallbackCoords[provinceName]
@@ -141,7 +149,9 @@ const Homepage = () => {
               lng,
               location: event.location,
               date: toDisplayDate(event.startTime),
+              time: toDisplayTime(event.startTime),
               provinceName: event.provinceName || '',
+              image: event.posterUrl,
             } as NearbyMapEvent
           })
         )
