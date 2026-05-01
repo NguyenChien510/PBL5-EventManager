@@ -15,12 +15,15 @@ const EventExplore = () => {
 
   const [minPrice, setMinPrice] = useState<number>(0);
   const [maxPrice, setMaxPrice] = useState<number>(3000000);
-  
+
   const { categories, fetchCategories } = useCategoryStore()
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | 'all'>('all');
-  
   const { provinces, fetchProvinces } = useLocationStore()
   const [searchParams] = useSearchParams();
+
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | 'all'>(
+    searchParams.get('categoryId') ? Number(searchParams.get('categoryId')) : 'all'
+  );
+
   const [searchQuery, setSearchQuery] = useState(searchParams.get('keyword') || '');
   const [selectedProvince, setSelectedProvince] = useState(searchParams.get('province') || 'Chọn khu vực');
   const [isLocationOpen, setIsLocationOpen] = useState(false);
@@ -29,7 +32,7 @@ const EventExplore = () => {
   const [selectedDate, setSelectedDate] = useState(searchParams.get('date') || 'Tất cả thời gian');
   const [isDateOpen, setIsDateOpen] = useState(false);
   const dateRef = useRef<HTMLDivElement>(null);
-  
+
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const [selectedSort, setSelectedSort] = useState(sorts[0]);
   const sortRef = useRef<HTMLDivElement>(null);
@@ -107,7 +110,9 @@ const EventExplore = () => {
                   key={cat.id}
                   onClick={() => setSelectedCategoryId(cat.id as any)}
                   className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-sm font-medium ${
-                    selectedCategoryId === cat.id ? 'bg-primary/5 text-primary font-bold' : 'text-slate-500 hover:bg-slate-50'
+                    selectedCategoryId === cat.id 
+                      ? 'bg-primary/15 text-primary font-black' 
+                      : 'text-slate-500 hover:bg-slate-50'
                   }`}
                 >
                   {cat.color ? (
@@ -132,20 +137,20 @@ const EventExplore = () => {
                 <span className="text-slate-400">-</span>
                 <span>{new Intl.NumberFormat('vi-VN', { notation: 'standard' }).format(maxPrice)}đ{maxPrice >= 3000000 ? '+' : ''}</span>
               </div>
-              
+
               <div className="relative h-1.5 bg-slate-200 rounded-full flex items-center touch-none">
-                <div 
+                <div
                   className="absolute h-full bg-primary rounded-full pointer-events-none"
-                  style={{ 
-                    left: `${(minPrice / 3000000) * 100}%`, 
-                    right: `${100 - (maxPrice / 3000000) * 100}%` 
+                  style={{
+                    left: `${(minPrice / 3000000) * 100}%`,
+                    right: `${100 - (maxPrice / 3000000) * 100}%`
                   }}
                 />
-                
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="3000000" 
+
+                <input
+                  type="range"
+                  min="0"
+                  max="3000000"
                   step="100000"
                   value={minPrice}
                   onChange={(e) => {
@@ -154,11 +159,11 @@ const EventExplore = () => {
                   }}
                   className="absolute w-full h-1.5 opacity-0 appearance-none pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer z-20"
                 />
-                
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="3000000" 
+
+                <input
+                  type="range"
+                  min="0"
+                  max="3000000"
                   step="100000"
                   value={maxPrice}
                   onChange={(e) => {
@@ -168,31 +173,31 @@ const EventExplore = () => {
                   className="absolute w-full h-1.5 opacity-0 appearance-none pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer z-30"
                 />
 
-                <div 
+                <div
                   className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-[3px] border-primary rounded-full shadow-md z-10 pointer-events-none"
                   style={{ left: `calc(${(minPrice / 3000000) * 100}% - 8px)` }}
                 />
-                
-                <div 
+
+                <div
                   className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-[3px] border-primary rounded-full shadow-md z-10 pointer-events-none"
                   style={{ left: `calc(${(maxPrice / 3000000) * 100}% - 8px)` }}
                 />
               </div>
 
               <div className="flex gap-3">
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   value={minPrice}
                   onChange={(e) => setMinPrice(Number(e.target.value))}
-                  placeholder="Từ" 
-                  className="flex-1 w-0 px-3 py-2.5 bg-white border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl text-sm font-semibold transition-all outline-none" 
+                  placeholder="Từ"
+                  className="flex-1 w-0 px-3 py-2.5 bg-white border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl text-sm font-semibold transition-all outline-none"
                 />
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   value={maxPrice}
                   onChange={(e) => setMaxPrice(Number(e.target.value))}
-                  placeholder="Đến" 
-                  className="flex-1 w-0 px-3 py-2.5 bg-white border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl text-sm font-semibold transition-all outline-none" 
+                  placeholder="Đến"
+                  className="flex-1 w-0 px-3 py-2.5 bg-white border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl text-sm font-semibold transition-all outline-none"
                 />
               </div>
             </div>
@@ -215,16 +220,15 @@ const EventExplore = () => {
                     className="w-full bg-transparent text-[13px] md:text-sm text-slate-800 placeholder:text-slate-400 outline-none border-none focus:outline-none focus:ring-0"
                   />
                 </div>
-                
+
                 <div className="hidden md:block h-8 w-px bg-slate-100 my-auto mx-2" />
-                
+
                 {/* Province Selector */}
                 <div className="relative" ref={locationRef}>
-                  <button 
+                  <button
                     onClick={() => setIsLocationOpen(!isLocationOpen)}
-                    className={`h-full flex items-center justify-between gap-2 px-4 py-2 rounded-full border text-[13px] md:text-sm font-bold transition-all min-w-[160px] ${
-                      isLocationOpen ? 'bg-white border-primary text-primary shadow-sm' : 'bg-slate-50/50 border-slate-100 text-slate-700 hover:bg-white hover:border-slate-200'
-                    }`}
+                    className={`h-full flex items-center justify-between gap-2 px-4 py-2 rounded-full border text-[13px] md:text-sm font-bold transition-all min-w-[160px] ${isLocationOpen ? 'bg-white border-primary text-primary shadow-sm' : 'bg-slate-50/50 border-slate-100 text-slate-700 hover:bg-white hover:border-slate-200'
+                      }`}
                   >
                     <div className="flex items-center gap-2">
                       <Icon name="location_on" className="text-primary" />
@@ -232,7 +236,7 @@ const EventExplore = () => {
                     </div>
                     <Icon name={isLocationOpen ? "expand_less" : "expand_more"} size="sm" className="text-slate-400" />
                   </button>
-                  
+
                   {isLocationOpen && (
                     <div className="absolute top-full left-0 mt-3 w-full max-h-64 overflow-y-auto bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-100 py-2 z-[100] text-left ring-1 ring-slate-200/50">
                       <button
@@ -246,9 +250,8 @@ const EventExplore = () => {
                         <button
                           key={province.id}
                           onClick={() => { setSelectedProvince(province.name); setIsLocationOpen(false); }}
-                          className={`w-full px-4 py-3 text-sm transition-all font-semibold border-t border-slate-50 flex items-center justify-between group ${
-                            selectedProvince === province.name ? 'bg-primary/5 text-primary' : 'text-slate-600 hover:bg-slate-50 hover:text-primary'
-                          }`}
+                          className={`w-full px-4 py-3 text-sm transition-all font-semibold border-t border-slate-50 flex items-center justify-between group ${selectedProvince === province.name ? 'bg-primary/5 text-primary' : 'text-slate-600 hover:bg-slate-50 hover:text-primary'
+                            }`}
                         >
                           {province.name}
                           {selectedProvince === province.name && <Icon name="check" size="sm" className="text-primary" />}
@@ -259,14 +262,13 @@ const EventExplore = () => {
                 </div>
 
                 <div className="hidden md:block h-8 w-px bg-slate-100 my-auto mx-2" />
-                
+
                 {/* Date Selector */}
                 <div className="relative" ref={dateRef}>
-                  <button 
+                  <button
                     onClick={() => setIsDateOpen(!isDateOpen)}
-                    className={`h-full flex items-center justify-between gap-2 px-5 py-2.5 rounded-full border text-[13px] md:text-sm font-bold transition-all group active:scale-95 ${
-                      isDateOpen ? 'bg-white border-primary text-primary' : 'bg-slate-50/50 border-slate-100 text-slate-700 hover:bg-white hover:border-slate-200'
-                    }`}
+                    className={`h-full flex items-center justify-between gap-2 px-5 py-2.5 rounded-full border text-[13px] md:text-sm font-bold transition-all group active:scale-95 ${isDateOpen ? 'bg-white border-primary text-primary' : 'bg-slate-50/50 border-slate-100 text-slate-700 hover:bg-white hover:border-slate-200'
+                      }`}
                   >
                     <Icon name="event" className={`text-primary transition-transform ${isDateOpen ? 'scale-110' : ''}`} />
                     <span className="whitespace-nowrap">{selectedDate}</span>
@@ -279,9 +281,8 @@ const EventExplore = () => {
                         <button
                           key={option}
                           onClick={() => { setSelectedDate(option); setIsDateOpen(false); }}
-                          className={`w-full px-4 py-3 text-sm transition-all font-semibold flex items-center justify-between group ${
-                            selectedDate === option ? 'bg-primary/5 text-primary' : 'text-slate-600 hover:bg-slate-50 hover:text-primary'
-                          }`}
+                          className={`w-full px-4 py-3 text-sm transition-all font-semibold flex items-center justify-between group ${selectedDate === option ? 'bg-primary/5 text-primary' : 'text-slate-600 hover:bg-slate-50 hover:text-primary'
+                            }`}
                         >
                           {option}
                           {selectedDate === option && <Icon name="check" size="sm" className="text-primary" />}
@@ -289,8 +290,8 @@ const EventExplore = () => {
                       ))}
                       <div className="border-t border-slate-50 px-4 py-2 mt-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">Hoặc chọn ngày cụ thể</label>
-                        <input 
-                          type="date" 
+                        <input
+                          type="date"
                           className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-600 outline-none focus:border-primary transition-colors"
                           onChange={(e) => {
                             if (e.target.value) {
@@ -318,9 +319,9 @@ const EventExplore = () => {
             <h2 className="text-2xl font-extrabold text-slate-900">Khám phá sự kiện</h2>
             <div className="flex items-center gap-4">
               <span className="text-sm font-medium text-slate-500 hidden sm:block">{eventsData.length} sự kiện</span>
-              
+
               <div className="relative" ref={sortRef}>
-                <button 
+                <button
                   onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
                   className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:border-primary/50 hover:bg-slate-50 rounded-xl text-sm font-semibold text-slate-700 transition-all shadow-sm focus:outline-none focus:ring-4 focus:ring-primary/10"
                 >
@@ -328,18 +329,17 @@ const EventExplore = () => {
                   {selectedSort}
                   <Icon name={isSortDropdownOpen ? "expand_less" : "expand_more"} size="sm" className="text-slate-400 ml-1 transition-transform" />
                 </button>
-                
+
                 {isSortDropdownOpen && (
                   <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 z-50 transform opacity-100 scale-100 transition-all origin-top-right">
                     {sorts.map((sortOption) => (
                       <button
                         key={sortOption}
                         onClick={() => { setSelectedSort(sortOption); setIsSortDropdownOpen(false); }}
-                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                          selectedSort === sortOption 
-                            ? 'bg-primary/5 text-primary font-bold' 
+                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${selectedSort === sortOption
+                            ? 'bg-primary/5 text-primary font-bold'
                             : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
-                        }`}
+                          }`}
                       >
                         {sortOption}
                       </button>
@@ -365,7 +365,7 @@ const EventExplore = () => {
 
                 return (
                   <Link key={evt.id} to={`/event/${evt.id}`} className="block">
-                    <EventCard 
+                    <EventCard
                       image={evt.posterUrl || "https://lh3.googleusercontent.com/aida-public/AB6AXuApE_m_Gd_KRyYuWTES2LUgR5Rnhp5h2U15s-sNclVbmb8EHbXTWT9qG7sBCU0LqeQ_jvPWfy_oRFMgHFTHqf-Zr1izZqyCJYRv1EzbJv827rXQd0NBAxYshSBFqEHblTSZ9_DWvjvZbSBgqg9B2mU_oX_8F_f43SC4wi8AiFhElE68UcqOFFj4y3Crh93Ah7AEFud5lJ9StCF6htKxztl-Q4iDBjqh8m_PRYEBXYQUMe0P3XDAonsjZhRxfDYng6svCTMAKfXMFn8"}
                       title={evt.title}
                       date={dateStr}

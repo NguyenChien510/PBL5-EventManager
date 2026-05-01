@@ -433,7 +433,7 @@ const Homepage = () => {
             {categories.map((cat) => (
               <Link
                 key={cat.id || cat.name}
-                to="/explore"
+                to={`/explore?categoryId=${cat.id}`}
                 className="rounded-2xl p-5 border border-slate-100 bg-gradient-to-b from-white to-slate-50/30 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col items-center gap-3 group"
               >
                 <div

@@ -164,7 +164,7 @@ const EventDetail = () => {
   const [ticketTypes, setTicketTypes] = useState<any[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
+  const [viewMode, setViewMode] = useState<'calendar' | 'list'>('list');
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -176,6 +176,9 @@ const EventDetail = () => {
           ]);
           setEvent(eventData);
           setTicketTypes(ticketsData);
+          if (eventData.sessions && eventData.sessions.length > 0) {
+            setSelectedSessionId(eventData.sessions[0].id);
+          }
         }
       } catch (error) {
         console.error('Failed to fetch event:', error);
@@ -222,14 +225,6 @@ const EventDetail = () => {
             <Link to="/explore" className="flex items-center gap-2 text-white/80 hover:text-white transition-colors">
               <Icon name="arrow_back" /> <span className="text-sm font-medium">Quay lại</span>
             </Link>
-            <div className="flex items-center gap-3">
-              <button className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white/20">
-                <Icon name="favorite_border" />
-              </button>
-              <button className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white/20">
-                <Icon name="share" />
-              </button>
-            </div>
           </div>
         </div>
 
