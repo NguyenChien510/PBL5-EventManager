@@ -156,7 +156,7 @@ const OrganizerDashboard = () => {
               </div>
 
               {eventsList.length > 0 ? (
-                <div className="overflow-x-auto">
+                <div className="overflow-hidden px-2 pb-2">
                   <table className="w-full text-left">
                     <thead>
                       <tr className="border-b border-slate-100">
@@ -171,8 +171,8 @@ const OrganizerDashboard = () => {
                         .slice(0, 3)
                         .map((evt: any) => {
                           return (
-                            <tr key={evt.id} className="hover:bg-slate-50/50 transition-colors group">
-                              <td className="p-4">
+                            <tr key={evt.id} className="hover:bg-slate-50/50 transition-all duration-300 group hover:scale-[1.01] origin-center relative z-0 hover:z-10 cursor-pointer">
+                              <td className="p-4 border-l-4 border-transparent group-hover:border-indigo-600 transition-all duration-300">
                                 <div className="flex items-center gap-3">
                                   <img src={evt.posterUrl || 'https://via.placeholder.com/150'} alt={evt.title} className="w-10 h-10 rounded-xl object-cover shadow-sm border border-slate-200" />
                                   <div>
