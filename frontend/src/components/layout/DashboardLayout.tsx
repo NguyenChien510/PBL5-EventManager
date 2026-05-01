@@ -15,7 +15,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ sidebarProps, childre
     user: user ? {
       name: user.fullName,
       role: user.role?.name?.replace('ROLE_', '') || 'User',
-      avatar: user.avatar
+      avatar: user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullName)}&background=random`
     } : undefined
   }
 

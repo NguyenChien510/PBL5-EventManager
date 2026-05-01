@@ -27,4 +27,9 @@ public class CommentController {
     public ResponseEntity<List<CommentDTO>> getOrganizerComments(@PathVariable java.util.UUID organizerId) {
         return ResponseEntity.ok(commentService.getCommentsByOrganizer(organizerId));
     }
+
+    @GetMapping("/my")
+    public ResponseEntity<List<CommentDTO>> getMyComments() {
+        return ResponseEntity.ok(commentService.getCommentsByCurrentUser());
+    }
 }

@@ -1,5 +1,8 @@
 package com.pbl.pbl.service;
 
+import java.io.IOException;
+import org.springframework.web.multipart.MultipartFile;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -41,6 +44,9 @@ public class UserService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private CloudinaryService cloudinaryService;
 
     public UserDTO getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -106,6 +112,24 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
         log.info("Password changed successfully for user: {}", email);
+    }
+
+    @Transactional
+    public UserDTO updateAvatar(MultipartFile file) throws IOException {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw UnauthorizedException.notAuthenticated();
+        }
+
+        String email = authentication.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException(email, "email"));
+
+        String avatarUrl = cloudinaryService.uploadFile(file, "avatars");
+        user.setAvatar(avatarUrl);
+        User updatedUser = userRepository.save(user);
+        log.info("Avatar updated for user: {}", email);
+        return userMapper.toDto(updatedUser);
     }
 
     public java.util.List<UserDTO> getAllUsers() {

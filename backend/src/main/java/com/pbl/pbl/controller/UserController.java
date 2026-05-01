@@ -14,6 +14,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import com.pbl.pbl.dto.PasswordChangeRequestDTO;
 
 import com.pbl.pbl.dto.UpdateNameRequestDTO;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
@@ -40,8 +44,14 @@ public class UserController {
         return ResponseEntity.ok("Mật khẩu đã được thay đổi thành công");
     }
 
+    @PostMapping("/upload-avatar")
+    public ResponseEntity<UserDTO> uploadAvatar(@RequestParam("file") MultipartFile file) throws IOException {
+        UserDTO updatedUser = userService.updateAvatar(file);
+        return ResponseEntity.ok(updatedUser);
+    }
+
     @GetMapping("/all")
-    public ResponseEntity<java.util.List<UserDTO>> getAllUsers() {
+    public ResponseEntity<List<UserDTO>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
     }
 

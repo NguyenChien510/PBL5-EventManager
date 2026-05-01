@@ -7,6 +7,9 @@ import { useAuthStore } from '../stores/useAuthStore'
 import { apiClient } from '../utils/axios'
 
 import { toast } from 'react-hot-toast'
+import Cropper from 'react-easy-crop'
+import { getCroppedImg } from '../utils/cropImage'
+import { useCallback } from 'react'
 
 const sidebarConfig = userSidebarConfig
 
@@ -18,6 +21,14 @@ const UserProfile = () => {
   const [activeTab, setActiveTab] = useState('Tất cả')
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [showNameModal, setShowNameModal] = useState(false)
+
+  // Crop States
+  const [tempImage, setTempImage] = useState<string | null>(null)
+  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null)
+  const [showCropModal, setShowCropModal] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [fullNameInput, setFullNameInput] = useState('')
   const [nameLoading, setNameLoading] = useState(false)
 
@@ -92,6 +103,51 @@ const UserProfile = () => {
       toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi đổi mật khẩu')
     } finally {
       setPasswordLoading(false)
+    }
+  }
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.addEventListener('load', () => {
+      setTempImage(reader.result as string)
+      setShowCropModal(true)
+    })
+    reader.readAsDataURL(file)
+  }
+
+  const onCropComplete = useCallback((_: any, croppedAreaPixels: any) => {
+    setCroppedAreaPixels(croppedAreaPixels)
+  }, [])
+
+  const handleUploadCroppedImage = async () => {
+    if (!tempImage || !croppedAreaPixels || isUploading) return
+
+    try {
+      setIsUploading(true)
+      const toastId = toast.loading('Đang xử lý và tải ảnh lên...', { id: 'avatar-upload' })
+      
+      const croppedImageBlob = await getCroppedImg(tempImage, croppedAreaPixels)
+      const file = new File([croppedImageBlob], 'avatar.jpg', { type: 'image/jpeg' })
+
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const res = await apiClient.post('/users/upload-avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      
+      setUser(res.data)
+      setShowCropModal(false)
+      setTempImage(null)
+      toast.success('Cập nhật ảnh đại diện thành công', { id: 'avatar-upload' })
+    } catch (err: any) {
+      console.error('Avatar upload failed:', err)
+      toast.error('Không thể tải ảnh lên. Vui lòng thử lại sau.', { id: 'avatar-upload' })
+    } finally {
+      setIsUploading(false)
     }
   }
 
@@ -187,10 +243,15 @@ const UserProfile = () => {
               <div className="absolute top-0 right-0 w-48 h-48 bg-slate-50 rounded-full blur-3xl -mr-24 -mt-24 opacity-50 group-hover:bg-primary/5 transition-colors duration-700" />
 
               <div className="relative shrink-0">
-                <Avatar src={user?.avatar || sidebarConfig.user.avatar} size="xl" className="w-24 h-24 lg:w-28 lg:h-28 rounded-[1.5rem] shadow-xl border-4 border-white ring-1 ring-slate-100 object-cover" />
-                <label className="absolute -bottom-2 -right-2 w-10 h-10 bg-primary text-white rounded-xl shadow-lg border-2 border-white flex items-center justify-center cursor-pointer hover:scale-110 active:scale-95 transition-all">
+                <Avatar 
+                  key={user?.avatar}
+                  src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.fullName || 'User')}&background=random`} 
+                  size="xl" 
+                  className="w-24 h-24 lg:w-28 lg:h-28 rounded-[1.5rem] shadow-xl border-4 border-white ring-1 ring-slate-100 object-cover" 
+                />
+                <label htmlFor="avatar-upload" className="absolute -bottom-2 -right-2 w-10 h-10 bg-primary text-white rounded-xl shadow-lg border-2 border-white flex items-center justify-center cursor-pointer hover:scale-110 active:scale-95 transition-all">
                   <Icon name="camera_alt" size="sm" />
-                  <input type="file" className="hidden" accept="image/*" onChange={(e) => {/* Handle upload */ }} />
+                  <input id="avatar-upload" type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
                 </label>
               </div>
 
@@ -629,6 +690,98 @@ const UserProfile = () => {
                   onClick={() => setShowNameModal(false)}
                 >
                   Hủy bỏ
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Avatar Crop Modal */}
+      {showCropModal && tempImage && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-0 sm:p-6 overflow-hidden touch-none">
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity" onClick={(e) => e.stopPropagation()} />
+          <div className="relative bg-white w-full max-w-lg h-full sm:h-auto sm:rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-300">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white/80 backdrop-blur-md sticky top-0 z-10">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 leading-tight">Căn chỉnh ảnh</h3>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-0.5">Kéo để di chuyển, cuộn để phóng to</p>
+              </div>
+              <button 
+                onClick={() => setShowCropModal(false)} 
+                className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition-all active:scale-90"
+              >
+                <Icon name="close" size="sm" />
+              </button>
+            </div>
+            
+            <div className="relative flex-1 min-h-[300px] sm:min-h-[400px] bg-slate-950">
+              <Cropper
+                image={tempImage}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={onCropComplete}
+                cropShape="round"
+                showGrid={false}
+                classes={{
+                  containerClassName: 'bg-slate-950',
+                  mediaClassName: 'transition-none', // Disable transitions on media for smoothness during crop
+                }}
+              />
+            </div>
+
+            <div className="p-6 sm:p-8 space-y-6 bg-white shrink-0">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <Icon name="zoom_in" size="sm" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Phóng đại</span>
+                  </div>
+                  <span className="text-xs font-black text-primary tabular-nums">{Math.round(zoom * 100)}%</span>
+                </div>
+                <div className="relative h-6 flex items-center">
+                  <div className="absolute w-full h-1.5 bg-slate-100 rounded-full" />
+                  <div className="absolute h-1.5 bg-primary rounded-full" style={{ width: `${((zoom - 1) / 2) * 100}%` }} />
+                  <input
+                    type="range"
+                    value={zoom}
+                    min={1}
+                    max={3}
+                    step={0.01}
+                    onChange={(e) => setZoom(Number(e.target.value))}
+                    className="absolute w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  <div 
+                    className="absolute w-5 h-5 bg-white border-2 border-primary rounded-full shadow-md pointer-events-none transition-transform"
+                    style={{ left: `calc(${((zoom - 1) / 2) * 100}% - 10px)` }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowCropModal(false)}
+                  className="flex-1 py-4 bg-slate-50 text-slate-500 text-[11px] font-black rounded-2xl hover:bg-slate-100 transition-all active:scale-95 uppercase tracking-widest"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  onClick={handleUploadCroppedImage}
+                  disabled={isUploading}
+                  className="flex-[2] py-4 bg-primary text-white text-[11px] font-black rounded-2xl shadow-xl shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95 uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isUploading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Đang xử lý...</span>
+                    </div>
+                  ) : (
+                    <>
+                      Xác nhận <Icon name="check" size="sm" />
+                    </>
+                  )}
                 </button>
               </div>
             </div>

@@ -34,6 +34,16 @@ public class CommentService {
                 .collect(Collectors.toList());
     }
 
+    public List<CommentDTO> getCommentsByCurrentUser() {
+        String email = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        com.pbl.pbl.entity.User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return commentRepository.findByUserId(user.getId())
+                .stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
     private CommentDTO convertToDTO(Comment comment) {
         return CommentDTO.builder()
                 .id(comment.getId())

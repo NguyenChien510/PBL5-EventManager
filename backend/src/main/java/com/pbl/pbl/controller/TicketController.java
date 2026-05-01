@@ -53,6 +53,7 @@ public class TicketController {
                     .status(ticket.getStatus().name().toLowerCase())
                     .orderQrCode(ticket.getOrder() != null ? ticket.getOrder().getQrCode() : null)
                     .orderId(ticket.getOrder() != null ? ticket.getOrder().getId() : null)
+                    .eventId(event.getId())
                     .build();
         }).collect(Collectors.toList());
 

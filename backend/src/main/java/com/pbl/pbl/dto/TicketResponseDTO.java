@@ -21,4 +21,5 @@ public class TicketResponseDTO {
     private String status;
     private String orderQrCode;
     private Long orderId;
+    private Long eventId;
 }
