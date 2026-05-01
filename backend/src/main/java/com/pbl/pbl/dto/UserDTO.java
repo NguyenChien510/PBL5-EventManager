@@ -16,4 +16,7 @@ public class UserDTO {
     private String email;
     private String fullName;
     private RoleDTO role;
+    private Long loyaltyPoints;
+    private String avatar;
+    private java.time.Instant createdAt;
 }

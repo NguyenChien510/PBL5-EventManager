@@ -1,12 +1,23 @@
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 
 export default function PaymentResult() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const status = searchParams.get('status');
   const orderInfo = searchParams.get('orderInfo');
   const transactionId = searchParams.get('transactionId');
 
   const isSuccess = status === 'success';
+
+  useEffect(() => {
+    if (isSuccess) {
+      const timer = setTimeout(() => {
+        navigate('/tickets');
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [isSuccess, navigate]);
 
   return (
     <div className="min-h-screen pt-24 pb-12 flex flex-col items-center justify-center bg-slate-50 px-4">

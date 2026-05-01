@@ -6,6 +6,7 @@ export interface User {
   avatar?: string;
   createdAt?: string;
   updatedAt?: string;
+  loyaltyPoints?: number;
   role?: {
     name: string;
   };

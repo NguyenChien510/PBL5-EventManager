@@ -75,6 +75,8 @@ public class PaymentService {
                 .build();
 
         order = orderRepository.save(order);
+        order.setQrCode(java.util.UUID.randomUUID().toString().replace("-", "").toUpperCase());
+        order = orderRepository.save(order);
         List<Ticket> newTickets = new ArrayList<>();
 
         for (Long seatId : paymentDTO.getSeatIds()) {
@@ -105,6 +107,7 @@ public class PaymentService {
             // MoMo: Immediate success (Bypass for demo)
             order.setStatus(OrderStatus.COMPLETED);
             orderRepository.save(order);
+            awardPoints(order);
 
             if (newTickets != null && !newTickets.isEmpty()) {
                 com.pbl.pbl.entity.Event event = newTickets.get(0).getSeat().getEventSession().getEvent();
@@ -298,6 +301,7 @@ public class PaymentService {
                     if ("00".equals(request.getParameter("vnp_TransactionResponseCode"))) {
                         order.setStatus(OrderStatus.COMPLETED);
                         orderRepository.save(order);
+                        awardPoints(order);
 
                         if (order.getTickets() != null && !order.getTickets().isEmpty()) {
                             com.pbl.pbl.entity.Event event = order.getTickets().get(0).getSeat().getEventSession().getEvent();
@@ -377,6 +381,7 @@ public class PaymentService {
                     if ("0".equals(resultCode)) {
                         order.setStatus(OrderStatus.COMPLETED);
                         orderRepository.save(order);
+                        awardPoints(order);
 
                         if (order.getTickets() != null && !order.getTickets().isEmpty()) {
                             com.pbl.pbl.entity.Event event = order.getTickets().get(0).getSeat().getEventSession().getEvent();
@@ -405,12 +410,22 @@ public class PaymentService {
                         return 0; // Failed
                     }
                 }
+                return -1;
             } catch (NumberFormatException e) {
                 return -1;
             }
-            return -1;
         } else {
             return -2; // Signature fail
+        }
+    }
+
+    private void awardPoints(Order order) {
+        User user = order.getUser();
+        if (user != null) {
+            // Award 1% of the total amount as points
+            long pointsToAward = order.getTotalAmount().multiply(new BigDecimal("0.01")).longValue();
+            user.setLoyaltyPoints((user.getLoyaltyPoints() != null ? user.getLoyaltyPoints() : 0L) + pointsToAward);
+            userRepository.save(user);
         }
     }
 }

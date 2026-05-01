@@ -27,6 +27,9 @@ public class UserMapper {
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .role(roleDto)
+                .loyaltyPoints(user.getLoyaltyPoints())
+                .avatar(user.getAvatar())
+                .createdAt(user.getCreatedAt())
                 .build();
     }
 

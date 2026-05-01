@@ -45,6 +45,7 @@ public class OrderController {
                 .eventTitle(mainEvent != null ? mainEvent.getTitle() : "Unknown Event")
                 .eventPosterUrl(mainEvent != null ? mainEvent.getPosterUrl() : null)
                 .eventSessionId(mainSession != null ? mainSession.getId() : null)
+                .qrCode(order.getQrCode())
                 .tickets(order.getTickets().stream()
                         .map(ticket -> {
                             var seat = ticket.getSeat();

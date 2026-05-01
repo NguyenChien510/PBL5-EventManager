@@ -20,7 +20,8 @@ public class OrderDTO {
     private Long eventId;
     private String eventTitle;
     private String eventPosterUrl;
-    private Long eventSessionId; // Required to fetch the seat map for THIS specific session
+    private Long eventSessionId; 
+    private String qrCode;
     private List<TicketDetailDTO> tickets;
 
     @Data
@@ -31,6 +32,6 @@ public class OrderDTO {
         private String seatNumber;
         private BigDecimal price;
         private String sessionName;
-        private Long seatId; // To identify the seat in the full layout
+        private Long seatId; 
     }
 }

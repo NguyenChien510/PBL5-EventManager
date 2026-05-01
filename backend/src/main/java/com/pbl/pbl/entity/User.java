@@ -53,6 +53,13 @@ public class User {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(name = "loyalty_points", nullable = false)
+    private Long loyaltyPoints = 0L;
+
+    @Column(length = 255)
+    private String avatar;
+
+    @Builder.Default
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<RefreshToken> refreshTokens = new HashSet<>();
 
