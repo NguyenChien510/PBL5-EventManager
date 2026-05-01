@@ -266,14 +266,13 @@ const Homepage = () => {
                       />
                     </div>
                     <div className="hidden md:block h-10 w-px bg-slate-100 my-auto mx-2" />
-                    
+
                     {/* Province Selector */}
                     <div className="relative" ref={locationRef}>
-                      <button 
+                      <button
                         onClick={() => setIsLocationOpen(!isLocationOpen)}
-                        className={`h-full flex items-center justify-between gap-2 px-4 py-2 rounded-full border text-[13px] md:text-sm font-bold transition-all min-w-[160px] ${
-                          isLocationOpen ? 'bg-white border-sky-500 text-primary shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-white hover:border-sky-300'
-                        }`}
+                        className={`h-full flex items-center justify-between gap-2 px-4 py-2 rounded-full border text-[13px] md:text-sm font-bold transition-all min-w-[160px] ${isLocationOpen ? 'bg-white border-sky-500 text-primary shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-white hover:border-sky-300'
+                          }`}
                       >
                         <div className="flex items-center gap-2">
                           <Icon name="location_on" className="text-sky-500" />
@@ -281,7 +280,7 @@ const Homepage = () => {
                         </div>
                         <Icon name={isLocationOpen ? "expand_less" : "expand_more"} size="sm" className="text-slate-400" />
                       </button>
-                      
+
                       {isLocationOpen && (
                         <div className="absolute top-full left-0 mt-3 w-full max-h-64 overflow-y-auto bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-100 py-2 z-[100] text-left animate-slide-down ring-1 ring-slate-200/50">
                           <button
@@ -295,9 +294,8 @@ const Homepage = () => {
                             <button
                               key={province.id}
                               onClick={() => { setSelectedProvince(province.name); setIsLocationOpen(false); }}
-                              className={`w-full px-4 py-3 text-sm transition-all font-semibold border-t border-slate-50 flex items-center justify-between group ${
-                                selectedProvince === province.name ? 'bg-sky-50 text-primary' : 'text-slate-600 hover:bg-slate-50 hover:text-primary'
-                              }`}
+                              className={`w-full px-4 py-3 text-sm transition-all font-semibold border-t border-slate-50 flex items-center justify-between group ${selectedProvince === province.name ? 'bg-sky-50 text-primary' : 'text-slate-600 hover:bg-slate-50 hover:text-primary'
+                                }`}
                             >
                               {province.name}
                               {selectedProvince === province.name && <Icon name="check" size="sm" className="text-primary" />}
@@ -308,14 +306,13 @@ const Homepage = () => {
                     </div>
 
                     <div className="hidden md:block h-10 w-px bg-slate-100 my-auto mx-2" />
-                    
+
                     {/* Date Selector */}
                     <div className="relative" ref={dateRef}>
-                      <button 
+                      <button
                         onClick={() => setIsDateOpen(!isDateOpen)}
-                        className={`h-full flex items-center justify-between gap-2 px-5 py-2.5 rounded-full border text-[13px] md:text-sm font-bold transition-all group shadow-sm active:scale-95 ${
-                          isDateOpen ? 'bg-white border-sky-500 text-primary' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-white hover:border-sky-300'
-                        }`}
+                        className={`h-full flex items-center justify-between gap-2 px-5 py-2.5 rounded-full border text-[13px] md:text-sm font-bold transition-all group shadow-sm active:scale-95 ${isDateOpen ? 'bg-white border-sky-500 text-primary' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-white hover:border-sky-300'
+                          }`}
                       >
                         <Icon name="event" className={`text-sky-500 transition-transform ${isDateOpen ? 'scale-110' : ''}`} />
                         <span className="whitespace-nowrap">{selectedDate}</span>
@@ -328,9 +325,8 @@ const Homepage = () => {
                             <button
                               key={option}
                               onClick={() => { setSelectedDate(option); setIsDateOpen(false); }}
-                              className={`w-full px-4 py-3 text-sm transition-all font-semibold flex items-center justify-between group ${
-                                selectedDate === option ? 'bg-sky-50 text-primary' : 'text-slate-600 hover:bg-slate-50 hover:text-primary'
-                              }`}
+                              className={`w-full px-4 py-3 text-sm transition-all font-semibold flex items-center justify-between group ${selectedDate === option ? 'bg-sky-50 text-primary' : 'text-slate-600 hover:bg-slate-50 hover:text-primary'
+                                }`}
                             >
                               {option}
                               {selectedDate === option && <Icon name="check" size="sm" className="text-primary" />}
@@ -338,8 +334,8 @@ const Homepage = () => {
                           ))}
                           <div className="border-t border-slate-50 px-4 py-2 mt-1">
                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">Hoặc chọn ngày cụ thể</label>
-                            <input 
-                              type="date" 
+                            <input
+                              type="date"
                               className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-600 outline-none focus:border-sky-500 transition-colors"
                               onChange={(e) => {
                                 if (e.target.value) {
@@ -381,24 +377,24 @@ const Homepage = () => {
             </Link>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {categories.map((cat) => (
-            <Link
-              key={cat.id || cat.name}
-              to="/explore"
-              className="rounded-2xl p-5 border border-slate-100 bg-gradient-to-b from-white to-slate-50/30 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col items-center gap-3 group"
-            >
-              <div 
-                className="w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform"
-                style={{ backgroundColor: cat.color }}
+            {categories.map((cat) => (
+              <Link
+                key={cat.id || cat.name}
+                to="/explore"
+                className="rounded-2xl p-5 border border-slate-100 bg-gradient-to-b from-white to-slate-50/30 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col items-center gap-3 group"
               >
-                <div className="relative z-10">
-                  <Icon name={cat.icon} />
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform"
+                  style={{ backgroundColor: cat.color }}
+                >
+                  <div className="relative z-10">
+                    <Icon name={cat.icon} />
+                  </div>
                 </div>
-              </div>
 
-              <span className="text-sm font-bold text-slate-700">{cat.name}</span>
-            </Link>
-          ))}
+                <span className="text-sm font-bold text-slate-700">{cat.name}</span>
+              </Link>
+            ))}
           </div>
         </div>
       </section>

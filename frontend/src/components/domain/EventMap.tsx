@@ -91,17 +91,17 @@ const EventMap = ({ events }: EventMapProps) => {
   }, [mapInstance]);
 
   return (
-    <div className="w-full h-[450px] md:h-[550px] rounded-[3rem] overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.15)] border border-slate-200 z-0 relative group/map map-3d-container bg-slate-900">
+    <div className="w-full h-[450px] md:h-[550px] rounded-[2.5rem] overflow-hidden shadow-2xl shadow-slate-200 border border-slate-200 z-0 relative group/map">
       <MapContainer 
         center={[10.762622, 106.660172]} 
         zoom={13} 
         scrollWheelZoom={false} 
-        className="h-full w-full z-0 blue-map-filter"
+        className="h-full w-full z-0"
         ref={setMapInstance}
       >
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+          attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
         />
         <LocationMarker />
         {events.map((event) => (
