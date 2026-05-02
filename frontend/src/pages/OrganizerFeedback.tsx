@@ -162,12 +162,13 @@ const OrganizerFeedback = () => {
               style={{ animationDelay: `${100 + i * 50}ms`, animationFillMode: 'both' }}
             >
               <div className="flex flex-col md:flex-row gap-6">
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 relative">
+                  <div className="absolute -inset-2 bg-gradient-to-tr from-slate-100 to-transparent rounded-[2.5rem] opacity-0 group-hover/card:opacity-100 transition-opacity duration-700" />
                   <Avatar
                     src={review.user?.avatar}
                     alt={review.user?.fullName}
                     size="xl"
-                    className="rounded-3xl shadow-sm border-4 border-white group-hover/card:scale-105 transition-transform duration-500"
+                    className="rounded-[2rem] shadow-md border-4 border-white relative z-10 group-hover/card:scale-105 transition-transform duration-700"
                     fallback={review.user?.fullName?.substring(0, 2)}
                   />
                 </div>
@@ -202,8 +203,10 @@ const OrganizerFeedback = () => {
                     </div>
                   </div>
                 
-                <div className="relative mb-3">
-                  <p className="text-lg text-slate-900 font-bold leading-relaxed">{review.content}</p>
+                <div className="relative mb-6">
+                  <p className="text-xl text-slate-900 font-black leading-relaxed tracking-tight">
+                    {review.content}
+                  </p>
                 </div>
 
                   {review.images && review.images.length > 0 && (
@@ -252,14 +255,22 @@ const OrganizerFeedback = () => {
                     </div>
 
                     {review.reply ? (
-                      <div className="bg-slate-900 p-6 rounded-[2rem] space-y-3 relative overflow-hidden group/reply shadow-xl shadow-slate-900/10">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl bg-white/10 text-white flex items-center justify-center backdrop-blur-md">
-                            <Icon name="subdirectory_arrow_right" size="xs" />
-                          </div>
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Phản hồi từ Ban Tổ Chức</span>
+                      <div className="bg-slate-900/95 backdrop-blur-xl p-8 rounded-[2.5rem] space-y-4 relative overflow-hidden group/reply shadow-2xl shadow-slate-900/20 border border-white/10">
+                        <div className="absolute top-0 right-0 p-6 opacity-10">
+                          <Icon name="format_quote" size="xl" className="text-white rotate-180" />
                         </div>
-                        <p className="text-xs font-bold leading-relaxed text-white pl-11">{review.reply}</p>
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-2xl bg-white/10 text-white flex items-center justify-center border border-white/20 shadow-inner">
+                            <Icon name="auto_awesome" size="xs" filled />
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50 block mb-0.5">Official Response</span>
+                            <span className="text-[11px] font-black uppercase tracking-widest text-white">Ban Tổ Chức</span>
+                          </div>
+                        </div>
+                        <p className="text-sm font-medium leading-relaxed text-slate-200 pl-14 relative z-10 border-l-2 border-white/10 ml-5 py-1">
+                          {review.reply}
+                        </p>
                       </div>
                     ) : (
                       <div className="flex gap-2 bg-white p-1.5 rounded-[2rem] border-2 border-slate-900/10 focus-within:border-slate-900/30 focus-within:shadow-xl transition-all duration-500">
