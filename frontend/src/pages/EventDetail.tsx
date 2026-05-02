@@ -546,101 +546,100 @@ const EventDetail = () => {
                   comments.map((rev, i) => (
                     <div 
                       key={rev.id || i} 
-                      className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-500 group/card relative"
+                      className="bg-white p-6 sm:p-8 rounded-[3rem] border border-slate-100/80 shadow-sm hover:shadow-xl hover:shadow-slate-200/40 transition-all duration-500 group/card relative overflow-hidden"
                       style={{ animationDelay: `${(i % 5) * 100}ms` }}
                     >
-                      <div className="flex flex-col sm:flex-row gap-6">
-                        <Avatar 
-                          src={rev.user?.avatar} 
-                          alt={rev.user?.fullName} 
-                          size="xl" 
-                          className="rounded-[2rem] shadow-md group-hover/card:scale-105 transition-transform" 
-                          fallback={rev.user?.fullName?.substring(0, 2)}
-                        />
+                      <div className="flex gap-4 sm:gap-6">
+                        <div className="flex-shrink-0">
+                          <Avatar 
+                            src={rev.user?.avatar} 
+                            alt={rev.user?.fullName} 
+                            size="xl" 
+                            className="rounded-3xl shadow-sm border-4 border-white group-hover/card:scale-105 transition-transform duration-500" 
+                            fallback={rev.user?.fullName?.substring(0, 2)}
+                          />
+                        </div>
                         
-                        <div className="flex-1 space-y-4">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <h4 className="font-black text-slate-900 text-base flex items-center gap-2">
+                        <div className="flex-1 min-w-0 space-y-4">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-3">
+                              <h4 className="font-black text-slate-900 text-lg truncate">
                                 {rev.user?.fullName || 'Người dùng'}
-                                {rev.rating === 5 && (
-                                  <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-emerald-100">
-                                    <Icon name="verified" size="xs" /> Top Reviewer
-                                  </span>
-                                )}
                               </h4>
-                              <div className="flex items-center gap-3 mt-1">
-                                <div className="flex gap-0.5">
-                                  {[1, 2, 3, 4, 5].map(s => (
-                                    <Icon 
-                                      key={s} 
-                                      name="star" 
-                                      className={s <= rev.rating ? "text-yellow-400" : "text-slate-100"} 
-                                      size="xs" 
-                                      filled={s <= rev.rating}
-                                    />
-                                  ))}
-                                </div>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                  {rev.createdAt ? new Date(rev.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Vừa xong'}
+                              {rev.rating === 5 && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-xl text-[9px] font-black uppercase tracking-widest border border-emerald-100/50 shadow-sm shadow-emerald-100/20">
+                                  <Icon name="verified" size="xs" /> Top Reviewer
                                 </span>
-                              </div>
+                              )}
                             </div>
                             
+                            <div className="flex items-center gap-3">
+                              <div className="flex gap-0.5">
+                                {[1, 2, 3, 4, 5].map(s => (
+                                  <Icon 
+                                    key={s} 
+                                    name="star" 
+                                    className={s <= rev.rating ? "text-yellow-400" : "text-slate-100"} 
+                                    size="xs" 
+                                    filled={s <= rev.rating}
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
+                                {rev.createdAt ? new Date(rev.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Vừa xong'}
+                              </span>
+                            </div>
                           </div>
 
                           <div className="relative">
-                            <Icon name="format_quote" className="absolute -left-2 -top-2 text-slate-100 -z-10" size="xl" />
-                            <p className="text-sm text-slate-600 leading-relaxed font-medium pl-4">
+                            <p className="text-sm text-slate-600 leading-relaxed font-medium">
                               {rev.content}
                             </p>
                           </div>
                           
                           {/* Review Images */}
                           {rev.images && rev.images.filter(img => img && img.trim() !== "").length > 0 && (
-                            <div className="flex flex-wrap gap-4 pt-2">
+                            <div className="flex flex-wrap gap-3 pt-2">
                               {rev.images.filter(img => img && img.trim() !== "").map((img: string, idx: number) => (
                                 <div 
                                   key={idx} 
-                                  className="relative group/img overflow-hidden rounded-[1.5rem] border-2 border-white shadow-sm hover:shadow-lg transition-all"
+                                  className="relative group/img overflow-hidden rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-zoom-in"
+                                  onClick={() => setSelectedImageUrl(img)}
                                 >
                                   <img 
                                     src={img} 
                                     alt={`Review ${idx}`} 
-                                    className="w-24 h-24 sm:w-28 sm:h-28 object-cover transition-all duration-700 group-hover/img:scale-110 cursor-zoom-in"
-                                    onClick={() => setSelectedImageUrl(img)}
+                                    className="w-20 h-20 sm:w-24 sm:h-24 object-cover transition-all duration-700 group-hover/img:scale-110"
                                   />
-                                  <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/5 transition-colors pointer-events-none" />
+                                  <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/5 transition-colors" />
                                 </div>
                               ))}
                             </div>
                           )}
-
+ 
                           {/* Organizer Reply */}
                           {rev.reply && (
-                            <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 space-y-2 mt-4 relative overflow-hidden group/reply">
-                              <div className="flex items-center gap-2 mb-1">
-                                <div className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                            <div className="bg-slate-50/80 p-5 sm:p-6 rounded-[2.5rem] border border-slate-100/50 space-y-3 mt-6 relative overflow-hidden group/reply hover:bg-slate-50 transition-colors">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-7 h-7 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center shadow-sm border border-blue-100">
                                   <Icon name="reply" size="xs" />
                                 </div>
-                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Phản hồi từ Ban Tổ Chức</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Phản hồi từ Ban Tổ Chức</span>
                               </div>
-                              <p className="text-xs font-medium leading-relaxed text-slate-600">
+                              <p className="text-xs font-bold leading-relaxed text-slate-600 pl-9">
                                 {rev.reply}
                               </p>
                             </div>
                           )}
 
-                          <div className="flex items-center gap-6 pt-2 border-t border-slate-50">
-                            <button className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-primary transition-colors group/btn">
-                              <Icon name="thumb_up" size="xs" className="group-hover/btn:-translate-y-0.5 transition-transform" />
-                              <span>Hữu ích (12)</span>
-                            </button>
-                            <button className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-primary transition-colors">
-                              <Icon name="chat" size="xs" />
-                              <span>Phản hồi</span>
-                            </button>
-                          </div>
+                          {rev.isLikedByOrganizer && (
+                            <div className="flex pt-2">
+                              <div className="flex items-center gap-2 text-rose-500 bg-rose-50/80 px-4 py-1.5 rounded-2xl border border-rose-100/50 animate-in zoom-in-95 duration-500 shadow-sm shadow-rose-100/20 group/heart">
+                                <Icon name="favorite" size="xs" filled className="group-hover/heart:scale-125 transition-transform" />
+                                <span className="text-[9px] font-black uppercase tracking-widest">BTC đã thích</span>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

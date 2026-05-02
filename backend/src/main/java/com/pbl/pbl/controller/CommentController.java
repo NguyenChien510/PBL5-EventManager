@@ -42,4 +42,9 @@ public class CommentController {
     public ResponseEntity<CommentDTO> replyToComment(@PathVariable Long commentId, @org.springframework.web.bind.annotation.RequestBody String reply) {
         return ResponseEntity.ok(commentService.replyToComment(commentId, reply));
     }
+
+    @org.springframework.web.bind.annotation.PostMapping("/{commentId}/toggle-like")
+    public ResponseEntity<CommentDTO> toggleLike(@PathVariable Long commentId) {
+        return ResponseEntity.ok(commentService.toggleLike(commentId));
+    }
 }

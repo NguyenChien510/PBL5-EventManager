@@ -21,4 +21,5 @@ public class CommentDTO {
     private java.util.List<String> images;
     private UserDTO user;
     private String reply;
+    private Boolean isLikedByOrganizer;
 }

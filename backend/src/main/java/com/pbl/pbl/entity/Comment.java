@@ -53,4 +53,8 @@ public class Comment {
 
     @Column(columnDefinition = "TEXT")
     private String reply; // Organizer's reply
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean isLikedByOrganizer = false;
 }

@@ -115,6 +115,11 @@ export class EventService {
     return response.data;
   }
 
+  static async toggleLikeComment(commentId: number) {
+    const response = await apiClient.post(`/comments/${commentId}/toggle-like`);
+    return response.data;
+  }
+
   static async uploadImage(file: File) {
     const formData = new FormData();
     formData.append('file', file);

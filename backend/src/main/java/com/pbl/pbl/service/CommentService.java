@@ -58,6 +58,7 @@ public class CommentService {
                 .collect(Collectors.toList());
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public CommentDTO createComment(CommentDTO dto) {
         String email = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         com.pbl.pbl.entity.User user = userRepository.findByEmail(email)
@@ -76,6 +77,11 @@ public class CommentService {
                 .build();
 
         comment = commentRepository.save(comment);
+
+        // Add 100 loyalty points for feedback
+        user.setLoyaltyPoints((user.getLoyaltyPoints() == null ? 0 : user.getLoyaltyPoints()) + 100L);
+        userRepository.save(user);
+
         return convertToDTO(comment);
     }
 
@@ -85,6 +91,15 @@ public class CommentService {
         
         // In a real app, verify that the current user is the organizer of the event
         comment.setReply(replyContent);
+        comment = commentRepository.save(comment);
+        return convertToDTO(comment);
+    }
+
+    public CommentDTO toggleLike(Long commentId) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("Comment not found"));
+        
+        comment.setIsLikedByOrganizer(comment.getIsLikedByOrganizer() == null ? true : !comment.getIsLikedByOrganizer());
         comment = commentRepository.save(comment);
         return convertToDTO(comment);
     }
@@ -101,6 +116,7 @@ public class CommentService {
                 .images(comment.getImages() != null ? java.util.Arrays.asList(comment.getImages().split(",")) : java.util.Collections.emptyList())
                 .user(userMapper.toDto(comment.getUser()))
                 .reply(comment.getReply())
+                .isLikedByOrganizer(comment.getIsLikedByOrganizer())
                 .build();
     }
 }

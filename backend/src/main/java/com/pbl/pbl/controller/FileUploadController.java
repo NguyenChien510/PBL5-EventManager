@@ -36,4 +36,17 @@ public class FileUploadController {
             return ResponseEntity.status(500).body("Upload failed: " + e.getMessage());
         }
     }
+
+    @PostMapping("/multiple")
+    public ResponseEntity<?> uploadMultipleFiles(@RequestParam("files") MultipartFile[] files) {
+        try {
+            java.util.List<String> urls = new java.util.ArrayList<>();
+            for (MultipartFile file : files) {
+                urls.add(cloudinaryService.uploadFile(file, "reviews"));
+            }
+            return ResponseEntity.ok(urls);
+        } catch (IOException e) {
+            return ResponseEntity.status(500).body("Upload failed: " + e.getMessage());
+        }
+    }
 }
