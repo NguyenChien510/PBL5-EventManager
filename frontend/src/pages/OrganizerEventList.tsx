@@ -37,7 +37,7 @@ const OrganizerEventList = () => {
   const fetchDashboardData = async (page: number, status?: string) => {
     setLoading(true)
     try {
-      const data = await EventService.getOrganizerDashboard(page, 5, status)
+      const data = await EventService.getOrganizerDashboard(page, 3, status)
       setStats({
         totalEvents: data.totalEvents,
         totalTicketsSold: data.totalTicketsSold,
