@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Icon, StatCard, Loader } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig'
@@ -13,6 +14,10 @@ interface OrderDTO {
   status: string;
   purchaseDate: string;
   eventTitle: string;
+  userName?: string;
+  userEmail?: string;
+  eventId?: number;
+  eventPosterUrl?: string;
 }
 
 const OrganizerFinance = () => {
@@ -20,6 +25,7 @@ const OrganizerFinance = () => {
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [chartData, setChartData] = useState<number[]>(Array(12).fill(0))
+  const navigate = useNavigate()
   const itemsPerPage = 5
 
   useEffect(() => {
@@ -158,7 +164,7 @@ const OrganizerFinance = () => {
             <table className="w-full text-left whitespace-nowrap">
               <thead>
                 <tr className="bg-slate-50/50">
-                  {['Mã GD', 'Sự kiện', 'Tổng thu', 'Phí nền tảng', 'Thực nhận', 'Ngày', 'Trạng thái'].map((h) => (
+                  {['Mã GD', 'Sự kiện', 'Khách hàng', 'Tổng thu', 'Phí nền tảng', 'Thực nhận', 'Ngày', 'Trạng thái'].map((h) => (
                     <th key={h} className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">{h}</th>
                   ))}
                 </tr>
@@ -166,7 +172,7 @@ const OrganizerFinance = () => {
               <tbody className="divide-y divide-slate-50">
                 {orders.length === 0 && !loading && (
                   <tr>
-                    <td colSpan={7} className="p-12 text-center text-slate-400 font-bold text-sm italic">Chưa có giao dịch nào phát sinh</td>
+                    <td colSpan={8} className="p-12 text-center text-slate-400 font-bold text-sm italic">Chưa có giao dịch nào phát sinh</td>
                   </tr>
                 )}
                 {paginatedOrders.map((tx) => {
@@ -175,7 +181,33 @@ const OrganizerFinance = () => {
                   return (
                     <tr key={tx.id} className="hover:bg-indigo-50/30 transition-colors group">
                       <td className="p-6 text-xs font-bold text-slate-400 font-mono">#{tx.id}</td>
-                      <td className="p-6 text-sm font-black text-slate-800 tracking-tight">{tx.eventTitle}</td>
+                      <td className="p-6">
+                        <div 
+                          className="flex items-center gap-3 cursor-pointer group/event"
+                          onClick={() => {
+                            if (tx.eventId) {
+                              navigate(`/organizer/events/${tx.eventId}/manage`, { state: { tab: 'finance' } });
+                            }
+                          }}
+                        >
+                          <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-100 shrink-0 border border-slate-200">
+                            {tx.eventPosterUrl ? (
+                              <img src={tx.eventPosterUrl} alt={tx.eventTitle} className="w-full h-full object-cover group-hover/event:scale-110 transition-transform duration-500" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Icon name="event" className="text-slate-400" size="sm" />
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-sm font-black text-slate-800 tracking-tight group-hover/event:text-primary transition-colors max-w-[200px] truncate" title={tx.eventTitle}>
+                            {tx.eventTitle}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-6">
+                        <p className="text-sm font-black text-slate-900 group-hover:text-primary transition-colors">{tx.userName || 'Ẩn danh'}</p>
+                        <p className="text-[10px] text-slate-400 font-bold">{tx.userEmail || ''}</p>
+                      </td>
                       <td className="p-6 text-sm font-black whitespace-nowrap text-emerald-600">{formatCurrency(tx.totalAmount)}</td>
                       <td className="p-6 text-sm font-bold whitespace-nowrap text-rose-500">-{formatCurrency(txFee)}</td>
                       <td className="p-6 text-sm font-black whitespace-nowrap text-indigo-600">{formatCurrency(txNet)}</td>

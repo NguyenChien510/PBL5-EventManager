@@ -95,6 +95,11 @@ export class EventService {
     return response.data;
   }
 
+  static async getEventOrders(id: string | number) {
+    const response = await apiClient.get(`/organizer/events/${id}/manage/orders`);
+    return response.data;
+  }
+
   static async checkInTicket(ticketId: number, checkedIn: boolean) {
     const response = await apiClient.patch(`/organizer/tickets/${ticketId}/check-in?checkedIn=${checkedIn}`);
     return response.data;

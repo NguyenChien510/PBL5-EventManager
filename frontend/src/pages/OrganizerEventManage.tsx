@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { DashboardLayout, PageHeader } from '../components/layout';
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig';
 import { Icon, Loader } from '../components/ui';
@@ -46,12 +46,16 @@ const RosterCard = ({ shift }: any) => (
 
 const OrganizerEventManage = () => {
   const { id } = useParams<{ id: string }>();
-  const [activeTab, setActiveTab] = useState<'overview' | 'guests' | 'finance' | 'feedback' | 'edit'>('overview');
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState<'overview' | 'guests' | 'finance' | 'feedback' | 'edit'>(
+    (location.state as any)?.tab || 'overview'
+  );
   const [event, setEvent] = useState<any>(null);
   const [stats, setStats] = useState<ManageStats | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [seats, setSeats] = useState<any[]>([]);
   const [comments, setComments] = useState<any[]>([]);
+  const [eventOrders, setEventOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [guestViewMode, setGuestViewMode] = useState<'list' | 'seats'>('list');
@@ -195,18 +199,20 @@ const OrganizerEventManage = () => {
     if (!id) return;
     setLoading(true);
     try {
-      const [eventData, statsData, attendeesData, seatsData, commentsData] = await Promise.all([
+      const [eventData, statsData, attendeesData, seatsData, commentsData, ordersData] = await Promise.all([
         EventService.getEventById(id),
         EventService.getEventManageStats(id),
         EventService.getEventAttendees(id),
         EventService.getEventSeats(id),
-        EventService.getEventComments(id)
+        EventService.getEventComments(id),
+        EventService.getEventOrders(id)
       ]);
       setEvent(eventData);
       setStats(statsData);
       setAttendees(attendeesData);
       setSeats(seatsData || []);
       setComments(commentsData || []);
+      setEventOrders(ordersData || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -1117,10 +1123,10 @@ const OrganizerEventManage = () => {
                         >
                           <Icon name="chevron_left" size="xs" />
                         </button>
-                        <span className="text-[10px] font-black text-white/90 min-w-[32px] text-center">{transactionPage} / {Math.ceil(filteredAttendees.length / transactionsPerPage) || 1}</span>
+                        <span className="text-[10px] font-black text-white/90 min-w-[32px] text-center">{transactionPage} / {Math.ceil(eventOrders.length / transactionsPerPage) || 1}</span>
                         <button
-                          onClick={() => setTransactionPage(p => Math.min(Math.ceil(filteredAttendees.length / transactionsPerPage), p + 1))}
-                          disabled={transactionPage >= Math.ceil(filteredAttendees.length / transactionsPerPage)}
+                          onClick={() => setTransactionPage(p => Math.min(Math.ceil(eventOrders.length / transactionsPerPage), p + 1))}
+                          disabled={transactionPage >= Math.ceil(eventOrders.length / transactionsPerPage)}
                           className="w-7 h-7 flex items-center justify-center hover:bg-white hover:text-primary rounded-lg disabled:opacity-20 transition-all active:scale-90"
                         >
                           <Icon name="chevron_right" size="xs" />
@@ -1133,34 +1139,72 @@ const OrganizerEventManage = () => {
                           <tr className="bg-blue-50 text-[10px] font-black text-blue-400 uppercase tracking-[0.15em] border-b border-blue-100">
                             <th className="p-5">Mã GD</th>
                             <th className="p-5">Khách hàng</th>
+                            <th className="p-5">Số ghế</th>
                             <th className="p-5">Thời gian</th>
                             <th className="p-5">Số tiền</th>
+                            <th className="p-5">Thuế hệ thống</th>
+                            <th className="p-5">Thực nhận</th>
+                            <th className="p-5">Phương thức</th>
                             <th className="p-5">Trạng thái</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50 font-medium">
-                          {filteredAttendees
+                          {eventOrders
                             .slice((transactionPage - 1) * transactionsPerPage, transactionPage * transactionsPerPage)
-                            .map((a, i) => (
-                              <tr key={i} className="text-sm hover:bg-blue-50/30 transition-all group animate-in fade-in slide-in-from-left duration-500" style={{ animationDelay: `${i * 100}ms` }}>
+                            .map((order: any, i: number) => (
+                              <tr key={order.id} className="text-sm hover:bg-blue-50/30 transition-all group animate-in fade-in slide-in-from-left duration-500" style={{ animationDelay: `${i * 100}ms` }}>
                                 <td className="p-5" >
-                                  <span className="font-mono text-xs text-blue-400 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 group-hover:bg-white transition-colors">TX-{1000 + (transactionPage - 1) * transactionsPerPage + i}</span>
+                                  <span className="font-mono text-xs text-blue-400 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 group-hover:bg-white transition-colors">#{order.id}</span>
                                 </td>
                                 <td className="p-5" >
-                                  <p className="font-black text-slate-900 group-hover:text-primary transition-colors">{a.userName}</p>
-                                  <p className="text-[10px] text-slate-400 font-bold">{a.userEmail}</p>
+                                  <p className="font-black text-slate-900 group-hover:text-primary transition-colors">{order.userName}</p>
+                                  <p className="text-[10px] text-slate-400 font-bold">{order.userEmail}</p>
+                                </td>
+                                <td className="p-5">
+                                  <div className="flex flex-wrap gap-1 max-w-[200px]">
+                                    {(order.tickets || []).map((ticket: any) => {
+                                      const isVip = ticket.ticketTypeName?.toLowerCase().includes('vip');
+                                      return (
+                                        <span key={ticket.id} className={`px-2 py-0.5 rounded text-xs font-bold border ${isVip ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                                          {isVip && <span className="mr-0.5">⭐</span>}{ticket.seatNumber}
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
                                 </td>
                                 <td className="p-5 text-xs text-slate-500 font-bold">
-                                  {new Date(a.purchaseDate).toLocaleString('vi-VN', {
+                                  {new Date(order.purchaseDate).toLocaleString('vi-VN', {
                                     day: '2-digit', month: '2-digit', year: 'numeric',
                                     hour: '2-digit', minute: '2-digit'
                                   })}
                                 </td>
                                 <td className="p-5" >
-                                  <span className="font-black text-emerald-600 text-base">+{formatCurrency(250000)}</span>
+                                  <span className="font-black text-slate-800 text-sm">{formatCurrency(order.totalAmount)}</span>
                                 </td>
                                 <td className="p-5" >
-                                  <span className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-emerald-100 shadow-sm">Thành công</span>
+                                  <span className="font-bold text-red-500 text-xs">-{formatCurrency(order.platformFee || 0)}</span>
+                                </td>
+                                <td className="p-5" >
+                                  <span className="font-black text-emerald-600 text-base">+{formatCurrency((order.totalAmount || 0) - (order.platformFee || 0))}</span>
+                                </td>
+                                <td className="p-5">
+                                  <div className="flex items-center gap-2">
+                                    {order.paymentMethod?.toLowerCase().includes('momo') ? (
+                                      <img src="https://developers.momo.vn/v3/assets/images/MOMO-Logo-App-6262c3743a290ef02396a24ea2b66c35.png" alt="MoMo" className="w-5 h-5 rounded-md object-cover" />
+                                    ) : (
+                                      <img src="https://vnpay.vn/s1/statics.vnpay.vn/2023/9/06ncktiwd6dc1694418196384.png" alt="VNPAY" className="w-5 h-5 rounded-md object-contain" />
+                                    )}
+                                    <span className="text-xs font-bold text-slate-700">{order.paymentMethod || 'VNPAY'}</span>
+                                  </div>
+                                </td>
+                                <td className="p-5" >
+                                  {order.status === 'COMPLETED' ? (
+                                    <span className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-emerald-100 shadow-sm">Thành công</span>
+                                  ) : order.status === 'PENDING' ? (
+                                    <span className="px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-amber-100 shadow-sm">Chờ xử lý</span>
+                                  ) : (
+                                    <span className="px-3 py-1.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-red-100 shadow-sm">{order.status}</span>
+                                  )}
                                 </td>
                               </tr>
                             ))}

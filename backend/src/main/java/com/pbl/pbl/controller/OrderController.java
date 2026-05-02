@@ -60,6 +60,7 @@ public class OrderController {
                                     .price(type != null ? type.getPrice() : java.math.BigDecimal.ZERO)
                                     .sessionName(session != null ? session.getName() : "N/A")
                                     .seatId(seat != null ? seat.getId() : null)
+                                    .ticketTypeName(type != null ? type.getName() : "N/A")
                                     .build();
                         })
                         .collect(Collectors.toList()))

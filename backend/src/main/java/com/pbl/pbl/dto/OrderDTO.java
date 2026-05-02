@@ -32,6 +32,7 @@ public class OrderDTO {
         private String seatNumber;
         private BigDecimal price;
         private String sessionName;
-        private Long seatId; 
+        private Long seatId;
+        private String ticketTypeName;
     }
 }
