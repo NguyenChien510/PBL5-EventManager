@@ -79,6 +79,16 @@ public class CommentService {
         return convertToDTO(comment);
     }
 
+    public CommentDTO replyToComment(Long commentId, String replyContent) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("Comment not found"));
+        
+        // In a real app, verify that the current user is the organizer of the event
+        comment.setReply(replyContent);
+        comment = commentRepository.save(comment);
+        return convertToDTO(comment);
+    }
+
     private CommentDTO convertToDTO(Comment comment) {
         return CommentDTO.builder()
                 .id(comment.getId())
@@ -90,6 +100,7 @@ public class CommentService {
                 .eventThumbnail(comment.getEvent().getPosterUrl())
                 .images(comment.getImages() != null ? java.util.Arrays.asList(comment.getImages().split(",")) : java.util.Collections.emptyList())
                 .user(userMapper.toDto(comment.getUser()))
+                .reply(comment.getReply())
                 .build();
     }
 }

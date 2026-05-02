@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
 import { EventService } from '../services/eventService'
 import { Icon } from '../components/ui'
+import Avatar from '../components/ui/Avatar'
 
 const artists = [
   { name: 'Sơn Tùng M-TP', role: 'Ca sĩ chính', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuApE_m_Gd_KRyYuWTES2LUgR5Rnhp5h2U15s-sNclVbmb8EHbXTWT9qG7sBCU0LqeQ_jvPWfy_oRFMgHFTHqf-Zr1izZqyCJYRv1EzbJv827rXQd0NBAxYshSBFqEHblTSZ9_DWvjvZbSBgqg9B2mU_oX_8F_f43SC4wi8AiFhElE68UcqOFFj4y3Crh93Ah7AEFud5lJ9StCF6htKxztl-Q4iDBjqh8m_PRYEBXYQUMe0P3XDAonsjZhRxfDYng6svCTMAKfXMFn8' },
@@ -165,17 +167,21 @@ const EventDetail = () => {
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('list');
+  const [comments, setComments] = useState<any[]>([]);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchEvent = async () => {
       try {
         if (id) {
-          const [eventData, ticketsData] = await Promise.all([
+          const [eventData, ticketsData, commentsData] = await Promise.all([
             EventService.getEventById(id),
-            EventService.getEventTicketTypes(id)
+            EventService.getEventTicketTypes(id),
+            EventService.getEventComments(id)
           ]);
           setEvent(eventData);
           setTicketTypes(ticketsData);
+          setComments(commentsData);
           if (eventData.sessions && eventData.sessions.length > 0) {
             setSelectedSessionId(eventData.sessions[0].id);
           }
@@ -208,6 +214,18 @@ const EventDetail = () => {
       </div>
     );
   }
+
+  const averageRating = comments.length > 0 
+    ? (comments.reduce((acc, curr) => acc + curr.rating, 0) / comments.length).toFixed(1)
+    : "0.0";
+  
+  const ratingCounts = [5, 4, 3, 2, 1].map(r => ({
+    rating: r,
+    count: comments.filter(c => c.rating === r).length,
+    percentage: comments.length > 0 
+      ? Math.round((comments.filter(c => c.rating === r).length / comments.length) * 100) 
+      : 0
+  }));
 
   return (
     <div className="min-h-screen bg-background-light font-display">
@@ -242,7 +260,7 @@ const EventDetail = () => {
             <div className="flex flex-wrap items-center gap-6 text-white/80 text-sm">
               <span className="flex items-center gap-2"><Icon name="calendar_today" size="sm" /> {new Date(event.startTime).toLocaleDateString("vi-VN", { day: "2-digit", month: "short", year: "numeric" })} • {new Date(event.startTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</span>
               <span className="flex items-center gap-2"><Icon name="location_on" size="sm" /> {event.location ? `${event.location}${event.province?.name ? `, ${event.province.name}` : ''}` : (event.province?.name || "SVĐ Quân khu 7, TP.HCM")}</span>
-              <span className="flex items-center gap-2"><Icon name="star" size="sm" className="text-yellow-400" /> 4.9 (2,450 đánh giá)</span>
+              <span className="flex items-center gap-2"><Icon name="star" size="sm" className="text-yellow-400" /> {averageRating} ({comments.length} đánh giá)</span>
             </div>
           </div>
         </div>
@@ -482,28 +500,40 @@ const EventDetail = () => {
               <div className="p-8 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm text-center relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-yellow-400/10 transition-colors duration-700" />
                 
-                <p className="text-5xl font-black text-slate-900 mb-2">4.9</p>
-                <div className="flex justify-center gap-1 mb-4">
-                  {[1, 2, 3, 4, 5].map(s => (
-                    <Icon key={s} name="star" className="text-yellow-400" size="sm" />
-                  ))}
-                </div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Dựa trên 2,450 đánh giá</p>
-
-                <div className="mt-8 space-y-3">
-                  {[5, 4, 3, 2, 1].map(rating => (
-                    <div key={rating} className="flex items-center gap-3">
-                      <span className="text-[10px] font-black text-slate-400 w-3">{rating}</span>
-                      <div className="flex-1 h-1.5 bg-slate-50 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-yellow-400 rounded-full" 
-                          style={{ width: rating === 5 ? '85%' : rating === 4 ? '10%' : '5%' }} 
-                        />
-                      </div>
-                      <span className="text-[10px] font-bold text-slate-400 w-8 text-right">{rating === 5 ? '85%' : rating === 4 ? '10%' : '5%'}</span>
+                {comments.length > 0 ? (
+                  <>
+                    <p className="text-5xl font-black text-slate-900 mb-2">{averageRating}</p>
+                    <div className="flex justify-center gap-1 mb-4">
+                      {[1, 2, 3, 4, 5].map(s => (
+                        <Icon key={s} name="star" className={s <= Math.round(Number(averageRating)) ? "text-yellow-400" : "text-slate-200"} size="sm" />
+                      ))}
                     </div>
-                  ))}
-                </div>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Dựa trên {comments.length} đánh giá</p>
+
+                    <div className="mt-8 space-y-3">
+                      {ratingCounts.map(item => (
+                        <div key={item.rating} className="flex items-center gap-3">
+                          <span className="text-[10px] font-black text-slate-400 w-3">{item.rating}</span>
+                          <div className="flex-1 h-1.5 bg-slate-50 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-yellow-400 rounded-full" 
+                              style={{ width: `${item.percentage}%` }} 
+                            />
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-400 w-8 text-right">{item.percentage}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="py-8">
+                    <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <Icon name="star_outline" className="text-slate-300" size="md" />
+                    </div>
+                    <p className="text-sm font-bold text-slate-400">Chưa có đánh giá</p>
+                    <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-tight">Hãy là người đầu tiên!</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -511,55 +541,161 @@ const EventDetail = () => {
             <div className="lg:w-2/3 space-y-8">
 
               {/* Individual Reviews */}
-              <div className="space-y-6">
-                {[
-                  { id: 1, user: 'Hoàng Nam', avatar: 'https://i.pravatar.cc/150?u=1', rating: 5, date: '2 ngày trước', comment: 'Sự kiện tuyệt vời! Âm thanh ánh sáng đỉnh cao, ban tổ chức rất chuyên nghiệp. Rất đáng tiền vé.' },
-                  { id: 2, user: 'Minh Anh', avatar: 'https://i.pravatar.cc/150?u=2', rating: 4, date: '1 tuần trước', comment: 'Trải nghiệm rất tốt, tuy nhiên lúc vào cổng hơi đông một chút. Mong lần sau sẽ được cải thiện.' },
-                  { id: 3, user: 'Lê Tuấn', avatar: 'https://i.pravatar.cc/150?u=3', rating: 5, date: '2 tuần trước', comment: 'Show diễn quá bùng nổ! Nghệ sĩ biểu diễn hết mình. Đã có một đêm không thể quên.' },
-                ].map(rev => (
-                  <div key={rev.id} className="flex gap-5 group">
-                    <img src={rev.avatar} alt={rev.user} className="w-12 h-12 rounded-2xl object-cover shadow-sm group-hover:scale-105 transition-transform" />
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-black text-slate-800 text-sm">{rev.user}</h4>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <div className="flex gap-0.5">
-                              {[...Array(rev.rating)].map((_, i) => (
-                                <Icon key={i} name="star" className="text-yellow-400" size="xs" />
+              <div className="space-y-8 animate-in fade-in duration-700">
+                {comments.length > 0 ? (
+                  comments.map((rev, i) => (
+                    <div 
+                      key={rev.id || i} 
+                      className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-500 group/card relative"
+                      style={{ animationDelay: `${(i % 5) * 100}ms` }}
+                    >
+                      <div className="flex flex-col sm:flex-row gap-6">
+                        <Avatar 
+                          src={rev.user?.avatar} 
+                          alt={rev.user?.fullName} 
+                          size="xl" 
+                          className="rounded-[2rem] shadow-md group-hover/card:scale-105 transition-transform" 
+                          fallback={rev.user?.fullName?.substring(0, 2)}
+                        />
+                        
+                        <div className="flex-1 space-y-4">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h4 className="font-black text-slate-900 text-base flex items-center gap-2">
+                                {rev.user?.fullName || 'Người dùng'}
+                                {rev.rating === 5 && (
+                                  <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-emerald-100">
+                                    <Icon name="verified" size="xs" /> Top Reviewer
+                                  </span>
+                                )}
+                              </h4>
+                              <div className="flex items-center gap-3 mt-1">
+                                <div className="flex gap-0.5">
+                                  {[1, 2, 3, 4, 5].map(s => (
+                                    <Icon 
+                                      key={s} 
+                                      name="star" 
+                                      className={s <= rev.rating ? "text-yellow-400" : "text-slate-100"} 
+                                      size="xs" 
+                                      filled={s <= rev.rating}
+                                    />
+                                  ))}
+                                </div>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                  {rev.createdAt ? new Date(rev.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Vừa xong'}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className="flex gap-1">
+                              <button className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-300 hover:bg-slate-50 hover:text-primary transition-all">
+                                <Icon name="favorite" size="xs" />
+                              </button>
+                              <button className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-300 hover:bg-slate-50 hover:text-slate-600 transition-all">
+                                <Icon name="share" size="xs" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="relative">
+                            <Icon name="format_quote" className="absolute -left-2 -top-2 text-slate-100 -z-10" size="xl" />
+                            <p className="text-sm text-slate-600 leading-relaxed font-medium pl-4">
+                              {rev.content}
+                            </p>
+                          </div>
+                          
+                          {/* Review Images */}
+                          {rev.images && rev.images.filter(img => img && img.trim() !== "").length > 0 && (
+                            <div className="flex flex-wrap gap-4 pt-2">
+                              {rev.images.filter(img => img && img.trim() !== "").map((img: string, idx: number) => (
+                                <div 
+                                  key={idx} 
+                                  className="relative group/img overflow-hidden rounded-[1.5rem] border-2 border-white shadow-sm hover:shadow-lg transition-all"
+                                >
+                                  <img 
+                                    src={img} 
+                                    alt={`Review ${idx}`} 
+                                    className="w-24 h-24 sm:w-28 sm:h-28 object-cover transition-all duration-700 group-hover/img:scale-110 cursor-zoom-in"
+                                    onClick={() => setSelectedImageUrl(img)}
+                                  />
+                                  <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/5 transition-colors pointer-events-none" />
+                                </div>
                               ))}
                             </div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">• {rev.date}</span>
+                          )}
+
+                          {/* Organizer Reply */}
+                          {rev.reply && (
+                            <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 space-y-2 mt-4 relative overflow-hidden group/reply">
+                              <div className="flex items-center gap-2 mb-1">
+                                <div className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                                  <Icon name="reply" size="xs" />
+                                </div>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Phản hồi từ Ban Tổ Chức</span>
+                              </div>
+                              <p className="text-xs font-medium leading-relaxed text-slate-600">
+                                {rev.reply}
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="flex items-center gap-6 pt-2 border-t border-slate-50">
+                            <button className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-primary transition-colors group/btn">
+                              <Icon name="thumb_up" size="xs" className="group-hover/btn:-translate-y-0.5 transition-transform" />
+                              <span>Hữu ích (12)</span>
+                            </button>
+                            <button className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-primary transition-colors">
+                              <Icon name="chat" size="xs" />
+                              <span>Phản hồi</span>
+                            </button>
                           </div>
                         </div>
-                        <button className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 hover:bg-slate-50 hover:text-slate-400 transition-all">
-                          <Icon name="more_horiz" size="sm" />
-                        </button>
-                      </div>
-                      <p className="text-sm text-slate-600 leading-relaxed font-medium">
-                        {rev.comment}
-                      </p>
-                      <div className="flex items-center gap-4 pt-1">
-                        <button className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-primary transition-colors">
-                          <Icon name="thumb_up" size="xs" /> Hữu ích (12)
-                        </button>
-                        <button className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-primary transition-colors">
-                          Phản hồi
-                        </button>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="text-center py-20 bg-white rounded-[3rem] border border-dashed border-slate-200 shadow-inner">
+                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-200">
+                      <Icon name="rate_review" size="lg" />
+                    </div>
+                    <p className="text-base font-black text-slate-400 uppercase tracking-widest">Chưa có đánh giá nào</p>
+                    <p className="text-xs text-slate-300 font-bold mt-2">Hãy là người đầu tiên chia sẻ cảm nhận về sự kiện này!</p>
                   </div>
-                ))}
+                )}
                 
-                <button className="w-full py-4 rounded-2xl border-2 border-dashed border-slate-100 text-xs font-black text-slate-400 uppercase tracking-widest hover:border-primary/20 hover:text-primary hover:bg-primary/5 transition-all">
-                  Xem thêm đánh giá
-                </button>
+                {comments.length > 5 && (
+                  <button className="w-full py-5 bg-white rounded-3xl border-2 border-dashed border-slate-200 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] hover:border-primary/20 hover:text-primary hover:bg-primary/5 transition-all shadow-sm">
+                    Xem thêm đánh giá ({comments.length - 5}+)
+                  </button>
+                )}
               </div>
             </div>
           </div>
         </div>
 
       </div>
+
+      {/* Lightbox Portal */}
+      {selectedImageUrl && createPortal(
+        <div 
+          className="fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out animate-in fade-in duration-300"
+          onClick={() => setSelectedImageUrl(null)}
+        >
+          <button 
+            className="absolute top-6 right-6 w-12 h-12 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-all"
+            onClick={() => setSelectedImageUrl(null)}
+          >
+            <Icon name="close" size="md" />
+          </button>
+          <img 
+            src={selectedImageUrl} 
+            alt="Full size review" 
+            className="max-w-full max-h-[90vh] rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>,
+        document.body
+      )}
     </div>
   )
 }

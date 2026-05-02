@@ -37,4 +37,9 @@ public class CommentController {
     public ResponseEntity<CommentDTO> createComment(@org.springframework.web.bind.annotation.RequestBody CommentDTO dto) {
         return ResponseEntity.ok(commentService.createComment(dto));
     }
+
+    @org.springframework.web.bind.annotation.PostMapping("/{commentId}/reply")
+    public ResponseEntity<CommentDTO> replyToComment(@PathVariable Long commentId, @org.springframework.web.bind.annotation.RequestBody String reply) {
+        return ResponseEntity.ok(commentService.replyToComment(commentId, reply));
+    }
 }

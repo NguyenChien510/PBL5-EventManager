@@ -78,6 +78,13 @@ export class EventService {
     return response.data;
   }
 
+  static async replyToComment(commentId: number, reply: string) {
+    const response = await apiClient.post(`/comments/${commentId}/reply`, reply, {
+      headers: { 'Content-Type': 'text/plain' }
+    });
+    return response.data;
+  }
+
   static async getEventManageStats(id: string | number) {
     const response = await apiClient.get(`/organizer/events/${id}/manage/stats`);
     return response.data;

@@ -33,7 +33,7 @@ const Avatar: React.FC<AvatarProps> = ({
 
   if (!hasImage) {
     return (
-      <div className={`${sizeMap[size]} rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-black uppercase border border-slate-200 ${className}`}>
+      <div className={`${sizeMap[size]} bg-slate-100 flex items-center justify-center text-slate-400 font-black uppercase border border-slate-200 ${className.includes('rounded-') ? '' : 'rounded-full'} ${className}`}>
         {fallback || alt.substring(0, 1)}
       </div>
     )
@@ -44,7 +44,7 @@ const Avatar: React.FC<AvatarProps> = ({
       src={src!}
       alt={alt}
       onError={() => setError(true)}
-      className={`${sizeMap[size]} rounded-full object-cover ${ring ? 'ring-2 ring-white shadow-sm' : ''} ${grayscale ? 'grayscale opacity-60' : ''} ${className}`}
+      className={`${sizeMap[size]} object-cover ${ring ? 'ring-2 ring-white shadow-sm' : ''} ${grayscale ? 'grayscale opacity-60' : ''} ${className.includes('rounded-') ? '' : 'rounded-full'} ${className}`}
     />
   )
 }

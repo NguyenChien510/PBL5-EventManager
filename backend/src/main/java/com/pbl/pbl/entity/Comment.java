@@ -50,4 +50,7 @@ public class Comment {
 
     @Column(columnDefinition = "TEXT")
     private String images; // JSON array of image URLs
+
+    @Column(columnDefinition = "TEXT")
+    private String reply; // Organizer's reply
 }

@@ -20,4 +20,5 @@ public class CommentDTO {
     private String eventThumbnail;
     private java.util.List<String> images;
     private UserDTO user;
+    private String reply;
 }
