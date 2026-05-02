@@ -94,13 +94,13 @@ const OrganizerFeedback = () => {
               <p className="text-xs font-black text-slate-900 uppercase tracking-widest mb-2">Xếp hạng trung bình</p>
               <div className="flex items-center gap-3">
                 <span className="text-base text-slate-900 font-black whitespace-nowrap">{comments.length} đánh giá</span>
-                <div className="flex gap-1">
+                <div className="flex gap-1.5">
                   {[1, 2, 3, 4, 5].map((s) => (
                     <Icon
                       key={s}
                       name="star"
-                      size="sm"
-                      className={s <= Math.round(Number(averageRating)) ? "text-yellow-400 scale-90" : "text-slate-100 scale-90"}
+                      size="lg"
+                      className={s <= Math.round(Number(averageRating)) ? "text-yellow-400" : "text-slate-100"}
                       filled
                     />
                   ))}
@@ -195,20 +195,19 @@ const OrganizerFeedback = () => {
                         </span>
                       </div>
                     </div>
-                    <div className="flex gap-1 bg-yellow-400/5 px-4 py-2 rounded-2xl border border-yellow-400/10">
+                    <div className="flex gap-1.5">
                       {Array.from({ length: 5 }, (_, s) => (
-                        <Icon key={s} name="star" size="sm" className={s < review.rating ? 'text-yellow-400' : 'text-slate-100'} filled />
+                        <Icon key={s} name="star" size="xl" className={s < review.rating ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]' : 'text-slate-100'} filled />
                       ))}
                     </div>
                   </div>
                 
-                <div className="relative mb-6">
+                <div className="relative mb-3">
                   <p className="text-lg text-slate-900 font-bold leading-relaxed">{review.content}</p>
                 </div>
 
-                  {/* Review Images */}
                   {review.images && review.images.length > 0 && (
-                    <div className="flex flex-wrap gap-2.5 mb-4">
+                    <div className="flex flex-wrap gap-2.5 mb-3">
                       {review.images.map((img: string, idx: number) => (
                         <div key={idx} className="relative group/img cursor-pointer overflow-hidden rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg transition-all duration-500">
                           <img
@@ -226,27 +225,27 @@ const OrganizerFeedback = () => {
                   )}
 
                   {/* Reply Section & Like Button */}
-                  <div className="space-y-4 pt-4 border-t border-slate-50">
-                    <div className="flex flex-wrap items-center gap-4">
+                  <div className="space-y-4 pt-3 border-t border-slate-50">
+                    <div className="flex flex-wrap items-center gap-3">
                       <button 
                         onClick={() => handleToggleLike(review.id)}
-                        className={`group/heart flex items-center gap-2.5 px-6 py-3 rounded-2xl transition-all duration-500 border ${
+                        className={`group/heart flex items-center gap-2 px-4 py-1.5 rounded-xl transition-all duration-500 border ${
                           review.isLikedByOrganizer 
                             ? 'bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/20' 
                             : 'bg-rose-50/30 text-rose-400 border-rose-100/50 hover:bg-rose-50 hover:border-rose-200'
                         }`}
                       >
-                        <Icon name="favorite" size="sm" filled={review.isLikedByOrganizer} className={review.isLikedByOrganizer ? 'scale-110' : 'group-hover/heart:scale-120 transition-transform'} />
-                        <span className="text-xs font-black uppercase tracking-widest">{review.isLikedByOrganizer ? 'Đã yêu thích' : 'Yêu thích'}</span>
+                        <Icon name="favorite" size="xs" filled={review.isLikedByOrganizer} className={review.isLikedByOrganizer ? 'scale-110' : 'group-hover/heart:scale-120 transition-transform'} />
+                        <span className="text-[10px] font-black uppercase tracking-widest">{review.isLikedByOrganizer ? 'Đã yêu thích' : 'Yêu thích'}</span>
                       </button>
                       
-                      <div className={`flex items-center gap-2.5 px-6 py-3 rounded-2xl border transition-all duration-500 ${
+                      <div className={`flex items-center gap-2 px-4 py-1.5 rounded-xl border transition-all duration-500 ${
                         review.reply 
                           ? 'bg-emerald-50 text-emerald-600 border-emerald-100 shadow-sm shadow-emerald-100/20' 
                           : 'bg-amber-50 text-amber-600 border-amber-100 shadow-sm shadow-amber-100/20'
                       }`}>
-                        <Icon name={review.reply ? "check_circle" : "pending"} size="sm" filled={review.reply} />
-                        <span className="text-xs font-black uppercase tracking-widest">
+                        <Icon name={review.reply ? "check_circle" : "pending"} size="xs" filled={review.reply} />
+                        <span className="text-[10px] font-black uppercase tracking-widest">
                           {review.reply ? 'Đã phản hồi' : 'Chờ phản hồi'}
                         </span>
                       </div>
