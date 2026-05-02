@@ -69,12 +69,15 @@ const UserHistory = () => {
           {historyEvents.length > 0 ? historyEvents.map((event, i) => (
             <div 
               key={i} 
-              className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex gap-6 hover:shadow-md transition-all animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both"
+              className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex gap-6 hover:shadow-md transition-all animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both cursor-pointer group"
               style={{ animationDelay: `${i * 100}ms` }}
+              onClick={() => navigate(`/event/${event.eventId}`)}
             >
-              <img src={event.image} alt={event.title} className="w-32 h-24 rounded-xl object-cover shrink-0" />
+              <div className="w-32 h-24 overflow-hidden rounded-xl shrink-0">
+                <img src={event.image} alt={event.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+              </div>
               <div className="flex-1">
-                <h3 className="font-bold text-lg mb-1">{event.title}</h3>
+                <h3 className="font-bold text-lg mb-1 group-hover:text-primary transition-colors">{event.title}</h3>
                 <div className="flex items-center gap-4 text-sm text-slate-500 mb-3">
                   <span className="flex items-center gap-1"><Icon name="calendar_today" size="sm" /> {event.date}</span>
                   <span className="flex items-center gap-1"><Icon name="location_on" size="sm" /> {event.location}</span>
@@ -98,7 +101,10 @@ const UserHistory = () => {
                       ))}
                     </div>
                     <button 
-                      onClick={() => navigate(`/reviews?eventId=${event.eventId}`)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/reviews?eventId=${event.eventId}`);
+                      }}
                       className="text-xs font-bold text-primary hover:underline"
                     >
                       Viết đánh giá
