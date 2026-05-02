@@ -62,6 +62,7 @@ const OrganizerEventManage = () => {
     const [selectedSeatInfo, setSelectedSeatInfo] = useState<Attendee | null>(null);
     const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
     const [replyTexts, setReplyTexts] = useState<Record<number, string>>({});
+    const [ratingFilter, setRatingFilter] = useState<number | null>(null);
 
     const handleReply = async (commentId: number) => {
         const reply = replyTexts[commentId]?.trim() || "Ban tổ chức sẽ rút kinh nghiệm, cảm ơn bạn đã nhận xét";
@@ -1455,130 +1456,162 @@ const OrganizerEventManage = () => {
 
                                 {/* All Reviews */}
                                 <div className="space-y-6">
-                                    <div className="flex items-center justify-between px-2">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-2">
                                         <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Tất cả nhận xét</h3>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <button
+                                                onClick={() => setRatingFilter(null)}
+                                                className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-500 border ${ratingFilter === null
+                                                    ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/10'
+                                                    : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200 hover:text-slate-600'
+                                                    }`}
+                                            >
+                                                Tất cả
+                                            </button>
+                                            {[5, 4, 3, 2, 1].map(star => (
+                                                <button
+                                                    key={star}
+                                                    onClick={() => setRatingFilter(star)}
+                                                    className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all duration-500 border flex items-center gap-1.5 ${ratingFilter === star
+                                                        ? 'bg-yellow-400 text-white border-yellow-400 shadow-lg shadow-yellow-400/20'
+                                                        : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200 hover:text-slate-600'
+                                                        }`}
+                                                >
+                                                    {star} <Icon name="star" size="xs" filled />
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
 
-                                    {comments.map((review, i) => (
-                                        <div
-                                            key={review.id || i}
-                                            className="bg-white rounded-[2.5rem] border border-slate-100/80 p-8 shadow-sm hover:shadow-xl hover:shadow-slate-200/40 transition-all duration-500 group/card relative overflow-hidden"
-                                        >
-                                            <div className="flex flex-col md:flex-row gap-8">
-                                                <div className="flex-shrink-0">
-                                                    <Avatar
-                                                        src={review.user?.avatar}
-                                                        alt={review.user?.fullName}
-                                                        size="xl"
-                                                        className="rounded-3xl shadow-sm border-4 border-white group-hover/card:scale-105 transition-transform duration-500"
-                                                        fallback={review.user?.fullName?.substring(0, 2)}
-                                                    />
+                                    {(() => {
+                                        const filteredComments = comments.filter(review => ratingFilter === null || review.rating === ratingFilter);
+                                        if (filteredComments.length === 0) {
+                                            return (
+                                                <div className="p-20 text-center text-slate-300 font-black uppercase text-sm border-4 border-dashed rounded-[3rem]">
+                                                    {ratingFilter ? `Chưa có nhận xét ${ratingFilter} sao` : "Chưa có nhận xét nào"}
                                                 </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
-                                                        <div>
-                                                            <h4 className="font-black text-slate-900 text-lg mb-1">{review.user?.fullName}</h4>
-                                                            <div className="flex items-center gap-3">
-                                                                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
-                                                                    {new Date(review.createdAt).toLocaleString('vi-VN', {
-                                                                        day: '2-digit',
-                                                                        month: 'short',
-                                                                        year: 'numeric',
-                                                                        hour: '2-digit',
-                                                                        minute: '2-digit'
-                                                                    })}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex gap-1.5">
-                                                            {Array.from({ length: 5 }, (_, s) => (
-                                                                <Icon key={s} name="star" size="xl" className={s < review.rating ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]' : 'text-slate-100'} filled />
-                                                            ))}
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="relative mb-3">
-                                                        <p className="text-lg text-slate-900 font-bold leading-relaxed">"{review.content}"</p>
-                                                    </div>
-
-                                                    {review.images && review.images.length > 0 && (
-                                                        <div className="flex flex-wrap gap-3 mb-1.5">
-                                                            {review.images.filter((img: string) => img && img.trim() !== "").map((img: string, idx: number) => (
-                                                                <div key={idx} className="relative group/img cursor-pointer overflow-hidden rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg transition-all duration-500">
-                                                                    <img
-                                                                        src={img}
-                                                                        alt="Review"
-                                                                        className="w-24 h-24 object-cover group-hover/img:scale-110 transition-transform duration-700"
-                                                                        onClick={() => setSelectedImageUrl(img)}
-                                                                    />
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-
-                                                    {/* Action Bar */}
-                                                    <div className="space-y-3 pt-2 border-t border-slate-50">
-                                                        <div className="flex flex-wrap items-center gap-3">
-                                                            <button
-                                                                onClick={() => handleToggleLike(review.id)}
-                                                                className={`group/heart flex items-center gap-2 px-4 py-1.5 rounded-xl transition-all duration-500 border ${review.isLikedByOrganizer
-                                                                        ? 'bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/20'
-                                                                        : 'bg-rose-50/30 text-rose-400 border-rose-100/50 hover:bg-rose-50 hover:border-rose-200'
-                                                                    }`}
-                                                            >
-                                                                <Icon name="favorite" size="xs" filled={review.isLikedByOrganizer} className={review.isLikedByOrganizer ? 'scale-110' : 'group-hover/heart:scale-120 transition-transform'} />
-                                                                <span className="text-[10px] font-black uppercase tracking-widest">{review.isLikedByOrganizer ? 'Đã yêu thích' : 'Yêu thích'}</span>
-                                                            </button>
-
-                                                            <div className={`flex items-center gap-2 px-4 py-1.5 rounded-xl border transition-all duration-500 ${review.reply
-                                                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-100 shadow-sm shadow-emerald-100/20'
-                                                                    : 'bg-amber-50 text-amber-600 border-amber-100 shadow-sm shadow-amber-100/20'
-                                                                }`}>
-                                                                <Icon name={review.reply ? "check_circle" : "pending"} size="xs" filled={review.reply} />
-                                                                <span className="text-[10px] font-black uppercase tracking-widest">
-                                                                    {review.reply ? 'Đã phản hồi' : 'Chờ phản hồi'}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-
-                                                        {review.reply ? (
-                                                            <div className="bg-slate-50/80 p-4 rounded-[1.5rem] space-y-2 relative overflow-hidden group/reply border border-slate-100 shadow-sm">
-                                                                <div className="flex items-center gap-2.5">
-                                                                    <div className="w-7 h-7 rounded-lg bg-slate-900 text-white flex items-center justify-center">
-                                                                        <Icon name="subdirectory_arrow_right" size="xs" />
-                                                                    </div>
-                                                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Phản hồi từ Ban Tổ Chức</span>
-                                                                </div>
-                                                                <p className="text-xs font-bold leading-relaxed text-slate-700 pl-9">{review.reply}</p>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="flex gap-3 bg-white p-2 rounded-[2rem] border-2 border-slate-900/10 focus-within:border-slate-900/30 focus-within:shadow-xl transition-all duration-500">
-                                                                <input
-                                                                    type="text"
-                                                                    placeholder="Ban tổ chức sẽ rút kinh nghiệm, cảm ơn bạn đã nhận xét"
-                                                                    className="flex-1 px-5 py-3 bg-transparent border-0 focus:ring-0 text-xs font-black outline-none placeholder:text-slate-400 placeholder:font-black placeholder:uppercase placeholder:tracking-widest"
-                                                                    value={replyTexts[review.id] || ''}
-                                                                    onChange={(e) => setReplyTexts({ ...replyTexts, [review.id]: e.target.value })}
-                                                                    onKeyDown={(e) => e.key === 'Enter' && handleReply(review.id)}
+                                            );
+                                        }
+                                        return (
+                                            <>
+                                                {filteredComments.map((review, i) => (
+                                                    <div
+                                                        key={review.id || i}
+                                                        className="bg-white rounded-[2.5rem] border border-slate-100/80 p-8 shadow-sm hover:shadow-xl hover:shadow-slate-200/40 transition-all duration-500 group/card relative overflow-hidden"
+                                                    >
+                                                        <div className="flex flex-col md:flex-row gap-8">
+                                                            <div className="flex-shrink-0">
+                                                                <Avatar
+                                                                    src={review.user?.avatar}
+                                                                    alt={review.user?.fullName}
+                                                                    size="xl"
+                                                                    className="rounded-3xl shadow-sm border-4 border-white group-hover/card:scale-105 transition-transform duration-500"
+                                                                    fallback={review.user?.fullName?.substring(0, 2)}
                                                                 />
-                                                                <button
-                                                                    onClick={() => handleReply(review.id)}
-                                                                    className="w-10 h-10 bg-slate-900 text-white rounded-[1.1rem] flex items-center justify-center hover:bg-primary hover:scale-105 active:scale-95 transition-all shadow-xl shadow-slate-900/10 group/send"
-                                                                >
-                                                                    <Icon name="send" size="xs" className="group-hover/send:translate-x-0.5 group-hover/send:-translate-y-0.5 transition-transform" />
-                                                                </button>
                                                             </div>
-                                                        )}
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
+                                                                    <div>
+                                                                        <h4 className="font-black text-slate-900 text-lg mb-1">{review.user?.fullName}</h4>
+                                                                        <div className="flex items-center gap-3">
+                                                                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                                                                                {new Date(review.createdAt).toLocaleString('vi-VN', {
+                                                                                    day: '2-digit',
+                                                                                    month: 'short',
+                                                                                    year: 'numeric',
+                                                                                    hour: '2-digit',
+                                                                                    minute: '2-digit'
+                                                                                })}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex gap-1.5">
+                                                                        {Array.from({ length: 5 }, (_, s) => (
+                                                                            <Icon key={s} name="star" size="xl" className={s < review.rating ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]' : 'text-slate-100'} filled />
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="relative mb-3">
+                                                                    <p className="text-lg text-slate-900 font-bold leading-relaxed">"{review.content}"</p>
+                                                                </div>
+
+                                                                {review.images && review.images.length > 0 && (
+                                                                    <div className="flex flex-wrap gap-3 mb-1.5">
+                                                                        {review.images.filter((img: string) => img && img.trim() !== "").map((img: string, idx: number) => (
+                                                                            <div key={idx} className="relative group/img cursor-pointer overflow-hidden rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg transition-all duration-500">
+                                                                                <img
+                                                                                    src={img}
+                                                                                    alt="Review"
+                                                                                    className="w-24 h-24 object-cover group-hover/img:scale-110 transition-transform duration-700"
+                                                                                    onClick={() => setSelectedImageUrl(img)}
+                                                                                />
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Action Bar */}
+                                                                <div className="space-y-3 pt-2 border-t border-slate-50">
+                                                                    <div className="flex flex-wrap items-center gap-3">
+                                                                        <button
+                                                                            onClick={() => handleToggleLike(review.id)}
+                                                                            className={`group/heart flex items-center gap-2 px-4 py-1.5 rounded-xl transition-all duration-500 border ${review.isLikedByOrganizer
+                                                                                    ? 'bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/20'
+                                                                                    : 'bg-rose-50/30 text-rose-400 border-rose-100/50 hover:bg-rose-50 hover:border-rose-200'
+                                                                                }`}
+                                                                        >
+                                                                            <Icon name="favorite" size="xs" filled={review.isLikedByOrganizer} className={review.isLikedByOrganizer ? 'scale-110' : 'group-hover/heart:scale-120 transition-transform'} />
+                                                                            <span className="text-[10px] font-black uppercase tracking-widest">{review.isLikedByOrganizer ? 'Đã yêu thích' : 'Yêu thích'}</span>
+                                                                        </button>
+
+                                                                        <div className={`flex items-center gap-2 px-4 py-1.5 rounded-xl border transition-all duration-500 ${review.reply
+                                                                                ? 'bg-emerald-50 text-emerald-600 border-emerald-100 shadow-sm shadow-emerald-100/20'
+                                                                                : 'bg-amber-50 text-amber-600 border-amber-100 shadow-sm shadow-amber-100/20'
+                                                                            }`}>
+                                                                            <Icon name={review.reply ? "check_circle" : "pending"} size="xs" filled={review.reply} />
+                                                                            <span className="text-[10px] font-black uppercase tracking-widest">
+                                                                                {review.reply ? 'Đã phản hồi' : 'Chờ phản hồi'}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {review.reply ? (
+                                                                        <div className="bg-slate-50/80 p-4 rounded-[1.5rem] space-y-2 relative overflow-hidden group/reply border border-slate-100 shadow-sm">
+                                                                            <div className="flex items-center gap-2.5">
+                                                                                <div className="w-7 h-7 rounded-lg bg-slate-900 text-white flex items-center justify-center">
+                                                                                    <Icon name="subdirectory_arrow_right" size="xs" />
+                                                                                </div>
+                                                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Phản hồi từ Ban Tổ Chức</span>
+                                                                            </div>
+                                                                            <p className="text-xs font-bold leading-relaxed text-slate-700 pl-9">{review.reply}</p>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="flex gap-3 bg-white p-2 rounded-[2rem] border-2 border-slate-900/10 focus-within:border-slate-900/30 focus-within:shadow-xl transition-all duration-500">
+                                                                            <input
+                                                                                type="text"
+                                                                                placeholder="Ban tổ chức sẽ rút kinh nghiệm, cảm ơn bạn đã nhận xét"
+                                                                                className="flex-1 px-5 py-3 bg-transparent border-0 focus:ring-0 text-xs font-black outline-none placeholder:text-slate-400 placeholder:font-black placeholder:uppercase placeholder:tracking-widest"
+                                                                                value={replyTexts[review.id] || ''}
+                                                                                onChange={(e) => setReplyTexts({ ...replyTexts, [review.id]: e.target.value })}
+                                                                                onKeyDown={(e) => e.key === 'Enter' && handleReply(review.id)}
+                                                                            />
+                                                                            <button
+                                                                                onClick={() => handleReply(review.id)}
+                                                                                className="w-10 h-10 bg-slate-900 text-white rounded-[1.1rem] flex items-center justify-center hover:bg-primary hover:scale-105 active:scale-95 transition-all shadow-xl shadow-slate-900/10 group/send"
+                                                                            >
+                                                                                <Icon name="send" size="xs" className="group-hover/send:translate-x-0.5 group-hover/send:-translate-y-0.5 transition-transform" />
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {comments.length === 0 && (
-                                        <div className="p-20 text-center text-slate-300 font-black uppercase text-sm border-4 border-dashed rounded-[3rem]">
-                                            Chưa có phản hồi cho sự kiện này
-                                        </div>
-                                    )}
+                                                ))}
+                                            </>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         )}

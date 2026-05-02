@@ -14,6 +14,7 @@ const OrganizerFeedback = () => {
   const [loading, setLoading] = useState(true);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [replyTexts, setReplyTexts] = useState<Record<number, string>>({});
+  const [ratingFilter, setRatingFilter] = useState<number | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -144,14 +145,50 @@ const OrganizerFeedback = () => {
 
             {/* Reviews */}
             <div className="space-y-8">
-              <div className="flex items-center justify-between px-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-2">
                 <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Tất cả nhận xét</h3>
-                <div className="flex items-center gap-2 text-[10px] font-black text-slate-900 uppercase tracking-widest">
-                  Sắp xếp theo <Icon name="expand_more" size="xs" />
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => setRatingFilter(null)}
+                    className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-500 border ${ratingFilter === null
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/10'
+                      : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200 hover:text-slate-600'
+                      }`}
+                  >
+                    Tất cả
+                  </button>
+                  {[5, 4, 3, 2, 1].map(star => (
+                    <button
+                      key={star}
+                      onClick={() => setRatingFilter(star)}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all duration-500 border flex items-center gap-1.5 ${ratingFilter === star
+                        ? 'bg-yellow-400 text-white border-yellow-400 shadow-lg shadow-yellow-400/20'
+                        : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200 hover:text-slate-600'
+                        }`}
+                    >
+                      {star} <Icon name="star" size="xs" filled />
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {comments.map((review, i) => (
+              {(() => {
+                const filteredComments = comments.filter(review => ratingFilter === null || review.rating === ratingFilter);
+                if (filteredComments.length === 0) {
+                  return (
+                    <div className="bg-white p-20 rounded-[3rem] border-2 border-dashed border-slate-100 text-center">
+                      <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Icon name="reviews" size="md" />
+                      </div>
+                      <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                        {ratingFilter ? `Hệ thống chưa ghi nhận nhận xét ${ratingFilter} sao` : "Hệ thống chưa ghi nhận nhận xét nào"}
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <>
+                    {filteredComments.map((review, i) => (
                 <div
                   key={review.id || i}
                   className="bg-white rounded-[2.5rem] border border-slate-100/80 p-6 shadow-sm hover:shadow-xl hover:shadow-slate-200/40 transition-all duration-500 group/card relative overflow-hidden"
@@ -277,15 +314,10 @@ const OrganizerFeedback = () => {
                     </div>
                   </div>
                 </div>
-              ))}
-              {comments.length === 0 && (
-                <div className="bg-white p-20 rounded-[3rem] border-2 border-dashed border-slate-100 text-center">
-                  <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Icon name="reviews" size="md" />
-                  </div>
-                  <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Hệ thống chưa ghi nhận nhận xét nào</p>
-                </div>
-              )}
+                    ))}
+                  </>
+                );
+              })()}
             </div>
           </div>
 
