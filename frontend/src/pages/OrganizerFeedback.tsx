@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Icon, Avatar, Loader } from '../components/ui'
+import { createPortal } from 'react-dom'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig'
 import { EventService } from '../services/eventService'
@@ -10,6 +11,7 @@ const sidebarConfig = organizerSidebarConfig
 const OrganizerFeedback = () => {
   const [comments, setComments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -32,22 +34,18 @@ const OrganizerFeedback = () => {
     ? (comments.reduce((acc, c) => acc + c.rating, 0) / comments.length).toFixed(1)
     : '0.0';
 
-  if (loading) {
-    return (
-      <DashboardLayout sidebarProps={sidebarConfig}>
+  return (
+    <DashboardLayout sidebarProps={sidebarConfig}>
+      {loading ? (
         <div className="flex items-center justify-center min-h-[60vh]">
           <Loader className="w-12 h-12 text-primary" />
         </div>
-      </DashboardLayout>
-    );
-  }
-
-  return (
-    <DashboardLayout sidebarProps={sidebarConfig}>
-      <PageHeader title="Phản hồi Khách mời" subtitle="Tổng hợp đánh giá từ tất cả các sự kiện của bạn" />
+      ) : (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <PageHeader title="Phản hồi Khách mời" subtitle="Tổng hợp đánh giá từ tất cả các sự kiện của bạn" />
       <div className="p-8 space-y-8">
         {/* Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-slide-down">
           <div className="bg-white rounded-2xl border border-slate-200 p-6 flex items-center gap-6">
             <div className="w-20 h-20 bg-yellow-50 rounded-2xl flex items-center justify-center">
               <span className="text-3xl font-extrabold text-yellow-500">{averageRating}</span>
@@ -100,7 +98,11 @@ const OrganizerFeedback = () => {
         {/* Reviews */}
         <div className="space-y-4">
           {comments.map((review, i) => (
-            <div key={review.id || i} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all">
+            <div 
+              key={review.id || i} 
+              className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all animate-slide-down"
+              style={{ animationDelay: `${100 + i * 50}ms`, animationFillMode: 'both' }}
+            >
               <div className="flex items-start gap-4">
                 <Avatar
                   src={review.user?.avatar}
@@ -139,11 +141,11 @@ const OrganizerFeedback = () => {
                     <div className="flex gap-2 mb-4">
                       {review.images.map((img: string, idx: number) => (
                         <div key={idx} className="relative group/img cursor-pointer overflow-hidden rounded-2xl border-2 border-white shadow-md hover:shadow-2xl transition-all duration-300">
-                          <img 
-                            src={img} 
-                            alt="Review" 
+                          <img
+                            src={img}
+                            alt="Review"
                             className="w-32 h-32 object-cover group-hover/img:scale-110 transition-transform duration-500"
-                            onClick={() => window.open(img, '_blank')}
+                            onClick={() => setSelectedImageUrl(img)}
                           />
                           <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
                             <Icon name="zoom_in" size="md" className="text-white" />
@@ -171,6 +173,29 @@ const OrganizerFeedback = () => {
           )}
         </div>
       </div>
+
+      {selectedImageUrl && createPortal(
+        <div
+          className="fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out animate-in fade-in duration-300"
+          onClick={() => setSelectedImageUrl(null)}
+        >
+          <button
+            className="absolute top-6 right-6 w-12 h-12 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-all"
+            onClick={() => setSelectedImageUrl(null)}
+          >
+            <Icon name="close" size="md" />
+          </button>
+          <img
+            src={selectedImageUrl}
+            alt="Full size review"
+            className="max-w-full max-h-[90vh] rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>,
+        document.body
+      )}
+        </div>
+      )}
     </DashboardLayout>
   )
 }

@@ -16,7 +16,7 @@ export const organizerSidebarConfig = {
       // title: 'Quản lý',
       links: [
         // { to: '/organizer/timeline', label: 'Kịch bản', icon: 'timeline' },
-        { to: '/organizer/finance', label: 'Tài chính', icon: 'account_balance' },
+        { to: '/organizer/finance', label: 'Doanh thu', icon: 'account_balance' },
         { to: '/organizer/feedback', label: 'Phản hồi', icon: 'rate_review' },
       ],
     },

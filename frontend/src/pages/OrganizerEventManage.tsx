@@ -1096,10 +1096,11 @@ const OrganizerEventManage = () => {
                       </div>
                     </div>
                   </div>
+                </div>
 
-                  {/* Transaction Table - Compact & Modern */}
-                  <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
-                    <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-blue-700 to-primary text-white">
+                {/* Transaction Table - Compact & Modern */}
+                <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-blue-700 to-primary text-white">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center border border-white/20">
                           <Icon name="history" size="xs" />
@@ -1126,46 +1127,47 @@ const OrganizerEventManage = () => {
                         </button>
                       </div>
                     </div>
-                    <table className="w-full text-left">
-                      <thead>
-                        <tr className="bg-blue-50 text-[10px] font-black text-blue-400 uppercase tracking-[0.15em] border-b border-blue-100">
-                          <th className="p-5">Mã GD</th>
-                          <th className="p-5">Khách hàng</th>
-                          <th className="p-5">Thời gian</th>
-                          <th className="p-5">Số tiền</th>
-                          <th className="p-5">Trạng thái</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-50 font-medium">
-                        {filteredAttendees
-                          .slice((transactionPage - 1) * transactionsPerPage, transactionPage * transactionsPerPage)
-                          .map((a, i) => (
-                            <tr key={i} className="text-sm hover:bg-blue-50/30 transition-all group animate-in fade-in slide-in-from-left duration-500" style={{ animationDelay: `${i * 100}ms` }}>
-                              <td className="p-5" >
-                                <span className="font-mono text-xs text-blue-400 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 group-hover:bg-white transition-colors">TX-{1000 + (transactionPage - 1) * transactionsPerPage + i}</span>
-                              </td>
-                              <td className="p-5" >
-                                <p className="font-black text-slate-900 group-hover:text-primary transition-colors">{a.userName}</p>
-                                <p className="text-[10px] text-slate-400 font-bold">{a.userEmail}</p>
-                              </td>
-                              <td className="p-5 text-xs text-slate-500 font-bold">
-                                {new Date(a.purchaseDate).toLocaleString('vi-VN', {
-                                  day: '2-digit', month: '2-digit', year: 'numeric',
-                                  hour: '2-digit', minute: '2-digit'
-                                })}
-                              </td>
-                              <td className="p-5" >
-                                <span className="font-black text-emerald-600 text-base">+{formatCurrency(250000)}</span>
-                              </td>
-                              <td className="p-5" >
-                                <span className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-emerald-100 shadow-sm">Thành công</span>
-                              </td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
+                    <div className="overflow-x-auto custom-scrollbar">
+                      <table className="w-full text-left whitespace-nowrap">
+                        <thead>
+                          <tr className="bg-blue-50 text-[10px] font-black text-blue-400 uppercase tracking-[0.15em] border-b border-blue-100">
+                            <th className="p-5">Mã GD</th>
+                            <th className="p-5">Khách hàng</th>
+                            <th className="p-5">Thời gian</th>
+                            <th className="p-5">Số tiền</th>
+                            <th className="p-5">Trạng thái</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50 font-medium">
+                          {filteredAttendees
+                            .slice((transactionPage - 1) * transactionsPerPage, transactionPage * transactionsPerPage)
+                            .map((a, i) => (
+                              <tr key={i} className="text-sm hover:bg-blue-50/30 transition-all group animate-in fade-in slide-in-from-left duration-500" style={{ animationDelay: `${i * 100}ms` }}>
+                                <td className="p-5" >
+                                  <span className="font-mono text-xs text-blue-400 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 group-hover:bg-white transition-colors">TX-{1000 + (transactionPage - 1) * transactionsPerPage + i}</span>
+                                </td>
+                                <td className="p-5" >
+                                  <p className="font-black text-slate-900 group-hover:text-primary transition-colors">{a.userName}</p>
+                                  <p className="text-[10px] text-slate-400 font-bold">{a.userEmail}</p>
+                                </td>
+                                <td className="p-5 text-xs text-slate-500 font-bold">
+                                  {new Date(a.purchaseDate).toLocaleString('vi-VN', {
+                                    day: '2-digit', month: '2-digit', year: 'numeric',
+                                    hour: '2-digit', minute: '2-digit'
+                                  })}
+                                </td>
+                                <td className="p-5" >
+                                  <span className="font-black text-emerald-600 text-base">+{formatCurrency(250000)}</span>
+                                </td>
+                                <td className="p-5" >
+                                  <span className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-emerald-100 shadow-sm">Thành công</span>
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
 
                 {/* AI Planning Section */}
                 <div className="relative group">
@@ -1394,182 +1396,79 @@ const OrganizerEventManage = () => {
             )}
 
             {activeTab === 'feedback' && (
-              <div className="space-y-6">
-{activeTab === 'feedback' && (
               <div className="space-y-8 animate-in fade-in duration-500">
-                {/* Stats Summary */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-yellow-400/10 transition-colors" />
-                    <div className="relative z-10">
-                      <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Đánh giá trung bình</h4>
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-5xl font-black text-slate-900 tracking-tighter">
-                          {comments.length > 0 
-                            ? (comments.reduce((acc, curr) => acc + curr.rating, 0) / comments.length).toFixed(1)
-                            : "0.0"}
-                        </span>
-                        <div className="flex flex-col">
-                          <div className="flex gap-0.5 text-yellow-400">
-                            {[1, 2, 3, 4, 5].map(s => (
-                              <Icon key={s} name="star" size="xs" filled={s <= Math.round(comments.length > 0 ? comments.reduce((acc, curr) => acc + curr.rating, 0) / comments.length : 0)} />
-                            ))}
-                          </div>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase mt-1">{comments.length} đánh giá</span>
-                        </div>
-                      </div>
+                  <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm text-center">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Đánh giá trung bình</p>
+                    <h4 className="text-5xl font-black text-slate-900">
+                      {comments.length > 0 ? (comments.reduce((a, b) => a + b.rating, 0) / comments.length).toFixed(1) : "0.0"}
+                    </h4>
+                    <div className="flex justify-center gap-1 mt-2 text-yellow-400">
+                      {Array.from({ length: 5 }).map((_, i) => <Icon key={i} name="star" size="xs" filled={i < Math.round(comments.length > 0 ? comments.reduce((a, b) => a + b.rating, 0) / comments.length : 0)} />)}
                     </div>
                   </div>
-
-                  <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm md:col-span-2">
-                    <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Phân bổ xếp hạng</h4>
+                  <div className="md:col-span-2 bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
+                    <h5 className="font-black text-slate-900 mb-4 uppercase text-xs">Phân bổ</h5>
                     <div className="space-y-3">
-                      {[5, 4, 3, 2, 1].map(rating => {
-                        const count = comments.filter(c => c.rating === rating).length;
-                        const percentage = comments.length > 0 ? (count / comments.length) * 100 : 0;
-                        return (
-                          <div key={rating} className="flex items-center gap-4">
-                            <span className="text-[10px] font-black text-slate-400 w-3">{rating}</span>
-                            <div className="flex-1 h-2 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
-                              <div
-                                className="h-full bg-yellow-400 rounded-full transition-all duration-500"
-                                style={{ width: `${percentage}%` }}
-                              />
-                            </div>
-                            <span className="text-xs text-slate-400 w-10 text-right">
-                              {percentage.toFixed(0)}%
-                            </span>
+                      {[5, 4, 3, 2, 1].map(r => (
+                        <div key={r} className="flex items-center gap-4">
+                          <span className="text-xs font-black w-4">{r}</span>
+                          <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-yellow-400" style={{ width: `${comments.length > 0 ? (comments.filter(c => c.rating === r).length / comments.length) * 100 : 0}%` }} />
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex items-center justify-between group hover:border-indigo-500/20 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-500">
-                    <div className="flex items-center gap-5">
-                      <div className="relative">
-                        <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-blue-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
-                          <Icon name="chat_bubble" size="xs" />
                         </div>
-                        {comments.length > 0 && (
-                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 border-2 border-white rounded-full animate-pulse" />
-                        )}
-                      </div>
-                      <div>
-                        <h4 className="text-[15px] font-black text-slate-400 uppercase mb-1">Chưa phản hồi</h4>
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-3xl font-black text-slate-900 tracking-tighter">
-                            {comments.length}
-                          </span>
-                          <span className="text-[11px] font-black text-indigo-500 uppercase">Feedback</span>
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  {comments.map((review, i) => (
-                    <div key={review.id || i} className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6 hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 group/card">
+                <div className="space-y-6">
+                  {comments.map((c, i) => (
+                    <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
                       <div className="flex justify-between items-start">
                         <div className="flex gap-4">
-                          <Avatar 
-                            src={review.user?.avatar} 
-                            alt={review.user?.fullName} 
-                            size="lg" 
-                            className="rounded-2xl shadow-sm group-hover/card:scale-105 transition-transform"
-                            fallback={review.user?.fullName?.substring(0, 2)}
-                          />
+                          <Avatar src={c.user?.avatar} size="lg" className="rounded-2xl" />
                           <div>
-                            <h4 className="text-[15px] font-black text-slate-900 leading-tight">{review.user?.fullName || 'Người dùng'}</h4>
+                            <h6 className="font-black text-slate-900">{c.user?.fullName}</h6>
                             <div className="flex items-center gap-2 mt-1">
-                              <div className="flex gap-0.5">
-                                {Array.from({ length: 5 }, (_, s) => (
-                                  <Icon key={s} name="star" size="xs" className={s < review.rating ? 'text-yellow-400' : 'text-slate-100'} filled />
-                                ))}
+                              <div className="flex gap-0.5 text-yellow-400">
+                                {Array.from({ length: 5 }).map((_, s) => <Icon key={s} name="star" size="xs" filled={s < c.rating} />)}
                               </div>
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
-                                • {new Date(review.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric' })}
-                              </span>
+                              <span className="text-[10px] text-slate-400 font-bold uppercase">• {new Date(c.createdAt).toLocaleDateString('vi-VN')}</span>
                             </div>
                           </div>
                         </div>
-                        <button className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-300 hover:bg-slate-50 hover:text-slate-600 transition-all">
-                          <Icon name="more_horiz" />
-                        </button>
                       </div>
-
-                      <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100 italic text-slate-600 text-sm leading-relaxed font-medium">
-                        "{review.content}"
-                      </div>
-                      
-                      {/* Review Images */}
-                      {review.images && review.images.filter((img: string) => img && img.trim() !== "").length > 0 && (
-                        <div className="flex flex-wrap gap-3">
-                          {review.images.filter((img: string) => img && img.trim() !== "").map((img: string, idx: number) => (
-                            <div key={idx} className="relative group/img cursor-pointer overflow-hidden rounded-2xl border-2 border-white shadow-md hover:shadow-xl transition-all">
-                              <img 
-                                src={img} 
-                                alt="Review" 
-                                className="w-24 h-24 md:w-32 md:h-32 object-cover group-hover/img:scale-110 transition-transform duration-500"
-                                onClick={() => setSelectedImageUrl(img)}
-                              />
-                              <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors pointer-events-none" />
-                            </div>
+                      <div className="bg-slate-50 p-6 rounded-3xl text-slate-600 text-sm leading-relaxed font-medium">"{c.content}"</div>
+                      {c.images && c.images.length > 0 && (
+                        <div className="flex gap-3">
+                          {c.images.filter((img: string) => img && img.trim() !== "").map((img: string, idx: number) => (
+                            <img key={idx} src={img} alt="Feedback" className="w-24 h-24 rounded-2xl object-cover cursor-zoom-in" onClick={() => setSelectedImageUrl(img)} />
                           ))}
                         </div>
                       )}
-
-                      {/* Reply Section */}
-                      <div className="pt-4 border-t border-slate-100">
-                        {review.reply ? (
-                          <div className="bg-slate-900 p-6 rounded-[2rem] text-white space-y-2 relative overflow-hidden group/reply">
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full blur-2xl -mr-12 -mt-12 group-hover/reply:bg-white/10 transition-colors" />
-                            <div className="flex items-center gap-2 mb-1">
-                              <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center">
-                                <Icon name="reply" size="xs" />
-                              </div>
-                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Phản hồi của bạn</span>
-                            </div>
-                            <p className="text-xs font-medium leading-relaxed text-slate-200">
-                              {review.reply}
-                            </p>
+                      <div className="pt-4 border-t">
+                        {c.reply ? (
+                          <div className="bg-slate-900 p-6 rounded-3xl text-white">
+                            <p className="text-[10px] font-black text-slate-400 uppercase mb-2 flex items-center gap-2"><Icon name="reply" size="xs" /> Phản hồi của bạn</p>
+                            <p className="text-xs font-medium">{c.reply}</p>
                           </div>
                         ) : (
-                          <div className="flex gap-3 items-center">
-                            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 shrink-0">
-                              <Icon name="reply" size="xs" />
-                            </div>
-                            <div className="flex-1 relative">
-                              <input 
-                                type="text" 
-                                value={replyTexts[review.id] || ""}
-                                onChange={(e) => setReplyTexts(prev => ({ ...prev, [review.id]: e.target.value }))}
-                                placeholder="Phản hồi đánh giá này..." 
-                                className="w-full pl-5 pr-16 py-3.5 bg-slate-50 border-none rounded-2xl text-xs font-bold outline-none focus:ring-2 ring-primary/20 transition-all" 
-                              />
-                              <button 
-                                onClick={() => handleReply(review.id)}
-                                className="absolute right-2 top-2 bottom-2 px-4 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-primary transition-colors shadow-sm disabled:opacity-50"
-                                disabled={!replyTexts[review.id]?.trim()}
-                              >
-                                Gửi
-                              </button>
-                            </div>
+                          <div className="flex gap-3">
+                            <input 
+                              type="text" 
+                              value={replyTexts[c.id] || ""} 
+                              onChange={(e) => setReplyTexts(p => ({ ...p, [c.id]: e.target.value }))}
+                              placeholder="Viết phản hồi..." 
+                              className="flex-1 px-5 py-3 bg-slate-50 rounded-2xl text-xs font-bold outline-none" 
+                            />
+                            <button onClick={() => handleReply(c.id)} className="px-6 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase">Gửi</button>
                           </div>
                         )}
                       </div>
                     </div>
                   ))}
-
-                  {comments.length === 0 && (
-                    <div className="bg-white p-24 rounded-[3.5rem] border-4 border-dashed border-slate-100 text-center animate-in zoom-in-95 duration-700">
-                      <div className="w-20 h-20 bg-slate-50 text-slate-200 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
-                        <Icon name="chat_bubble_outline" size="lg" />
-                      </div>
-                      <h5 className="text-lg font-black text-slate-400 uppercase tracking-widest">Chưa có nhận xét nào</h5>
-                      <p className="text-xs text-slate-300 font-bold mt-2">Đánh giá từ người dùng sẽ xuất hiện tại đây</p>
-                    </div>
-                  )}
+                  {comments.length === 0 && <div className="p-20 text-center text-slate-300 font-black uppercase text-sm border-4 border-dashed rounded-[3rem]">Chưa có phản hồi</div>}
                 </div>
               </div>
             )}
@@ -1775,8 +1674,9 @@ const OrganizerEventManage = () => {
       </div>,
       document.body
     )}
-  </div>
-);
+      </div>
+    </DashboardLayout>
+  );
 };
 
 

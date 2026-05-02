@@ -1,0 +1,181 @@
+﻿            {activeTab === 'feedback' && (
+              <div className="space-y-6">
+{activeTab === 'feedback' && (
+              <div className="space-y-8 animate-in fade-in duration-500">
+                {/* Stats Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-yellow-400/10 transition-colors" />
+                    <div className="relative z-10">
+                      <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Đánh giá trung bình</h4>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-5xl font-black text-slate-900 tracking-tighter">
+                          {comments.length > 0 
+                            ? (comments.reduce((acc, curr) => acc + curr.rating, 0) / comments.length).toFixed(1)
+                            : "0.0"}
+                        </span>
+                        <div className="flex flex-col">
+                          <div className="flex gap-0.5 text-yellow-400">
+                            {[1, 2, 3, 4, 5].map(s => (
+                              <Icon key={s} name="star" size="xs" filled={s <= Math.round(comments.length > 0 ? comments.reduce((acc, curr) => acc + curr.rating, 0) / comments.length : 0)} />
+                            ))}
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase mt-1">{comments.length} đánh giá</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm md:col-span-2">
+                    <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Phân bổ xếp hạng</h4>
+                    <div className="space-y-3">
+                      {[5, 4, 3, 2, 1].map(rating => {
+                        const count = comments.filter(c => c.rating === rating).length;
+                        const percentage = comments.length > 0 ? (count / comments.length) * 100 : 0;
+                        return (
+                          <div key={rating} className="flex items-center gap-4">
+                            <span className="text-[10px] font-black text-slate-400 w-3">{rating}</span>
+                            <div className="flex-1 h-2 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
+                              <div
+                                className="h-full bg-yellow-400 rounded-full transition-all duration-500"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-slate-400 w-10 text-right">
+                              {percentage.toFixed(0)}%
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex items-center justify-between group hover:border-indigo-500/20 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-500">
+                    <div className="flex items-center gap-5">
+                      <div className="relative">
+                        <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-blue-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
+                          <Icon name="chat_bubble" size="xs" />
+                        </div>
+                        {comments.length > 0 && (
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 border-2 border-white rounded-full animate-pulse" />
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="text-[15px] font-black text-slate-400 uppercase mb-1">Chưa phản hồi</h4>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-3xl font-black text-slate-900 tracking-tighter">
+                            {comments.length}
+                          </span>
+                          <span className="text-[11px] font-black text-indigo-500 uppercase">Feedback</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {comments.map((review, i) => (
+                    <div key={review.id || i} className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6 hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 group/card">
+                      <div className="flex justify-between items-start">
+                        <div className="flex gap-4">
+                          <Avatar 
+                            src={review.user?.avatar} 
+                            alt={review.user?.fullName} 
+                            size="lg" 
+                            className="rounded-2xl shadow-sm group-hover/card:scale-105 transition-transform"
+                            fallback={review.user?.fullName?.substring(0, 2)}
+                          />
+                          <div>
+                            <h4 className="text-[15px] font-black text-slate-900 leading-tight">{review.user?.fullName || 'Người dùng'}</h4>
+                            <div className="flex items-center gap-2 mt-1">
+                              <div className="flex gap-0.5">
+                                {Array.from({ length: 5 }, (_, s) => (
+                                  <Icon key={s} name="star" size="xs" className={s < review.rating ? 'text-yellow-400' : 'text-slate-100'} filled />
+                                ))}
+                              </div>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                                • {new Date(review.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric' })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <button className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-300 hover:bg-slate-50 hover:text-slate-600 transition-all">
+                          <Icon name="more_horiz" />
+                        </button>
+                      </div>
+
+                      <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100 italic text-slate-600 text-sm leading-relaxed font-medium">
+                        "{review.content}"
+                      </div>
+                      
+                      {/* Review Images */}
+                      {review.images && review.images.filter((img: string) => img && img.trim() !== "").length > 0 && (
+                        <div className="flex flex-wrap gap-3">
+                          {review.images.filter((img: string) => img && img.trim() !== "").map((img: string, idx: number) => (
+                            <div key={idx} className="relative group/img cursor-pointer overflow-hidden rounded-2xl border-2 border-white shadow-md hover:shadow-xl transition-all">
+                              <img 
+                                src={img} 
+                                alt="Review" 
+                                className="w-24 h-24 md:w-32 md:h-32 object-cover group-hover/img:scale-110 transition-transform duration-500"
+                                onClick={() => setSelectedImageUrl(img)}
+                              />
+                              <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors pointer-events-none" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Reply Section */}
+                      <div className="pt-4 border-t border-slate-100">
+                        {review.reply ? (
+                          <div className="bg-slate-900 p-6 rounded-[2rem] text-white space-y-2 relative overflow-hidden group/reply">
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full blur-2xl -mr-12 -mt-12 group-hover/reply:bg-white/10 transition-colors" />
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center">
+                                <Icon name="reply" size="xs" />
+                              </div>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Phản hồi của bạn</span>
+                            </div>
+                            <p className="text-xs font-medium leading-relaxed text-slate-200">
+                              {review.reply}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="flex gap-3 items-center">
+                            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 shrink-0">
+                              <Icon name="reply" size="xs" />
+                            </div>
+                            <div className="flex-1 relative">
+                              <input 
+                                type="text" 
+                                value={replyTexts[review.id] || ""}
+                                onChange={(e) => setReplyTexts(prev => ({ ...prev, [review.id]: e.target.value }))}
+                                placeholder="Phản hồi đánh giá này..." 
+                                className="w-full pl-5 pr-16 py-3.5 bg-slate-50 border-none rounded-2xl text-xs font-bold outline-none focus:ring-2 ring-primary/20 transition-all" 
+                              />
+                              <button 
+                                onClick={() => handleReply(review.id)}
+                                className="absolute right-2 top-2 bottom-2 px-4 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-primary transition-colors shadow-sm disabled:opacity-50"
+                                disabled={!replyTexts[review.id]?.trim()}
+                              >
+                                Gửi
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {comments.length === 0 && (
+                    <div className="bg-white p-24 rounded-[3.5rem] border-4 border-dashed border-slate-100 text-center animate-in zoom-in-95 duration-700">
+                      <div className="w-20 h-20 bg-slate-50 text-slate-200 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
+                        <Icon name="chat_bubble_outline" size="lg" />
+                      </div>
+                      <h5 className="text-lg font-black text-slate-400 uppercase tracking-widest">Chưa có nhận xét nào</h5>
+                      <p className="text-xs text-slate-300 font-bold mt-2">Đánh giá từ người dùng sẽ xuất hiện tại đây</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+

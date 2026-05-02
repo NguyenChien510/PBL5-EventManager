@@ -62,8 +62,8 @@ const OrganizerGuests = () => {
                 </button>
               </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-separate border-spacing-0">
+            <div className="overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left whitespace-nowrap border-separate border-spacing-0">
                 <thead>
                   <tr className="bg-slate-50/80 backdrop-blur-md">
                     {['Khách mời', 'Mã vé', 'Hạng vé', 'Trạng thái', ''].map((h) => (

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Icon, Avatar } from '../components/ui'
+import { Icon, Avatar, Loader } from '../components/ui'
 import { DashboardLayout } from '../components/layout'
 import { userSidebarConfig } from '../config/userSidebarConfig'
 import { apiClient } from '../utils/axios'
@@ -10,12 +10,23 @@ const VouchersRewards = () => {
   const [user, setUser] = useState<any>(null)
   const [availableRewards, setAvailableRewards] = useState<any[]>([])
   const [myCoupons, setMyCoupons] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [exchanging, setExchanging] = useState(false)
 
   useEffect(() => {
-    fetchProfile()
-    fetchRewards()
-    fetchMyCoupons()
+    const initData = async () => {
+      setLoading(true)
+      try {
+        await Promise.all([
+          fetchProfile(),
+          fetchRewards(),
+          fetchMyCoupons()
+        ])
+      } finally {
+        setLoading(false)
+      }
+    }
+    initData()
   }, [])
 
   const fetchProfile = async () => {
@@ -51,23 +62,30 @@ const VouchersRewards = () => {
       return
     }
 
-    setLoading(true)
+    setExchanging(true)
     try {
       await apiClient.post(`/coupons/exchange?couponId=${couponId}`)
-      fetchProfile()
-      fetchMyCoupons()
+      await Promise.all([fetchProfile(), fetchMyCoupons()])
       alert('Đổi mã thành công! Kiểm tra trong "Mã của tôi"')
     } catch (err) {
       alert('Có lỗi xảy ra khi đổi mã')
     } finally {
-      setLoading(false)
+      setExchanging(false)
     }
   }
 
   return (
     <DashboardLayout sidebarProps={sidebarConfig}>
+      {loading ? (
+        <div className="flex items-center justify-center min-h-[80vh]">
+          <Loader className="w-12 h-12 text-primary" />
+        </div>
+      ) : (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Header */}
-      <header className="h-24 px-12 flex items-center justify-between sticky top-0 z-40 bg-background-light/80 backdrop-blur-md">
+      <header 
+        className="h-24 px-12 flex items-center justify-between sticky top-0 z-40 bg-background-light/80 backdrop-blur-md animate-in fade-in slide-in-from-top-4 duration-700"
+      >
         <div>
           <h2 className="text-2xl font-black text-slate-900">Ưu đãi &amp; Quà tặng</h2>
           <p className="text-sm font-medium text-slate-500">Đổi điểm thưởng lấy các đặc quyền giới hạn.</p>
@@ -87,15 +105,19 @@ const VouchersRewards = () => {
         </div>
       </header>
 
-      <div className="px-12 space-y-12 pb-20">
+      <div className="px-12 space-y-12 pb-20 mt-4">
         {/* Available Rewards */}
-        <section>
+        <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both" style={{ animationDelay: '150ms' }}>
           <div className="flex items-center justify-between mb-8">
             <h3 className="section-title"><span className="section-dot" /> Đổi điểm nhận mã giảm giá</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {availableRewards.length > 0 ? availableRewards.map((v) => (
-              <div key={v.id} className="group bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-primary/10 transition-all overflow-hidden flex flex-col">
+            {availableRewards.length > 0 ? availableRewards.map((v, i) => (
+              <div 
+                key={v.id} 
+                className="group bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-primary/10 transition-all overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-8 duration-700 fill-mode-both"
+                style={{ animationDelay: `${200 + i * 100}ms` }}
+              >
                 <div className="h-44 relative flex flex-col justify-end overflow-hidden">
                    {v.imageUrl ? (
                      <img src={v.imageUrl} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={v.code} />
@@ -124,7 +146,7 @@ const VouchersRewards = () => {
                     </div>
                   </div>
                   <button 
-                    disabled={(user?.loyaltyPoints || 0) < v.pointCost || loading}
+                    disabled={(user?.loyaltyPoints || 0) < v.pointCost || exchanging}
                     onClick={() => handleExchange(v.id, v.pointCost)}
                     className={`w-full py-4 rounded-2xl text-xs font-black transition-all ${
                       (user?.loyaltyPoints || 0) >= v.pointCost 
@@ -132,7 +154,11 @@ const VouchersRewards = () => {
                       : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                     }`}
                   >
-                    {(user?.loyaltyPoints || 0) >= v.pointCost ? 'ĐỔI NGAY' : 'KHÔNG ĐỦ ĐIỂM'}
+                    {exchanging ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" />
+                    ) : (
+                      (user?.loyaltyPoints || 0) >= v.pointCost ? 'ĐỔI NGAY' : 'KHÔNG ĐỦ ĐIỂM'
+                    )}
                   </button>
                 </div>
               </div>
@@ -146,11 +172,15 @@ const VouchersRewards = () => {
         </section>
 
         {/* My Coupons */}
-        <section>
+        <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both" style={{ animationDelay: '400ms' }}>
            <h3 className="section-title mb-8"><span className="section-dot" /> Mã giảm giá của tôi</h3>
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-             {myCoupons.map((coupon) => (
-               <div key={coupon.id} className="bg-white p-6 rounded-[2rem] border-2 border-dashed border-slate-200 hover:border-primary/40 transition-colors group">
+             {myCoupons.map((coupon, i) => (
+               <div 
+                key={coupon.id} 
+                className="bg-white p-6 rounded-[2rem] border-2 border-dashed border-slate-200 hover:border-primary/40 transition-colors group animate-in fade-in slide-in-from-bottom-8 duration-700 fill-mode-both"
+                style={{ animationDelay: `${500 + i * 100}ms` }}
+               >
                  <div className="flex items-center justify-between mb-6">
                    <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
                      <Icon name="check_circle" className="text-emerald-500" size="sm" />
@@ -173,7 +203,10 @@ const VouchersRewards = () => {
         </section>
 
         {/* Featured Banner */}
-        <section className="relative h-[300px] rounded-[3rem] overflow-hidden group shadow-2xl">
+        <section 
+          className="relative h-[300px] rounded-[3rem] overflow-hidden group shadow-2xl animate-in fade-in slide-in-from-bottom-8 duration-1000 fill-mode-both"
+          style={{ animationDelay: '700ms' }}
+        >
           <img src="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=2070" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" />
           <div className="absolute inset-0 bg-gradient-to-r from-primary/90 to-transparent" />
           <div className="relative z-10 h-full flex flex-col justify-center px-16 max-w-2xl">
@@ -183,8 +216,11 @@ const VouchersRewards = () => {
           </div>
         </section>
       </div>
+        </div>
+      )}
     </DashboardLayout>
   )
 }
 
 export default VouchersRewards
+

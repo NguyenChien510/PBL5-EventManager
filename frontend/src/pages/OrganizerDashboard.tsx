@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Icon, StatCard, Loader, Avatar } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig'
@@ -20,6 +21,7 @@ const OrganizerDashboard = () => {
   const [recentComments, setRecentComments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('');
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -43,16 +45,6 @@ const OrganizerDashboard = () => {
     fetchData();
   }, []);
 
-  if (loading) {
-    return (
-      <DashboardLayout sidebarProps={sidebarConfig}>
-        <div className="flex flex-col items-center justify-center min-h-[60vh]">
-          <Loader className="w-12 h-12 text-primary" />
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   const eventsList = dashboardData?.events?.content || [];
   const chartEvents = [...eventsList].map((evt: any) => ({
     ...evt,
@@ -62,7 +54,13 @@ const OrganizerDashboard = () => {
 
   return (
     <DashboardLayout sidebarProps={sidebarConfig}>
-      <PageHeader title="Bảng Điều Khiển" subtitle={`Chào mừng trở lại, ${userName}! 🚀`} />
+      {loading ? (
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <Loader className="w-12 h-12 text-primary" />
+        </div>
+      ) : (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <PageHeader title="Bảng Điều Khiển" subtitle={`Chào mừng trở lại, ${userName}! 🚀`} />
 
       <div className="p-6 space-y-6">
         {/* Stats Row */}
@@ -218,22 +216,7 @@ const OrganizerDashboard = () => {
 
           {/* Right Column (Sidebar actions & feedback) */}
           <div className="space-y-5 animate-slide-down" style={{ animationDelay: '150ms', animationFillMode: 'both' }}>
-            {/* Quick Actions Box */}
-            <div className="bg-white p-5 rounded-[1.5rem] border border-slate-200 shadow-sm">
-              <h3 className="text-[12px] font-black mb-4 text-slate-700 uppercase">Hành động nhanh</h3>
-              <div className="grid grid-cols-2 gap-3">
-                {quickActions.map((action) => (
-                  <Link
-                    key={action.label}
-                    to={action.href}
-                    className={`${action.color} ${action.hoverColor} p-3 rounded-2xl flex flex-col items-center justify-center gap-2 text-white shadow-lg shadow-slate-200 hover:-translate-y-1 transition-all duration-300 group`}
-                  >
-                    <Icon name={action.icon} size="md" className="group-hover:scale-110 transition-transform" />
-                    <span className="text-[11px] font-bold uppercase tracking-wider">{action.label}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
+
 
             {/* Feedback Box */}
             <div className="bg-white p-5 rounded-[1.5rem] border border-slate-200 shadow-sm flex flex-col">
@@ -249,33 +232,34 @@ const OrganizerDashboard = () => {
                   recentComments.slice(0, 4).map((comment, idx) => (
                     <div key={idx} className="p-4 bg-slate-50/50 rounded-[1.5rem] border border-slate-100 hover:border-violet-200 hover:bg-white hover:shadow-lg hover:shadow-violet-500/5 transition-all duration-300 group">
                       <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <Avatar 
-                            src={comment.user?.avatar} 
-                            alt={comment.user?.fullName} 
-                            size="xs" 
+                        <div className="flex items-center gap-3">
+                          <Avatar
+                            src={comment.user?.avatar}
+                            alt={comment.user?.fullName}
+                            size="md"
                             className="rounded-full ring-2 ring-white"
                             fallback={comment.user?.fullName?.substring(0, 2)}
                           />
-                          <span className="text-[11px] font-black text-slate-900 group-hover:text-violet-600 transition-colors">{comment.user?.fullName || 'Người dùng'}</span>
+                          <span className="text-sm font-black text-slate-900 group-hover:text-violet-600 transition-colors">{comment.user?.fullName || 'Người dùng'}</span>
                         </div>
                         <div className="flex gap-0.5">
                           {Array.from({ length: 5 }, (_, i) => (
-                            <Icon key={i} name="star" size="xs" className={i < comment.rating ? "text-yellow-400" : "text-slate-200"} filled />
+                            <Icon key={i} name="star" size="sm" className={i < comment.rating ? "text-yellow-400" : "text-slate-200"} filled />
                           ))}
                         </div>
                       </div>
-                      <p className="text-[10px] text-slate-500 line-clamp-2 leading-relaxed mb-3 italic">"{comment.content}"</p>
-                      
+                      <p className="text-sm text-slate-600 line-clamp-3 leading-relaxed mb-4 italic">"{comment.content}"</p>
+
                       {/* Mini Image Preview */}
                       {comment.images && comment.images.length > 0 && (
-                        <div className="flex gap-1.5">
+                        <div className="flex gap-2">
                           {comment.images.map((img: string, i: number) => (
-                            <img 
-                              key={i} 
-                              src={img} 
-                              alt="Review" 
-                              className="w-8 h-8 rounded-lg object-cover border border-white shadow-sm" 
+                            <img
+                              key={i}
+                              src={img}
+                              alt="Review"
+                              onClick={() => setSelectedImageUrl(img)}
+                              className="w-16 h-16 rounded-xl object-cover border-2 border-white shadow-sm cursor-pointer hover:scale-105 transition-transform"
                             />
                           ))}
                         </div>
@@ -299,6 +283,22 @@ const OrganizerDashboard = () => {
           </div>
         </div>
       </div>
+        </div>
+      )}
+      
+      {selectedImageUrl && createPortal(
+        <div 
+          className="fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out"
+          onClick={() => setSelectedImageUrl(null)}
+        >
+          <img 
+            src={selectedImageUrl} 
+            alt="Enlarged review" 
+            className="max-w-full max-h-[90vh] rounded-2xl shadow-2xl animate-scale-in object-contain"
+          />
+        </div>,
+        document.body
+      )}
     </DashboardLayout>
   )
 }

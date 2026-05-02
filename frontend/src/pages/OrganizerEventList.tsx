@@ -66,249 +66,155 @@ const OrganizerEventList = () => {
     setCurrentPage(page - 1)
   }
 
-  const getCategoryColor = (name: string) => {
-    const colors: Record<string, string> = {
-      'Âm nhạc': 'bg-blue-500',
-      'Workshop': 'bg-emerald-500',
-      'Hội thảo': 'bg-purple-500',
-      'Thể thao': 'bg-orange-500',
-      'Nghệ thuật': 'bg-pink-500',
-      'Ẩm thực': 'bg-yellow-500',
-      'Công nghệ': 'bg-indigo-500'
-    }
-    return colors[name] || 'bg-slate-400'
-  }
-
   return (
     <DashboardLayout sidebarProps={sidebarConfig}>
-      <PageHeader
-        title="Quản lý Sự kiện"
-        searchPlaceholder="Tìm sự kiện..."
-        actions={
-          <a href="/organizer/create" className="px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-xl hover:bg-blue-600 flex items-center gap-2 shadow-sm">
-            <Icon name="add" size="sm" /> Tạo mới
-          </a>
-        }
-      />
-      <div className="p-8 space-y-8">
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="glass-card rounded-3xl p-6 border border-white/20 shadow-xl bg-gradient-to-br from-blue-500/10 to-primary/5">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-blue-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
-                <Icon name="event" size="lg" />
-              </div>
-              <div>
-                <p className="text-slate-500 text-sm font-bold uppercase tracking-wider">Tổng sự kiện</p>
-                <h3 className="text-3xl font-black text-slate-900">{stats?.totalEvents || 0}</h3>
-              </div>
-            </div>
-          </div>
-
-          <div className="glass-card rounded-3xl p-6 border border-white/20 shadow-xl bg-gradient-to-br from-purple-500/10 to-purple-600/5">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-purple-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
-                <Icon name="confirmation_number" size="lg" />
-              </div>
-              <div>
-                <p className="text-slate-500 text-sm font-bold uppercase tracking-wider">Vé đã bán</p>
-                <h3 className="text-3xl font-black text-slate-900">{stats?.totalTicketsSold || 0}</h3>
-              </div>
-            </div>
-          </div>
-
-          <div className="glass-card rounded-3xl p-6 border border-white/20 shadow-xl bg-gradient-to-br from-emerald-500/10 to-emerald-600/5">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
-                <Icon name="payments" size="lg" />
-              </div>
-              <div>
-                <p className="text-slate-500 text-sm font-bold uppercase tracking-wider">Tổng doanh thu</p>
-                <h3 className="text-2xl font-black text-emerald-600">{formatCurrency(stats?.totalRevenue || 0)}</h3>
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <PageHeader
+              title="Quản lý Sự kiện"
+              searchPlaceholder="Tìm sự kiện..."
+              actions={
+                <a href="/organizer/create" className="px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-xl hover:bg-blue-600 flex items-center gap-2 shadow-sm">
+                  <Icon name="add" size="sm" /> Tạo mới
+                </a>
+              }
+            />
+          
+          <div className="p-8 space-y-8">
+            {/* Filter tabs */}
+            <div className="flex justify-start border-b border-slate-100 pb-4 animate-fade-in" style={{ animationDelay: '250ms' }}>
+              <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-1.5 flex flex-wrap md:flex-nowrap gap-1.5 w-full md:w-fit overflow-x-auto custom-scrollbar">
+                {STATUS_TABS.map((tab, idx) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => {
+                      setSelectedStatus(tab.key)
+                      setCurrentPage(0)
+                    }}
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex-1 md:flex-none ${selectedStatus === tab.key
+                      ? `${tab.color} text-white shadow-lg scale-105 z-10`
+                      : 'text-slate-500 hover:bg-slate-50'
+                      }`}
+                  >
+                    <Icon name={tab.icon} size="xs" className={selectedStatus === tab.key ? 'text-white' : 'text-slate-400'} />
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
               </div>
             </div>
-          </div>
 
-          {/* Rejected Events Card */}
-          <div className={`rounded-3xl p-6 border transition-all duration-500 ${(stats?.rejectedCount || 0) > 0 ? 'bg-red-50 border-red-200 shadow-lg' : 'bg-slate-50 border-slate-200 opacity-60'}`}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${(stats?.rejectedCount || 0) > 0 ? 'bg-red-500 text-white' : 'bg-slate-200 text-slate-400'}`}>
-                  <Icon name={(stats?.rejectedCount || 0) > 0 ? 'report' : 'check_circle'} size="xs" />
+            {/* Events Grid */}
+            <div className="grid grid-cols-1 gap-4 animate-fade-in" style={{ animationDelay: '400ms' }}>
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                  <Loader className="w-12 h-12 text-primary" />
                 </div>
-                <p className={`text-[10px] font-black uppercase tracking-widest ${(stats?.rejectedCount || 0) > 0 ? 'text-red-500' : 'text-slate-400'}`}>Bị từ chối</p>
-              </div>
-              {(stats?.rejectedCount || 0) > 0 && (
-                <span className="flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-red-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                </span>
+              ) : events.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-slate-50/50 rounded-3xl border border-slate-200">
+                  <Icon name="event_busy" size="xl" className="mb-4 opacity-20" />
+                  <p className="font-bold text-lg text-slate-500">Không có sự kiện</p>
+                </div>
+              ) : (
+                events.map((evt, index) => {
+                  const progress = evt.totalTickets > 0 ? Math.min(Math.round((evt.ticketsSold / evt.totalTickets) * 100), 100) : 0;
+
+                  return (
+                    <Link
+                      key={evt.id}
+                      to={`/organizer/events/${evt.id}/manage`}
+                      className="bg-white rounded-[2rem] border border-slate-100 p-4 flex flex-col sm:flex-row items-center gap-6 hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.08)] hover:border-primary/30 hover:scale-[1.01] transition-all duration-500 group relative overflow-hidden animate-fade-in"
+                      style={{
+                        animationDelay: `${(index * 60) + 450}ms`
+                      }}
+                    >
+                      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-primary scale-y-0 group-hover:scale-y-100 transition-transform duration-500 origin-center" />
+
+                      <div className="w-full sm:w-28 h-28 bg-slate-50 rounded-[1.5rem] overflow-hidden shrink-0 border border-slate-100 shadow-sm relative group-hover:shadow-md transition-all duration-500">
+                        <img
+                          src={evt.posterUrl}
+                          alt={evt.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                          onError={(e) => { (e.target as any).src = 'https://via.placeholder.com/200?text=Event' }}
+                        />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <StatusBadge status={evt.status} />
+                          <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">{evt.categoryName}</span>
+                        </div>
+
+                        <h3 className="text-lg font-black text-slate-900 mb-1 group-hover:text-primary transition-colors tracking-tight truncate">
+                          {evt.title}
+                        </h3>
+
+                        {evt.status === 'rejected' && evt.rejectReason && (
+                          <div className="mb-3 p-2 bg-red-50 border border-red-100 rounded-xl flex items-start gap-2 animate-pulse">
+                            <Icon name="info" size="xs" className="text-red-500 mt-0.5" />
+                            <p className="text-[10px] text-red-600 font-bold leading-tight">
+                              Lý do: {evt.rejectReason}
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap items-center gap-4 text-slate-500">
+                          <div className="flex items-center gap-2">
+                            <Icon name="calendar_month" size="xs" className="text-slate-300" />
+                            <span className="text-xs font-bold">
+                              {new Date(evt.startTime).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Icon name="location_on" size="xs" className="text-slate-300 shrink-0" />
+                            <span className="text-xs font-bold text-slate-500 leading-relaxed">
+                              {evt.location}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="w-full sm:w-64 sm:pl-8 sm:border-l border-slate-100 flex flex-col gap-2">
+                        <div className="flex justify-between items-end">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vé đã bán</p>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-2xl font-black text-slate-950 group-hover:text-primary transition-colors">
+                              {evt.ticketsSold}
+                            </span>
+                            <span className="text-xs font-bold text-slate-400">/ {evt.totalTickets}</span>
+                          </div>
+                        </div>
+
+                        <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200/50 shadow-inner">
+                          <div
+                            className="h-full bg-primary transition-all duration-1000 ease-out rounded-full shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)]"
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+
+                        <p className="text-[10px] text-right font-black text-primary uppercase tracking-tighter">{progress}% đã lấp đầy</p>
+                      </div>
+                    </Link>
+                  )
+                })
               )}
             </div>
 
-            {(stats?.rejectedCount || 0) > 0 ? (
-              <button 
-                onClick={() => { setSelectedStatus('rejected'); setCurrentPage(0); }}
-                className="w-full text-left group/card"
-              >
-                <div className="bg-white/40 backdrop-blur-sm p-3 rounded-2xl border border-red-100 group-hover/card:bg-white transition-all flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-bold text-red-600 leading-tight">Phát hiện sự kiện lỗi</p>
-                    <p className="text-[9px] text-red-400 font-medium">Nhấn để kiểm tra ngay</p>
-                  </div>
-                  <Icon name="arrow_forward" size="xs" className="text-red-400 group-hover/card:translate-x-1 transition-transform" />
-                </div>
-              </button>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-2">
-                <p className="text-[10px] font-bold text-slate-400 uppercase italic">Không có sự kiện lỗi</p>
+            {totalPages > 1 && (
+              <div className="animate-fade-in" style={{ animationDelay: '600ms' }}>
+                <Pagination
+                  current={currentPage + 1}
+                  total={totalPages}
+                  onPageChange={handlePageChange}
+                  label={`Hiển thị ${events.length} trong ${totalElements} sự kiện`}
+                />
               </div>
             )}
           </div>
         </div>
-
-        {/* Filter tabs - Redesigned to Box/Form style */}
-        <div className="flex justify-start border-b border-slate-100 pb-4">
-          <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-1.5 flex flex-wrap md:flex-nowrap gap-1.5 w-full md:w-fit overflow-x-auto custom-scrollbar animate-in fade-in slide-in-from-left-6 duration-700">
-            {STATUS_TABS.map((tab, idx) => (
-              <button
-                key={tab.key}
-                onClick={() => {
-                  setSelectedStatus(tab.key)
-                  setCurrentPage(0)
-                }}
-                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex-1 md:flex-none animate-in fade-in slide-in-from-left-2 ${selectedStatus === tab.key
-                  ? `${tab.color} text-white shadow-lg scale-105 z-10`
-                  : 'text-slate-500 hover:bg-slate-50'
-                  }`}
-                style={{ animationDelay: `${idx * 40}ms`, animationFillMode: 'both' }}
-              >
-                <Icon name={tab.icon} size="xs" className={selectedStatus === tab.key ? 'text-white' : 'text-slate-400'} />
-                <span>{tab.label}</span>
-                {selectedStatus === tab.key && (
-                  <span className="ml-1 px-2 py-0.5 bg-black/10 rounded-lg text-[10px]">
-                    {totalElements}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Events Grid */}
-        <div className="grid grid-cols-1 gap-4">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <Loader className="w-12 h-12 text-primary" />
-            </div>
-          ) : events.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-slate-50/50 rounded-3xl border border-slate-200">
-              <Icon name="event_busy" size="xl" className="mb-4 opacity-20" />
-              <p className="font-bold text-lg text-slate-500">Không có sự kiện</p>
-            </div>
-          ) : (
-            events.map((evt, index) => {
-              const progress = evt.totalTickets > 0 ? Math.min(Math.round((evt.ticketsSold / evt.totalTickets) * 100), 100) : 0;
-
-              return (
-                <Link
-                  key={evt.id}
-                  to={`/organizer/events/${evt.id}/manage`}
-                  className="bg-white rounded-[2rem] border border-slate-100 p-4 flex flex-col sm:flex-row items-center gap-6 hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.08)] hover:border-primary/30 hover:scale-[1.01] transition-all duration-500 group relative overflow-hidden animate-in fade-in slide-in-from-bottom-6"
-                  style={{
-                    animationDelay: `${index * 60}ms`,
-                    animationFillMode: 'both'
-                  }}
-                >
-                  {/* Visual Accent - RESTORED */}
-                  <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-primary scale-y-0 group-hover:scale-y-100 transition-transform duration-500 origin-center" />
-
-                  {/* Image Section - Slightly smaller */}
-                  <div className="w-full sm:w-28 h-28 bg-slate-50 rounded-[1.5rem] overflow-hidden shrink-0 border border-slate-100 shadow-sm relative group-hover:shadow-md transition-all duration-500">
-                    <img
-                      src={evt.posterUrl}
-                      alt={evt.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                      onError={(e) => { (e.target as any).src = 'https://via.placeholder.com/200?text=Event' }}
-                    />
-                  </div>
-
-                  {/* Content Section */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <StatusBadge status={evt.status} />
-                      <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">{evt.categoryName}</span>
-                    </div>
-
-                    <h3 className="text-lg font-black text-slate-900 mb-1 group-hover:text-primary transition-colors tracking-tight truncate">
-                      {evt.title}
-                    </h3>
-
-                    {evt.status === 'rejected' && evt.rejectReason && (
-                      <div className="mb-3 p-2 bg-red-50 border border-red-100 rounded-xl flex items-start gap-2 animate-pulse">
-                        <Icon name="info" size="xs" className="text-red-500 mt-0.5" />
-                        <p className="text-[10px] text-red-600 font-bold leading-tight">
-                          Lý do: {evt.rejectReason}
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="flex flex-wrap items-center gap-4 text-slate-500">
-                      <div className="flex items-center gap-2">
-                        <Icon name="calendar_month" size="xs" className="text-slate-300" />
-                        <span className="text-xs font-bold">
-                          {new Date(evt.startTime).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Icon name="location_on" size="xs" className="text-slate-300 shrink-0" />
-                        <span className="text-xs font-bold text-slate-500 leading-relaxed">
-                          {evt.location}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Analytics Section - Wider and integrated */}
-                  <div className="w-full sm:w-64 sm:pl-8 sm:border-l border-slate-100 flex flex-col gap-2">
-                    <div className="flex justify-between items-end">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vé đã bán</p>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-black text-slate-950 group-hover:text-primary transition-colors">
-                          {evt.ticketsSold}
-                        </span>
-                        <span className="text-xs font-bold text-slate-400">/ {evt.totalTickets}</span>
-                      </div>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200/50 shadow-inner">
-                      <div
-                        className="h-full bg-primary transition-all duration-1000 ease-out rounded-full shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)]"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-
-                    <p className="text-[10px] text-right font-black text-primary uppercase tracking-tighter">{progress}% đã lấp đầy</p>
-                  </div>
-                </Link>
-              )
-            })
-          )}
-        </div>
-
-        {totalPages > 1 && (
-          <Pagination
-            current={currentPage + 1}
-            total={totalPages}
-            onPageChange={handlePageChange}
-            label={`Hiển thị ${events.length} trong ${totalElements} sự kiện`}
-          />
-        )}
-      </div>
     </DashboardLayout>
   )
+
 }
 
 export default OrganizerEventList
+

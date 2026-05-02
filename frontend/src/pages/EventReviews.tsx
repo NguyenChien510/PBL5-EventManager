@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { Icon } from '../components/ui'
+import { Icon, Loader } from '../components/ui'
+import { createPortal } from 'react-dom'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { userSidebarConfig } from '../config/userSidebarConfig'
 import { apiClient } from '../utils/axios'
@@ -28,115 +29,104 @@ const EventReviews = () => {
   const [rating, setRating] = useState(5)
   const [comment, setComment] = useState('')
   const [images, setImages] = useState<string[]>([])
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!eventId) {
       navigate('/history')
       return
     }
+    fetchEventDetails()
+  }, [eventId])
 
-    const fetchEvent = async () => {
-      try {
-        const res = await apiClient.get(`/events/${eventId}`)
-        setEvent(res.data)
-      } catch (err) {
-        console.error('Error fetching event:', err)
-        toast.error('Không tìm thấy thông tin sự kiện')
-        navigate('/history')
-      } finally {
-        setLoading(false)
-      }
+  const fetchEventDetails = async () => {
+    try {
+      const response = await apiClient.get(`/events/${eventId}`)
+      setEvent(response.data)
+    } catch (error) {
+      console.error('Error fetching event details:', error)
+      toast.error('Không thể tải thông tin sự kiện')
+    } finally {
+      setLoading(false)
     }
-
-    fetchEvent()
-  }, [eventId, navigate])
+  }
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
 
-    const remaining = 3 - images.length
-    if (remaining <= 0) {
+    if (images.length + files.length > 3) {
       toast.error('Chỉ được tải lên tối đa 3 ảnh')
       return
     }
 
-    const fileList = Array.from(files).slice(0, remaining)
-    
     setUploading(true)
-    const toastId = toast.loading('Đang tải ảnh lên...')
-    
-    try {
-      const uploadPromises = fileList.map(async (file) => {
-        const formData = new FormData()
-        formData.append('file', file)
-        const res = await apiClient.post('/upload', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        })
-        return res.data.url
-      })
+    const formData = new FormData()
+    for (let i = 0; i < files.length; i++) {
+      formData.append('files', files[i])
+    }
 
-      const urls = await Promise.all(uploadPromises)
-      setImages(prev => [...prev, ...urls])
-      toast.success(`Đã tải lên ${urls.length} ảnh`, { id: toastId })
-    } catch (err) {
-      console.error('Upload failed:', err)
-      toast.error('Tải ảnh lên thất bại', { id: toastId })
+    try {
+      const response = await apiClient.post('/upload/multiple', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      setImages([...images, ...response.data])
+      toast.success('Đã tải ảnh lên')
+    } catch (error) {
+      console.error('Error uploading images:', error)
+      toast.error('Tải ảnh thất bại')
     } finally {
       setUploading(false)
-      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
   const removeImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index))
+    setImages(images.filter((_, i) => i !== index))
   }
 
   const handleSubmit = async () => {
     if (!comment.trim()) {
-      toast.error('Vui lòng viết cảm nhận của bạn')
+      toast.error('Vui lòng nhập cảm nhận của bạn')
       return
     }
 
+    setSubmitting(true)
     try {
-      setSubmitting(true)
       await apiClient.post('/comments', {
         eventId: Number(eventId),
         content: comment,
-        rating: rating,
-        images: images
+        rating,
+        images
       })
-      toast.success('Gửi đánh giá thành công! Cảm ơn bạn.')
+      toast.success('Cảm ơn bạn đã đánh giá!')
       navigate('/history')
-    } catch (err) {
-      console.error('Error submitting review:', err)
-      toast.error('Không thể gửi đánh giá. Vui lòng thử lại sau.')
+    } catch (error) {
+      console.error('Error submitting review:', error)
+      toast.error('Gửi đánh giá thất bại')
     } finally {
       setSubmitting(false)
     }
   }
 
-  if (loading) {
-    return (
-      <DashboardLayout sidebarProps={userSidebarConfig}>
-        <div className="flex justify-center py-20">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        </div>
-      </DashboardLayout>
-    )
-  }
-
   return (
     <DashboardLayout sidebarProps={userSidebarConfig}>
-      <PageHeader 
-        title="Đánh giá sự kiện" 
-        subtitle="Chia sẻ trải nghiệm của bạn với cộng đồng" 
-      />
+      {loading ? (
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader className="w-12 h-12 text-primary" />
+        </div>
+      ) : (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="animate-in fade-in slide-in-from-top-4 duration-700">
+            <PageHeader 
+              title="Đánh giá sự kiện" 
+              subtitle="Chia sẻ trải nghiệm của bạn với cộng đồng" 
+            />
+          </div>
       
-      <div className="p-8 max-w-4xl mx-auto">
-        <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="p-8 max-w-4xl mx-auto space-y-8 pb-20">
+        <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-1000 fill-mode-both" style={{ animationDelay: '100ms' }}>
           {/* Event Banner */}
-          <div className="relative h-48 bg-slate-900">
+          <div className="relative h-48 bg-slate-900 animate-in fade-in duration-1000">
             <img 
               src={event?.bannerUrl || event?.posterUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30'} 
               className="w-full h-full object-cover opacity-60"
@@ -158,7 +148,7 @@ const EventReviews = () => {
 
           <div className="p-10 space-y-12">
             {/* Rating Section */}
-            <div className="text-center space-y-8">
+            <div className="text-center space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both" style={{ animationDelay: '300ms' }}>
               <h4 className="text-xl font-black text-slate-900">Không khí sự kiện thế nào?</h4>
               <div className="flex justify-center gap-4 sm:gap-6">
                 {emotions.map((e) => (
@@ -185,7 +175,7 @@ const EventReviews = () => {
             </div>
 
             {/* Comment Section */}
-            <div className="space-y-4">
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both" style={{ animationDelay: '450ms' }}>
               <div className="flex justify-between items-center px-1">
                 <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Cảm nhận chi tiết</label>
                 <span className="text-[10px] font-bold text-slate-300">{comment.length}/500</span>
@@ -200,7 +190,7 @@ const EventReviews = () => {
             </div>
 
             {/* Image Upload Section */}
-            <div className="space-y-4">
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both" style={{ animationDelay: '600ms' }}>
               <div className="flex items-center justify-between px-1">
                 <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Ảnh thực tế (Tối đa 3)</label>
                 <span className="text-[10px] font-bold text-slate-300">{images.length}/3</span>
@@ -209,7 +199,12 @@ const EventReviews = () => {
               <div className="flex gap-4">
                 {images.map((img, idx) => (
                   <div key={idx} className="relative w-24 h-24 rounded-2xl overflow-hidden group border border-slate-100 shadow-sm">
-                    <img src={img} className="w-full h-full object-cover" alt="Review" />
+                    <img 
+                      src={img} 
+                      className="w-full h-full object-cover cursor-zoom-in" 
+                      alt="Review" 
+                      onClick={() => setSelectedImageUrl(img)}
+                    />
                     <button 
                       onClick={() => removeImage(idx)}
                       className="absolute top-1 right-1 w-6 h-6 bg-rose-500 text-white rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
@@ -248,7 +243,7 @@ const EventReviews = () => {
             </div>
 
             {/* Bonus Banner */}
-            <div className="bg-primary/5 rounded-3xl p-6 flex items-center gap-6 border border-primary/10">
+            <div className="bg-primary/5 rounded-3xl p-6 flex items-center gap-6 border border-primary/10 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both" style={{ animationDelay: '750ms' }}>
               <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-white shrink-0">
                 <Icon name="workspace_premium" />
               </div>
@@ -259,7 +254,7 @@ const EventReviews = () => {
             </div>
 
             {/* Actions */}
-            <div className="flex gap-4 pt-4">
+            <div className="flex gap-4 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both" style={{ animationDelay: '900ms' }}>
               <button 
                 onClick={() => navigate('/history')}
                 className="flex-1 py-5 bg-slate-100 text-slate-500 text-sm font-black rounded-2xl hover:bg-slate-200 transition-all active:scale-95 uppercase tracking-widest"
@@ -286,6 +281,29 @@ const EventReviews = () => {
           </div>
         </div>
       </div>
+
+      {selectedImageUrl && createPortal(
+        <div 
+          className="fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out animate-in fade-in duration-300"
+          onClick={() => setSelectedImageUrl(null)}
+        >
+          <button 
+            className="absolute top-6 right-6 w-12 h-12 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-all"
+            onClick={() => setSelectedImageUrl(null)}
+          >
+            <Icon name="close" size="md" />
+          </button>
+          <img 
+            src={selectedImageUrl} 
+            alt="Full size preview" 
+            className="max-w-full max-h-[90vh] rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>,
+        document.body
+      )}
+        </div>
+      )}
     </DashboardLayout>
   )
 }

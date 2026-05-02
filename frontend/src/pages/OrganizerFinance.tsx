@@ -43,7 +43,7 @@ const OrganizerFinance = () => {
   const totalRevenue = orders.filter(o => o.status === 'COMPLETED').reduce((sum, o) => sum + o.totalAmount, 0)
   const platformFee = orders.filter(o => o.status === 'COMPLETED').reduce((sum, o) => sum + (o.platformFee || 0), 0)
   const netIncome = totalRevenue - platformFee
-  
+
 
 
   const formatCurrency = (amount: number) => {
@@ -60,19 +60,15 @@ const OrganizerFinance = () => {
     }
   }
 
-  if (loading) {
-    return (
-      <DashboardLayout sidebarProps={sidebarConfig}>
+  return (
+    <DashboardLayout sidebarProps={sidebarConfig}>
+      {loading ? (
         <div className="flex flex-col items-center justify-center min-h-[60vh]">
           <Loader className="w-12 h-12 text-primary" />
         </div>
-      </DashboardLayout>
-    );
-  }
-
-  return (
-    <DashboardLayout sidebarProps={sidebarConfig}>
-      <PageHeader title="Quyết toán Tài chính" subtitle="Tổng quan doanh thu & chi phí" />
+      ) : (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <PageHeader title="Quyết toán Tài chính" subtitle="Tổng quan doanh thu & chi phí" />
       <div className="p-6 space-y-5">
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-slide-down">
@@ -129,13 +125,13 @@ const OrganizerFinance = () => {
                     <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-black px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-all pointer-events-none z-10 whitespace-nowrap">
                       {formatCurrency(val)}
                     </div>
-                    
+
                     <span className="text-[10px] font-black text-indigo-600 opacity-0 group-hover:opacity-100 transition-all group-hover:-translate-y-1 duration-300">
-                      {val > 1000000 ? `${(val/1000000).toFixed(1)}M` : `${(val/1000).toFixed(0)}K`}
+                      {val > 1000000 ? `${(val / 1000000).toFixed(1)}M` : `${(val / 1000).toFixed(0)}K`}
                     </span>
                     <div className="w-full flex-1 bg-slate-50/80 rounded-t-xl relative overflow-hidden ring-1 ring-inset ring-slate-100 border-b-2 border-slate-200">
-                      <div className="absolute bottom-0 w-full rounded-t-xl transition-all duration-700 ease-out group-hover:brightness-110 bg-gradient-to-t from-indigo-600 to-blue-400 shadow-[0_0_15px_rgba(79,70,229,0.2)]" 
-                           style={{ height: `${Math.max(heightPercent, 2)}%` }} />
+                      <div className="absolute bottom-0 w-full rounded-t-xl transition-all duration-700 ease-out group-hover:brightness-110 bg-gradient-to-t from-indigo-600 to-blue-400 shadow-[0_0_15px_rgba(79,70,229,0.2)]"
+                        style={{ height: `${Math.max(heightPercent, 2)}%` }} />
                     </div>
                     <span className="text-[9px] text-slate-400 font-bold uppercase group-hover:text-indigo-600 transition-colors">T{i + 1}</span>
                   </div>
@@ -158,8 +154,8 @@ const OrganizerFinance = () => {
               <Icon name="download" size="sm" /> Xuất CSV
             </button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
+          <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left whitespace-nowrap">
               <thead>
                 <tr className="bg-slate-50/50">
                   {['Mã GD', 'Sự kiện', 'Tổng thu', 'Phí nền tảng', 'Thực nhận', 'Ngày', 'Trạng thái'].map((h) => (
@@ -185,11 +181,10 @@ const OrganizerFinance = () => {
                       <td className="p-6 text-sm font-black whitespace-nowrap text-indigo-600">{formatCurrency(txNet)}</td>
                       <td className="p-6 text-xs font-bold text-slate-500 whitespace-nowrap">{new Date(tx.purchaseDate).toLocaleString('vi-VN')}</td>
                       <td className="p-6 whitespace-nowrap">
-                        <span className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest inline-block border shadow-sm ${
-                          tx.status === 'COMPLETED' ? 'bg-emerald-500 text-white border-emerald-600 shadow-emerald-100' :
-                          tx.status === 'PENDING' ? 'bg-orange-400 text-white border-orange-500 shadow-orange-100' :
-                          'bg-slate-400 text-white border-slate-500 shadow-slate-100'
-                        }`}>{tx.status}</span>
+                        <span className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest inline-block border shadow-sm ${tx.status === 'COMPLETED' ? 'bg-emerald-500 text-white border-emerald-600 shadow-emerald-100' :
+                            tx.status === 'PENDING' ? 'bg-orange-400 text-white border-orange-500 shadow-orange-100' :
+                              'bg-slate-400 text-white border-slate-500 shadow-slate-100'
+                          }`}>{tx.status}</span>
                       </td>
                     </tr>
                   )
@@ -205,30 +200,29 @@ const OrganizerFinance = () => {
                 Hiển thị {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, orders.length)} / {orders.length} giao dịch
               </div>
               <div className="flex items-center gap-1">
-                <button 
-                  onClick={() => goToPage(currentPage - 1)} 
+                <button
+                  onClick={() => goToPage(currentPage - 1)}
                   disabled={currentPage === 1}
                   className="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 bg-white text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-all"
                 >
                   <Icon name="chevron_left" size="sm" />
                 </button>
-                
+
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                   <button
                     key={page}
                     onClick={() => goToPage(page)}
-                    className={`w-8 h-8 rounded-lg text-xs font-black transition-all ${
-                      currentPage === page 
-                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' 
+                    className={`w-8 h-8 rounded-lg text-xs font-black transition-all ${currentPage === page
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
                         : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
+                      }`}
                   >
                     {page}
                   </button>
                 ))}
 
-                <button 
-                  onClick={() => goToPage(currentPage + 1)} 
+                <button
+                  onClick={() => goToPage(currentPage + 1)}
                   disabled={currentPage === totalPages}
                   className="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 bg-white text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-all"
                 >
@@ -239,6 +233,8 @@ const OrganizerFinance = () => {
           )}
         </div>
       </div>
+        </div>
+      )}
     </DashboardLayout>
   )
 }
