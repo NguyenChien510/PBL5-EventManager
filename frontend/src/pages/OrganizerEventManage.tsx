@@ -79,6 +79,17 @@ const OrganizerEventManage = () => {
     }
   };
 
+  const handleToggleLike = async (commentId: number) => {
+    try {
+      await EventService.toggleLikeComment(commentId);
+      setComments(prev => prev.map(c => 
+        c.id === commentId ? { ...c, isLikedByOrganizer: !c.isLikedByOrganizer } : c
+      ));
+    } catch (error) {
+      toast.error("Thao tác thất bại");
+    }
+  };
+
   // Finance pagination
   const [transactionPage, setTransactionPage] = useState(1);
   const transactionsPerPage = 5;
@@ -1377,77 +1388,198 @@ const OrganizerEventManage = () => {
             {activeTab === 'feedback' && (
               <div className="space-y-8 animate-in fade-in duration-500">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm text-center">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Đánh giá trung bình</p>
-                    <h4 className="text-5xl font-black text-slate-900">
-                      {comments.length > 0 ? (comments.reduce((a, b) => a + b.rating, 0) / comments.length).toFixed(1) : "0.0"}
-                    </h4>
-                    <div className="flex justify-center gap-1 mt-2 text-yellow-400">
-                      {Array.from({ length: 5 }).map((_, i) => <Icon key={i} name="star" size="xs" filled={i < Math.round(comments.length > 0 ? comments.reduce((a, b) => a + b.rating, 0) / comments.length : 0)} />)}
+                  {/* Average Rating Box */}
+                  <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex items-center gap-6 relative overflow-hidden group">
+                    <div className="w-20 h-20 bg-yellow-400 text-white rounded-[2rem] flex flex-col items-center justify-center shadow-lg shadow-yellow-200 group-hover:scale-105 transition-transform duration-500 shrink-0">
+                      <span className="text-3xl font-black leading-none">
+                        {comments.length > 0 ? (comments.reduce((a, b) => a + b.rating, 0) / comments.length).toFixed(1) : "0.0"}
+                      </span>
+                      <Icon name="star" size="xs" filled />
+                    </div>
+                    <div>
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Xếp hạng trung bình</h4>
+                      <p className="text-slate-900 font-black text-lg">{comments.length} đánh giá</p>
+                      <div className="flex gap-0.5 mt-2">
+                        {Array.from({ length: 5 }).map((_, s) => (
+                          <Icon
+                            key={s}
+                            name="star"
+                            size="xs"
+                            className={s < Math.round(comments.length > 0 ? comments.reduce((a, b) => a + b.rating, 0) / comments.length : 0) ? "text-yellow-400 scale-90" : "text-slate-100 scale-90"}
+                            filled
+                          />
+                        ))}
+                      </div>
                     </div>
                   </div>
-                  <div className="md:col-span-2 bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
-                    <h5 className="font-black text-slate-900 mb-4 uppercase text-xs">Phân bổ</h5>
-                    <div className="space-y-3">
-                      {[5, 4, 3, 2, 1].map(r => (
-                        <div key={r} className="flex items-center gap-4">
-                          <span className="text-xs font-black w-4">{r}</span>
-                          <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-yellow-400" style={{ width: `${comments.length > 0 ? (comments.filter(c => c.rating === r).length / comments.length) * 100 : 0}%` }} />
+
+                  {/* Distribution Box */}
+                  <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 relative overflow-hidden group">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Phân bổ đánh giá</h4>
+                    <div className="space-y-2">
+                      {[5, 4, 3, 2, 1].map((star) => {
+                        const count = comments.filter(c => c.rating === star).length;
+                        const pct = comments.length > 0 ? (count / comments.length) * 100 : 0;
+                        return (
+                          <div key={star} className="flex items-center gap-3">
+                            <span className="text-[10px] font-black text-slate-900 w-3">{star}</span>
+                            <div className="flex-1 h-2 bg-slate-50 rounded-full overflow-hidden">
+                              <div className="h-full bg-yellow-400 rounded-full transition-all duration-1000" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="text-[10px] font-black text-slate-400 w-8 text-right">{pct.toFixed(0)}%</span>
                           </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Action Needed Box */}
+                  <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex items-center justify-between relative overflow-hidden group hover:border-primary/20 transition-all">
+                    <div>
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Cần phản hồi</h4>
+                      <div className="flex items-baseline gap-3">
+                        <p className="text-4xl font-black text-slate-900 tracking-tighter">
+                          {comments.filter(c => !c.reply).length}
+                        </p>
+                        <div className="px-3 py-1 bg-amber-50 text-amber-600 rounded-xl border border-amber-100 shadow-sm">
+                          <span className="text-[10px] font-black uppercase tracking-widest">Tồn đọng</span>
                         </div>
-                      ))}
+                      </div>
+                    </div>
+                    <div className="w-14 h-14 bg-amber-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-amber-200/50 group-hover:scale-110 transition-transform duration-500">
+                      <Icon name="chat_bubble" size="sm" filled />
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-6">
-                  {comments.map((c, i) => (
-                    <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
-                      <div className="flex justify-between items-start">
-                        <div className="flex gap-4">
-                          <Avatar src={c.user?.avatar} size="lg" className="rounded-2xl" />
-                          <div>
-                            <h6 className="font-black text-slate-900">{c.user?.fullName}</h6>
-                            <div className="flex items-center gap-2 mt-1">
-                              <div className="flex gap-0.5 text-yellow-400">
-                                {Array.from({ length: 5 }).map((_, s) => <Icon key={s} name="star" size="xs" filled={s < c.rating} />)}
+                  <div className="flex items-center justify-between px-2">
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Tất cả nhận xét</h3>
+                  </div>
+
+                  {comments.map((review, i) => (
+                    <div 
+                      key={review.id || i} 
+                      className="bg-white rounded-[2.5rem] border border-slate-100/80 p-8 shadow-sm hover:shadow-xl hover:shadow-slate-200/40 transition-all duration-500 group/card relative overflow-hidden"
+                    >
+                      <div className="flex flex-col md:flex-row gap-8">
+                        <div className="flex-shrink-0">
+                          <Avatar
+                            src={review.user?.avatar}
+                            alt={review.user?.fullName}
+                            size="xl"
+                            className="rounded-3xl shadow-sm border-4 border-white group-hover/card:scale-105 transition-transform duration-500"
+                            fallback={review.user?.fullName?.substring(0, 2)}
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
+                            <div>
+                              <h4 className="font-black text-slate-900 text-lg mb-1">{review.user?.fullName}</h4>
+                              <div className="flex items-center gap-3">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                  {new Date(review.createdAt).toLocaleString('vi-VN', { 
+                                    day: '2-digit', 
+                                    month: 'short', 
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
                               </div>
-                              <span className="text-[10px] text-slate-400 font-bold uppercase">• {new Date(c.createdAt).toLocaleDateString('vi-VN')}</span>
+                            </div>
+                            <div className="flex gap-1 bg-yellow-400/5 px-3 py-1.5 rounded-2xl border border-yellow-400/10">
+                              {Array.from({ length: 5 }, (_, s) => (
+                                <Icon key={s} name="star" size="xs" className={s < review.rating ? 'text-yellow-400' : 'text-slate-100'} filled />
+                              ))}
                             </div>
                           </div>
-                        </div>
-                      </div>
-                      <div className="bg-slate-50 p-6 rounded-3xl text-slate-600 text-sm leading-relaxed font-medium">"{c.content}"</div>
-                      {c.images && c.images.length > 0 && (
-                        <div className="flex gap-3">
-                          {c.images.filter((img: string) => img && img.trim() !== "").map((img: string, idx: number) => (
-                            <img key={idx} src={img} alt="Feedback" className="w-24 h-24 rounded-2xl object-cover cursor-zoom-in" onClick={() => setSelectedImageUrl(img)} />
-                          ))}
-                        </div>
-                      )}
-                      <div className="pt-4 border-t">
-                        {c.reply ? (
-                          <div className="bg-slate-900 p-6 rounded-3xl text-white">
-                            <p className="text-[10px] font-black text-slate-400 uppercase mb-2 flex items-center gap-2"><Icon name="reply" size="xs" /> Phản hồi của bạn</p>
-                            <p className="text-xs font-medium">{c.reply}</p>
+                          
+                          <div className="relative mb-6">
+                            <p className="text-sm text-slate-900 font-bold leading-relaxed">"{review.content}"</p>
                           </div>
-                        ) : (
-                          <div className="flex gap-3">
-                            <input 
-                              type="text" 
-                              value={replyTexts[c.id] || ""} 
-                              onChange={(e) => setReplyTexts(p => ({ ...p, [c.id]: e.target.value }))}
-                              placeholder="Viết phản hồi..." 
-                              className="flex-1 px-5 py-3 bg-slate-50 rounded-2xl text-xs font-bold outline-none" 
-                            />
-                            <button onClick={() => handleReply(c.id)} className="px-6 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase">Gửi</button>
+
+                          {/* Review Images */}
+                          {review.images && review.images.length > 0 && (
+                            <div className="flex flex-wrap gap-3 mb-6">
+                              {review.images.filter((img: string) => img && img.trim() !== "").map((img: string, idx: number) => (
+                                <div key={idx} className="relative group/img cursor-pointer overflow-hidden rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg transition-all duration-500">
+                                  <img
+                                    src={img}
+                                    alt="Review"
+                                    className="w-24 h-24 object-cover group-hover/img:scale-110 transition-transform duration-700"
+                                    onClick={() => setSelectedImageUrl(img)}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Action Bar */}
+                          <div className="space-y-6 pt-6 border-t border-slate-50">
+                            <div className="flex flex-wrap items-center gap-4">
+                              <button 
+                                onClick={() => handleToggleLike(review.id)}
+                                className={`group/heart flex items-center gap-2 px-5 py-2.5 rounded-2xl transition-all duration-500 border ${
+                                  review.isLikedByOrganizer 
+                                    ? 'bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/20' 
+                                    : 'bg-rose-50/30 text-rose-400 border-rose-100/50 hover:bg-rose-50 hover:border-rose-200'
+                                }`}
+                              >
+                                <Icon name="favorite" size="xs" filled={review.isLikedByOrganizer} className={review.isLikedByOrganizer ? 'scale-110' : 'group-hover/heart:scale-120 transition-transform'} />
+                                <span className="text-[10px] font-black uppercase tracking-widest">{review.isLikedByOrganizer ? 'Đã yêu thích' : 'Yêu thích'}</span>
+                              </button>
+                              
+                              <div className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl border transition-all duration-500 ${
+                                review.reply 
+                                  ? 'bg-emerald-50 text-emerald-600 border-emerald-100 shadow-sm shadow-emerald-100/20' 
+                                  : 'bg-amber-50 text-amber-600 border-amber-100 shadow-sm shadow-amber-100/20'
+                              }`}>
+                                <Icon name={review.reply ? "check_circle" : "pending"} size="xs" filled={review.reply} />
+                                <span className="text-[10px] font-black uppercase tracking-widest">
+                                  {review.reply ? 'Đã phản hồi' : 'Chờ phản hồi'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {review.reply ? (
+                              <div className="bg-slate-900 p-6 rounded-[2rem] space-y-3 relative overflow-hidden group/reply shadow-xl shadow-slate-900/10">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-xl bg-white/10 text-white flex items-center justify-center backdrop-blur-md">
+                                    <Icon name="subdirectory_arrow_right" size="xs" />
+                                  </div>
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Phản hồi từ Ban Tổ Chức</span>
+                                </div>
+                                <p className="text-xs font-bold leading-relaxed text-white pl-11">{review.reply}</p>
+                              </div>
+                            ) : (
+                              <div className="flex gap-3 bg-white p-2 rounded-[2rem] border-2 border-slate-900/10 focus-within:border-slate-900/30 focus-within:shadow-xl transition-all duration-500">
+                                <input 
+                                  type="text" 
+                                  placeholder="Gửi lời cảm ơn chân thành..." 
+                                  className="flex-1 px-5 py-3 bg-transparent border-0 focus:ring-0 text-xs font-black outline-none placeholder:text-slate-400 placeholder:font-black placeholder:uppercase placeholder:tracking-widest" 
+                                  value={replyTexts[review.id] || ''}
+                                  onChange={(e) => setReplyTexts({ ...replyTexts, [review.id]: e.target.value })}
+                                  onKeyDown={(e) => e.key === 'Enter' && handleReply(review.id)}
+                                />
+                                <button 
+                                  onClick={() => handleReply(review.id)}
+                                  className="w-10 h-10 bg-slate-900 text-white rounded-[1.1rem] flex items-center justify-center hover:bg-primary hover:scale-105 active:scale-95 transition-all shadow-xl shadow-slate-900/10 group/send"
+                                >
+                                  <Icon name="send" size="xs" className="group-hover/send:translate-x-0.5 group-hover/send:-translate-y-0.5 transition-transform" />
+                                </button>
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
                     </div>
                   ))}
-                  {comments.length === 0 && <div className="p-20 text-center text-slate-300 font-black uppercase text-sm border-4 border-dashed rounded-[3rem]">Chưa có phản hồi</div>}
+                  {comments.length === 0 && (
+                    <div className="p-20 text-center text-slate-300 font-black uppercase text-sm border-4 border-dashed rounded-[3rem]">
+                      Chưa có phản hồi cho sự kiện này
+                    </div>
+                  )}
                 </div>
               </div>
             )}

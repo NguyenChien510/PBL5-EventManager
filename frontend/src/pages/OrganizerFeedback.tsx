@@ -255,36 +255,34 @@ const OrganizerFeedback = () => {
                       </div>
                     </div>
 
-                    {/* Show existing reply if any */}
-                    {review.reply && (
-                      <div className="bg-slate-50/80 p-4 rounded-3xl border border-slate-100/50 space-y-2 relative overflow-hidden group/reply hover:bg-slate-50 transition-colors">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-xl bg-blue-500 text-white flex items-center justify-center shadow-sm">
-                            <Icon name="reply" size="xs" />
+                    {review.reply ? (
+                      <div className="bg-slate-900 p-6 rounded-[2rem] space-y-3 relative overflow-hidden group/reply shadow-xl shadow-slate-900/10">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-xl bg-white/10 text-white flex items-center justify-center backdrop-blur-md">
+                            <Icon name="subdirectory_arrow_right" size="xs" />
                           </div>
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">Phản hồi từ Ban Tổ Chức</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Phản hồi từ Ban Tổ Chức</span>
                         </div>
-                        <p className="text-xs font-black leading-relaxed text-slate-900 pl-9">{review.reply}</p>
+                        <p className="text-xs font-bold leading-relaxed text-white pl-11">{review.reply}</p>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2 bg-white p-1.5 rounded-[2rem] border-2 border-slate-900/10 focus-within:border-slate-900/30 focus-within:shadow-xl transition-all duration-500">
+                        <input 
+                          type="text" 
+                          placeholder="Gửi lời cảm ơn chân thành..." 
+                          className="flex-1 px-4 py-2 bg-transparent border-0 focus:ring-0 text-xs font-black outline-none placeholder:text-slate-400 placeholder:font-black placeholder:uppercase placeholder:tracking-widest" 
+                          value={replyTexts[review.id] || ''}
+                          onChange={(e) => setReplyTexts({ ...replyTexts, [review.id]: e.target.value })}
+                          onKeyDown={(e) => e.key === 'Enter' && handleReply(review.id)}
+                        />
+                        <button 
+                          onClick={() => handleReply(review.id)}
+                          className="w-10 h-10 bg-slate-900 text-white rounded-[1.1rem] flex items-center justify-center hover:bg-primary hover:scale-105 active:scale-95 transition-all shadow-xl shadow-slate-900/10 group/send"
+                        >
+                          <Icon name="send" size="xs" className="group-hover/send:translate-x-0.5 group-hover/send:-translate-y-0.5 transition-transform" />
+                        </button>
                       </div>
                     )}
-
-                    {/* Reply Input */}
-                    <div className="flex gap-2 bg-white p-1.5 rounded-[2rem] border-2 border-slate-900/10 focus-within:border-slate-900/30 focus-within:shadow-xl transition-all duration-500">
-                      <input 
-                        type="text" 
-                        placeholder={review.reply ? "Cập nhật phản hồi..." : "Gửi lời cảm ơn chân thành..."} 
-                        className="flex-1 px-4 py-2 bg-transparent border-0 focus:ring-0 text-xs font-black outline-none placeholder:text-slate-400 placeholder:font-black placeholder:uppercase placeholder:tracking-widest" 
-                        value={replyTexts[review.id] || ''}
-                        onChange={(e) => setReplyTexts({ ...replyTexts, [review.id]: e.target.value })}
-                        onKeyDown={(e) => e.key === 'Enter' && handleReply(review.id)}
-                      />
-                      <button 
-                        onClick={() => handleReply(review.id)}
-                        className="w-10 h-10 bg-slate-900 text-white rounded-[1.1rem] flex items-center justify-center hover:bg-primary hover:scale-105 active:scale-95 transition-all shadow-xl shadow-slate-900/10 group/send"
-                      >
-                        <Icon name="send" size="xs" className="group-hover/send:translate-x-0.5 group-hover/send:-translate-y-0.5 transition-transform" />
-                      </button>
-                    </div>
                   </div>
                 </div>
               </div>
