@@ -1462,24 +1462,33 @@ const OrganizerEventManage = () => {
                                             <button
                                                 onClick={() => setRatingFilter(null)}
                                                 className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-500 border ${ratingFilter === null
-                                                    ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/10'
-                                                    : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200 hover:text-slate-600'
+                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-600/20'
+                                                    : 'bg-white text-gray-400 border-gray-100 hover:border-gray-200 hover:text-gray-600'
                                                     }`}
                                             >
                                                 Tất cả
                                             </button>
-                                            {[5, 4, 3, 2, 1].map(star => (
-                                                <button
-                                                    key={star}
-                                                    onClick={() => setRatingFilter(star)}
-                                                    className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all duration-500 border flex items-center gap-1.5 ${ratingFilter === star
-                                                        ? 'bg-yellow-400 text-white border-yellow-400 shadow-lg shadow-yellow-400/20'
-                                                        : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200 hover:text-slate-600'
-                                                        }`}
-                                                >
-                                                    {star} <Icon name="star" size="xs" filled />
-                                                </button>
-                                            ))}
+                                            {[5, 4, 3, 2, 1].map(star => {
+                                                const starColors: any = {
+                                                    5: 'bg-amber-500 border-amber-500 shadow-amber-500/20',
+                                                    4: 'bg-blue-500 border-blue-500 shadow-blue-500/20',
+                                                    3: 'bg-emerald-500 border-emerald-500 shadow-emerald-500/20',
+                                                    2: 'bg-orange-500 border-orange-500 shadow-orange-500/20',
+                                                    1: 'bg-rose-500 border-rose-500 shadow-rose-500/20'
+                                                };
+                                                return (
+                                                    <button
+                                                        key={star}
+                                                        onClick={() => setRatingFilter(star)}
+                                                        className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all duration-500 border flex items-center gap-1.5 ${ratingFilter === star
+                                                            ? `${starColors[star]} text-white shadow-lg`
+                                                            : 'bg-white text-gray-400 border-gray-100 hover:border-gray-200 hover:text-gray-600'
+                                                            }`}
+                                                    >
+                                                        {star} <Icon name="star" size="xs" filled />
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
                                     </div>
 
@@ -1487,7 +1496,7 @@ const OrganizerEventManage = () => {
                                         const filteredComments = comments.filter(review => ratingFilter === null || review.rating === ratingFilter);
                                         if (filteredComments.length === 0) {
                                             return (
-                                                <div className="p-20 text-center text-slate-300 font-black uppercase text-sm border-4 border-dashed rounded-[3rem]">
+                                                <div className="p-20 text-center text-gray-900 font-black uppercase text-sm border-2 border-gray-200 bg-gray-50/50 rounded-[3rem]">
                                                     {ratingFilter ? `Chưa có nhận xét ${ratingFilter} sao` : "Chưa có nhận xét nào"}
                                                 </div>
                                             );
@@ -1514,7 +1523,7 @@ const OrganizerEventManage = () => {
                                                                     <div>
                                                                         <h4 className="font-black text-slate-900 text-lg mb-1">{review.user?.fullName}</h4>
                                                                         <div className="flex items-center gap-3">
-                                                                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                                                                            <span className="text-xs font-black text-slate-500 uppercase tracking-widest">
                                                                                 {new Date(review.createdAt).toLocaleString('vi-VN', {
                                                                                     day: '2-digit',
                                                                                     month: 'short',
@@ -1527,7 +1536,7 @@ const OrganizerEventManage = () => {
                                                                     </div>
                                                                     <div className="flex gap-1.5">
                                                                         {Array.from({ length: 5 }, (_, s) => (
-                                                                            <Icon key={s} name="star" size="xl" className={s < review.rating ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]' : 'text-slate-100'} filled />
+                                                                            <Icon key={s} name="star" size="xl" className={s < review.rating ? 'text-yellow-400' : 'text-slate-100'} filled />
                                                                         ))}
                                                                     </div>
                                                                 </div>
@@ -1557,8 +1566,8 @@ const OrganizerEventManage = () => {
                                                                         <button
                                                                             onClick={() => handleToggleLike(review.id)}
                                                                             className={`group/heart flex items-center gap-2 px-4 py-1.5 rounded-xl transition-all duration-500 border ${review.isLikedByOrganizer
-                                                                                    ? 'bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/20'
-                                                                                    : 'bg-rose-50/30 text-rose-400 border-rose-100/50 hover:bg-rose-50 hover:border-rose-200'
+                                                                                ? 'bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/20'
+                                                                                : 'bg-rose-50/30 text-rose-400 border-rose-100/50 hover:bg-rose-50 hover:border-rose-200'
                                                                                 }`}
                                                                         >
                                                                             <Icon name="favorite" size="xs" filled={review.isLikedByOrganizer} className={review.isLikedByOrganizer ? 'scale-110' : 'group-hover/heart:scale-120 transition-transform'} />
@@ -1566,8 +1575,8 @@ const OrganizerEventManage = () => {
                                                                         </button>
 
                                                                         <div className={`flex items-center gap-2 px-4 py-1.5 rounded-xl border transition-all duration-500 ${review.reply
-                                                                                ? 'bg-emerald-50 text-emerald-600 border-emerald-100 shadow-sm shadow-emerald-100/20'
-                                                                                : 'bg-amber-50 text-amber-600 border-amber-100 shadow-sm shadow-amber-100/20'
+                                                                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100 shadow-sm shadow-emerald-100/20'
+                                                                            : 'bg-amber-50 text-amber-600 border-amber-100 shadow-sm shadow-amber-100/20'
                                                                             }`}>
                                                                             <Icon name={review.reply ? "check_circle" : "pending"} size="xs" filled={review.reply} />
                                                                             <span className="text-[10px] font-black uppercase tracking-widest">
@@ -1582,16 +1591,16 @@ const OrganizerEventManage = () => {
                                                                                 <div className="w-7 h-7 rounded-lg bg-slate-900 text-white flex items-center justify-center">
                                                                                     <Icon name="subdirectory_arrow_right" size="xs" />
                                                                                 </div>
-                                                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Phản hồi từ Ban Tổ Chức</span>
+                                                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Phản hồi từ Ban Tổ Chức</span>
                                                                             </div>
-                                                                            <p className="text-xs font-bold leading-relaxed text-slate-700 pl-9">{review.reply}</p>
+                                                                            <p className="text-xs font-bold leading-relaxed text-slate-900 pl-9">{review.reply}</p>
                                                                         </div>
                                                                     ) : (
                                                                         <div className="flex gap-3 bg-white p-2 rounded-[2rem] border-2 border-slate-900/10 focus-within:border-slate-900/30 focus-within:shadow-xl transition-all duration-500">
                                                                             <input
                                                                                 type="text"
                                                                                 placeholder="Ban tổ chức sẽ rút kinh nghiệm, cảm ơn bạn đã nhận xét"
-                                                                                className="flex-1 px-5 py-3 bg-transparent border-0 focus:ring-0 text-xs font-black outline-none placeholder:text-slate-400 placeholder:font-black placeholder:uppercase placeholder:tracking-widest"
+                                                                                className="flex-1 px-5 py-3 bg-transparent border-0 focus:ring-0 text-xs font-black outline-none placeholder:text-slate-500 placeholder:font-black placeholder:uppercase placeholder:tracking-widest"
                                                                                 value={replyTexts[review.id] || ''}
                                                                                 onChange={(e) => setReplyTexts({ ...replyTexts, [review.id]: e.target.value })}
                                                                                 onKeyDown={(e) => e.key === 'Enter' && handleReply(review.id)}
