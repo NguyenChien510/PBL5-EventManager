@@ -587,14 +587,6 @@ const EventDetail = () => {
                               </div>
                             </div>
                             
-                            <div className="flex gap-1">
-                              <button className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-300 hover:bg-slate-50 hover:text-primary transition-all">
-                                <Icon name="favorite" size="xs" />
-                              </button>
-                              <button className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-300 hover:bg-slate-50 hover:text-slate-600 transition-all">
-                                <Icon name="share" size="xs" />
-                              </button>
-                            </div>
                           </div>
 
                           <div className="relative">
