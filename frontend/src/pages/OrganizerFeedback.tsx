@@ -86,21 +86,20 @@ const OrganizerFeedback = () => {
       <div className="p-8 space-y-12">
         {/* Summary Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-slide-down">
-          {/* Box 1: Average Rating */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-4 flex items-center gap-5 relative overflow-hidden group">
-            <div className="w-16 h-16 bg-yellow-400 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-yellow-200/50">
-              <span className="text-3xl font-black leading-none tracking-tighter">{averageRating}</span>
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex items-center gap-6 relative overflow-hidden group">
+            <div className="w-20 h-20 bg-yellow-400 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-yellow-200/50">
+              <span className="text-4xl font-black leading-none tracking-tighter">{averageRating}</span>
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] font-black text-slate-900 uppercase tracking-widest mb-1.5">Xếp hạng trung bình</p>
-              <div className="flex items-center gap-2.5">
-                <span className="text-sm text-slate-900 font-black whitespace-nowrap">{comments.length} đánh giá</span>
+              <p className="text-xs font-black text-slate-900 uppercase tracking-widest mb-2">Xếp hạng trung bình</p>
+              <div className="flex items-center gap-3">
+                <span className="text-base text-slate-900 font-black whitespace-nowrap">{comments.length} đánh giá</span>
                 <div className="flex gap-1">
                   {[1, 2, 3, 4, 5].map((s) => (
                     <Icon
                       key={s}
                       name="star"
-                      size="xs"
+                      size="sm"
                       className={s <= Math.round(Number(averageRating)) ? "text-yellow-400 scale-90" : "text-slate-100 scale-90"}
                       filled
                     />
@@ -110,36 +109,34 @@ const OrganizerFeedback = () => {
             </div>
           </div>
 
-          {/* Box 2: Rating Distribution */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-4 relative overflow-hidden group">
-            <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-widest mb-3">Phân bổ đánh giá</h4>
-            <div className="space-y-1.5">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 relative overflow-hidden group">
+            <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-4">Phân bổ đánh giá</h4>
+            <div className="space-y-2.5">
               {[5, 4, 3, 2, 1].map((star) => {
                 const count = comments.filter(c => c.rating === star).length;
                 const pct = comments.length > 0 ? (count / comments.length) * 100 : 0;
                 return (
-                  <div key={star} className="flex items-center gap-2.5">
-                    <span className="text-xs font-black text-slate-900 w-3">{star}</span>
-                    <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-yellow-400 rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(250,204,21,0.4)]" style={{ width: `${pct}%` }} />
+                  <div key={star} className="flex items-center gap-3">
+                    <span className="text-sm font-black text-slate-900 w-4">{star}</span>
+                    <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-yellow-400 rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(250,204,21,0.5)]" style={{ width: `${pct}%` }} />
                     </div>
-                    <span className="text-[11px] font-black text-slate-900 w-8 text-right">{pct.toFixed(0)}%</span>
+                    <span className="text-sm font-black text-slate-900 w-10 text-right">{pct.toFixed(0)}%</span>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Box 3: Action Needed */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-4 flex items-center justify-between relative overflow-hidden group hover:border-primary/20 transition-all">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex items-center justify-between relative overflow-hidden group hover:border-primary/20 transition-all">
             <div>
-              <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-1">Cần phản hồi</h4>
-              <div className="flex items-baseline gap-3">
-                <p className="text-4xl font-black text-slate-900 tracking-tighter">
+              <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-2">Cần phản hồi</h4>
+              <div className="flex items-baseline gap-4">
+                <p className="text-5xl font-black text-slate-900 tracking-tighter">
                   {comments.filter(c => !c.reply).length}
                 </p>
-                <div className="px-3 py-1 bg-amber-50 text-amber-600 rounded-xl border border-amber-100 shadow-sm shadow-amber-900/5">
-                  <span className="text-[11px] font-black uppercase tracking-widest">Tồn đọng</span>
+                <div className="px-4 py-1.5 bg-amber-50 text-amber-600 rounded-xl border border-amber-100 shadow-sm shadow-amber-900/5">
+                  <span className="text-xs font-black uppercase tracking-widest">Tồn đọng</span>
                 </div>
               </div>
             </div>
@@ -175,19 +172,19 @@ const OrganizerFeedback = () => {
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
                     <div>
-                      <h4 className="font-black text-slate-900 text-base mb-1 truncate">{review.user?.fullName}</h4>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50/80 rounded-2xl border border-slate-100 hover:bg-slate-50 transition-colors cursor-default">
+                      <h4 className="font-black text-slate-900 text-lg mb-1 truncate">{review.user?.fullName}</h4>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
                           {review.eventThumbnail && (
-                            <img src={review.eventThumbnail} alt="Event" className="w-5 h-5 rounded-lg object-cover shadow-sm" />
+                            <img src={review.eventThumbnail} alt="Event" className="w-6 h-6 rounded-lg object-cover shadow-sm" />
                           )}
-                          <span className="text-[10px] font-black text-slate-900 uppercase tracking-tight max-w-[200px] truncate">
+                          <span className="text-xs font-black text-slate-900 uppercase tracking-tight max-w-[200px] truncate">
                             {review.eventName || `Sự kiện ID: ${review.eventId}`}
                           </span>
                         </div>
-                        <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-2">
+                        <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
                           {new Date(review.createdAt).toLocaleString('vi-VN', { 
                             day: '2-digit', 
                             month: 'short', 
@@ -198,16 +195,16 @@ const OrganizerFeedback = () => {
                         </span>
                       </div>
                     </div>
-                    <div className="flex gap-1 bg-yellow-400/5 px-3 py-1.5 rounded-2xl border border-yellow-400/10">
+                    <div className="flex gap-1 bg-yellow-400/5 px-4 py-2 rounded-2xl border border-yellow-400/10">
                       {Array.from({ length: 5 }, (_, s) => (
-                        <Icon key={s} name="star" size="xs" className={s < review.rating ? 'text-yellow-400' : 'text-slate-100'} filled />
+                        <Icon key={s} name="star" size="sm" className={s < review.rating ? 'text-yellow-400' : 'text-slate-100'} filled />
                       ))}
                     </div>
                   </div>
-                  
-                  <div className="relative mb-4">
-                    <p className="text-sm text-slate-900 font-bold leading-relaxed">{review.content}</p>
-                  </div>
+                
+                <div className="relative mb-6">
+                  <p className="text-lg text-slate-900 font-bold leading-relaxed">{review.content}</p>
+                </div>
 
                   {/* Review Images */}
                   {review.images && review.images.length > 0 && (
@@ -233,23 +230,23 @@ const OrganizerFeedback = () => {
                     <div className="flex flex-wrap items-center gap-4">
                       <button 
                         onClick={() => handleToggleLike(review.id)}
-                        className={`group/heart flex items-center gap-2 px-4 py-2 rounded-2xl transition-all duration-500 border ${
+                        className={`group/heart flex items-center gap-2.5 px-6 py-3 rounded-2xl transition-all duration-500 border ${
                           review.isLikedByOrganizer 
                             ? 'bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/20' 
                             : 'bg-rose-50/30 text-rose-400 border-rose-100/50 hover:bg-rose-50 hover:border-rose-200'
                         }`}
                       >
-                        <Icon name="favorite" size="xs" filled={review.isLikedByOrganizer} className={review.isLikedByOrganizer ? 'scale-110' : 'group-hover/heart:scale-120 transition-transform'} />
-                        <span className="text-[9px] font-black uppercase tracking-[0.1em]">{review.isLikedByOrganizer ? 'Đã yêu thích' : 'Yêu thích'}</span>
+                        <Icon name="favorite" size="sm" filled={review.isLikedByOrganizer} className={review.isLikedByOrganizer ? 'scale-110' : 'group-hover/heart:scale-120 transition-transform'} />
+                        <span className="text-xs font-black uppercase tracking-widest">{review.isLikedByOrganizer ? 'Đã yêu thích' : 'Yêu thích'}</span>
                       </button>
                       
-                      <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl border transition-all duration-500 ${
+                      <div className={`flex items-center gap-2.5 px-6 py-3 rounded-2xl border transition-all duration-500 ${
                         review.reply 
                           ? 'bg-emerald-50 text-emerald-600 border-emerald-100 shadow-sm shadow-emerald-100/20' 
                           : 'bg-amber-50 text-amber-600 border-amber-100 shadow-sm shadow-amber-100/20'
                       }`}>
-                        <Icon name={review.reply ? "check_circle" : "pending"} size="xs" filled={review.reply} />
-                        <span className="text-[9px] font-black uppercase tracking-[0.1em]">
+                        <Icon name={review.reply ? "check_circle" : "pending"} size="sm" filled={review.reply} />
+                        <span className="text-xs font-black uppercase tracking-widest">
                           {review.reply ? 'Đã phản hồi' : 'Chờ phản hồi'}
                         </span>
                       </div>
