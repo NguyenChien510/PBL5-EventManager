@@ -50,7 +50,10 @@ const OrganizerDashboard = () => {
     ...evt,
     fillRate: evt.totalTickets > 0 ? Math.round((evt.ticketsSold / evt.totalTickets) * 100) : 0
   })).sort((a: any, b: any) => b.fillRate - a.fillRate).slice(0, 5);
-  const pendingFeedback = recentComments.length;
+  
+  // Only count and show feedback that hasn't been replied to
+  const pendingFeedbackList = recentComments.filter(c => !c.reply);
+  const pendingFeedback = pendingFeedbackList.length;
 
   return (
     <DashboardLayout sidebarProps={sidebarConfig}>
@@ -228,8 +231,8 @@ const OrganizerDashboard = () => {
               </h3>
 
               <div className="space-y-3 flex-1">
-                {recentComments.length > 0 ? (
-                  recentComments.slice(0, 4).map((comment, idx) => (
+                {pendingFeedbackList.length > 0 ? (
+                  pendingFeedbackList.slice(0, 4).map((comment, idx) => (
                     <div key={idx} className="p-4 bg-slate-50/50 rounded-[1.5rem] border border-slate-100 hover:border-violet-200 hover:bg-white hover:shadow-lg hover:shadow-violet-500/5 transition-all duration-300 group">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
@@ -274,7 +277,7 @@ const OrganizerDashboard = () => {
                 )}
               </div>
 
-              {recentComments.length > 0 && (
+              {pendingFeedbackList.length > 0 && (
                 <Link to="/organizer/feedback" className="mt-6 w-full py-3 bg-slate-900 text-white text-[11px] font-bold uppercase tracking-widest rounded-xl text-center hover:bg-slate-800 transition-colors">
                   Xem tất cả
                 </Link>
