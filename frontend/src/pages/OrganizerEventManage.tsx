@@ -1633,68 +1633,74 @@ const OrganizerEventManage = () => {
                             <div className="space-y-12 animate-in fade-in duration-500">
                                 {/* Summary Statistics */}
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    {/* Average Rating Box */}
-                                    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex items-center gap-6 relative overflow-hidden group">
-                                        <div className="w-20 h-20 bg-yellow-400 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-yellow-200/50">
-                                            <span className="text-4xl font-black leading-none tracking-tighter">
+                                    {/* Average Rating Box - Compact */}
+                                    <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5 flex items-center gap-5 relative overflow-hidden group transition-all hover:shadow-md">
+                                        <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-amber-500 text-white rounded-2xl flex flex-col items-center justify-center shrink-0 shadow-lg shadow-yellow-200/50 group-hover:scale-105 transition-transform duration-500">
+                                            <span className="text-2xl font-black leading-none tracking-tighter">
                                                 {comments.length > 0 ? (comments.reduce((a, b) => a + b.rating, 0) / comments.length).toFixed(1) : "0.0"}
                                             </span>
+                                            <Icon name="star" size="xs" filled />
                                         </div>
                                         <div className="min-w-0">
-                                            <p className="text-xs font-black text-slate-900 uppercase tracking-widest mb-2">Xếp hạng trung bình</p>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-base text-slate-900 font-black whitespace-nowrap">{comments.length} đánh giá</span>
-                                                <div className="flex gap-1.5">
-                                                    {[1, 2, 3, 4, 5].map((s) => (
-                                                        <Icon
-                                                            key={s}
-                                                            name="star"
-                                                            size="lg"
-                                                            className={s <= Math.round(Number(comments.length > 0 ? (comments.reduce((a, b) => a + b.rating, 0) / comments.length) : 0)) ? "text-yellow-400" : "text-slate-100"}
-                                                            filled
-                                                        />
-                                                    ))}
-                                                </div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Xếp hạng trung bình</p>
+                                            <div className="flex items-center gap-2">
+                                                <h4 className="text-lg font-black text-slate-900 leading-none">{comments.length} đánh giá</h4>
+                                            </div>
+                                            <div className="flex gap-1 mt-2">
+                                                {[1, 2, 3, 4, 5].map((s) => (
+                                                    <Icon
+                                                        key={s}
+                                                        name="star"
+                                                        size="xs"
+                                                        className={s <= Math.round(Number(comments.length > 0 ? (comments.reduce((a, b) => a + b.rating, 0) / comments.length) : 0)) ? "text-yellow-400" : "text-slate-100"}
+                                                        filled
+                                                    />
+                                                ))}
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Distribution Box */}
-                                    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 relative overflow-hidden group">
-                                        <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-4">Phân bổ đánh giá</h4>
-                                        <div className="space-y-2.5">
+                                    {/* Distribution Box - Compact */}
+                                    <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5 relative overflow-hidden group transition-all hover:shadow-md">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phân bổ đánh giá</h4>
+                                            <Icon name="insert_chart" size="xs" className="text-slate-300" />
+                                        </div>
+                                        <div className="space-y-1.5">
                                             {[5, 4, 3, 2, 1].map((star) => {
                                                 const count = comments.filter(c => c.rating === star).length;
                                                 const pct = comments.length > 0 ? (count / comments.length) * 100 : 0;
                                                 return (
                                                     <div key={star} className="flex items-center gap-3">
-                                                        <span className="text-sm font-black text-slate-900 w-4">{star}</span>
-                                                        <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
-                                                            <div className="h-full bg-yellow-400 rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(250,204,21,0.5)]" style={{ width: `${pct}%` }} />
+                                                        <span className="text-[10px] font-black text-slate-900 w-2">{star}</span>
+                                                        <div className="flex-1 h-2 bg-slate-50 rounded-full overflow-hidden">
+                                                            <div className="h-full bg-yellow-400 rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(250,204,21,0.3)]" style={{ width: `${pct}%` }} />
                                                         </div>
-                                                        <span className="text-sm font-black text-slate-900 w-10 text-right">{pct.toFixed(0)}%</span>
+                                                        <span className="text-[9px] font-black text-slate-400 w-8 text-right">{pct.toFixed(0)}%</span>
                                                     </div>
                                                 );
                                             })}
                                         </div>
                                     </div>
 
-                                    {/* Action Needed Box */}
-                                    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex items-center justify-between relative overflow-hidden group hover:border-primary/20 transition-all">
-                                        <div>
-                                            <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-2">Cần phản hồi</h4>
-                                            <div className="flex items-baseline gap-4">
-                                                <p className="text-5xl font-black text-slate-900 tracking-tighter">
+                                    {/* Action Needed Box - Compact */}
+                                    <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5 flex items-center justify-between relative overflow-hidden group transition-all hover:shadow-md hover:border-primary/20">
+                                        <div className="relative z-10">
+                                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Cần phản hồi</h4>
+                                            <div className="flex items-baseline gap-3">
+                                                <p className="text-4xl font-black text-slate-900 tracking-tighter">
                                                     {comments.filter(c => !c.reply).length}
                                                 </p>
-                                                <div className="px-4 py-1.5 bg-amber-50 text-amber-600 rounded-xl border border-amber-100 shadow-sm">
-                                                    <span className="text-xs font-black uppercase tracking-widest">Tồn đọng</span>
+                                                <div className="px-2.5 py-1 bg-amber-50 text-amber-600 rounded-lg border border-amber-100 shadow-sm">
+                                                    <span className="text-[9px] font-black uppercase tracking-widest">Tồn đọng</span>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="w-14 h-14 bg-amber-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-amber-200/50 group-hover:scale-110 transition-transform duration-500">
+                                        <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-amber-200/50 group-hover:rotate-12 transition-all duration-500 shrink-0">
                                             <Icon name="chat_bubble" size="sm" filled />
                                         </div>
+                                        {/* Abstract background element */}
+                                        <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-amber-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                                     </div>
                                 </div>
 
