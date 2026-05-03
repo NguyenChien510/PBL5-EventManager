@@ -248,7 +248,11 @@ export const SeatAttendeeModal = React.memo(({ attendee, onClose, onCheckIn }: S
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 bg-primary/10 text-primary text-[9px] font-black uppercase rounded-lg">Ghế {attendee.seatNumber}</span>
-                <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[9px] font-black uppercase rounded-lg">{attendee.ticketTypeName}</span>
+                <span className={`px-2 py-0.5 text-[9px] font-black uppercase rounded-lg shadow-sm ${attendee.ticketTypeName?.toUpperCase().includes('VIP') 
+                  ? 'bg-amber-500 text-white' 
+                  : 'bg-blue-600 text-white'}`}>
+                  {attendee.ticketTypeName}
+                </span>
               </div>
               <h3 className="text-xl font-black text-slate-900 leading-tight">{attendee.userName}</h3>
             </div>
