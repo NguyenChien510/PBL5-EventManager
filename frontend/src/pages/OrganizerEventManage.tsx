@@ -796,63 +796,94 @@ const OrganizerEventManage = () => {
                                     )}
                                     <button
                                         onClick={() => setIsScanning(!isScanning)}
-                                        className={`ml-auto px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2.5 shadow-lg ${isScanning ? 'bg-rose-500 text-white shadow-rose-200' : 'bg-slate-900 text-white shadow-slate-200'}`}
+                                        className={`ml-auto px-6 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2.5 shadow-lg active:scale-95 group ${
+                                            isScanning 
+                                            ? 'bg-rose-500 text-white shadow-rose-200' 
+                                            : 'bg-slate-900 text-white shadow-slate-200'
+                                        }`}
                                     >
-                                        <Icon name={isScanning ? "close" : "videocam"} size="sm" />
+                                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-300 ${isScanning ? 'bg-white/20 rotate-90' : 'bg-primary group-hover:rotate-12'}`}>
+                                            <Icon name={isScanning ? "close" : "qr_code_scanner"} size="xs" />
+                                        </div>
                                         {isScanning ? "Đóng Scanner" : "Quét mã QR"}
                                     </button>
                                 </div>
 
                                 {isScanning ? (
-                                    <div className="bg-white p-6 rounded-[2.5rem] border-2 border-primary/20 shadow-2xl animate-in zoom-in-95 duration-300 max-w-xl mx-auto w-full">
-                                        <div className="flex flex-col md:flex-row gap-8">
-                                            {/* Camera Side */}
-                                            <div className="flex-1 space-y-4">
-                                                <div id="qr-reader" className="overflow-hidden rounded-3xl border-4 border-slate-100 bg-slate-950 shadow-inner aspect-square flex items-center justify-center relative">
-                                                    {qrError && (
-                                                        <div className="absolute inset-0 z-10 p-4 bg-rose-500/90 backdrop-blur-sm flex items-center justify-center text-white text-xs font-bold text-center">
-                                                            {qrError}
-                                                        </div>
-                                                    )}
+                                    <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl animate-in zoom-in-95 duration-500 max-w-4xl mx-auto w-full relative overflow-hidden">
+                                        <div className="flex flex-col lg:flex-row gap-8 items-start">
+                                            {/* Left Side: Camera */}
+                                            <div className="w-full lg:w-1/2 space-y-4">
+                                                <div className="relative group/camera bg-slate-950 rounded-3xl overflow-hidden aspect-video max-h-[300px] flex items-center justify-center border-4 border-slate-100 shadow-inner">
+                                                    {/* Scanning Corners - Subtle */}
+                                                    <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-primary/50 rounded-tl-md" />
+                                                    <div className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-primary/50 rounded-tr-md" />
+                                                    <div className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-primary/50 rounded-bl-md" />
+                                                    <div className="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-primary/50 rounded-br-md" />
+                                                    
+                                                    {/* Scan Line */}
+                                                    <div className="absolute top-0 left-0 w-full h-[1px] bg-primary/40 animate-scan z-20" />
+
+                                                    <div id="qr-reader" className="w-full h-full object-cover relative z-10">
+                                                        {qrError && (
+                                                            <div className="absolute inset-0 z-30 bg-rose-500/90 backdrop-blur-sm flex flex-col items-center justify-center text-white p-6 text-center">
+                                                                <Icon name="error" size="sm" className="mb-2" />
+                                                                <p className="text-[10px] font-black uppercase tracking-widest">{qrError}</p>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div className="text-center">
-                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Đưa mã QR vào khung hình</p>
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Hệ thống đang chờ quét mã...</p>
                                                 </div>
                                             </div>
 
-                                            {/* Action Side */}
-                                            <div className="flex-1 space-y-5 flex flex-col justify-center">
+                                            {/* Right Side: Inputs */}
+                                            <div className="flex-1 w-full space-y-6 self-center">
                                                 <div className="space-y-1">
-                                                    <h4 className="text-base font-black text-slate-900">Quét mã đơn hàng</h4>
-                                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Tự động nhận diện và check-in</p>
+                                                    <h4 className="text-lg font-black text-slate-900 tracking-tight">Quét mã đơn hàng</h4>
+                                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">Tự động nhận diện và check-in</p>
                                                 </div>
 
-                                                <div className="space-y-3">
-                                                    <label className="flex items-center justify-center gap-3 bg-slate-50 hover:bg-slate-100 p-4 rounded-2xl border border-slate-200 cursor-pointer transition-all active:scale-95 group">
-                                                        <Icon name="upload_file" size="sm" className="text-slate-600 group-hover:text-primary transition-colors" />
-                                                        <span className="text-xs font-black text-slate-700">Tải ảnh QR</span>
-                                                        <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
-                                                    </label>
-
-                                                    <div className="relative">
-                                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                                            <Icon name="key" size="xs" className="text-slate-400" />
+                                                <div className="space-y-4">
+                                                    {/* Manual Entry */}
+                                                    <div className="relative group/input">
+                                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                                                            <Icon name="tag" size="xs" />
                                                         </div>
                                                         <input
                                                             type="text"
                                                             value={manualCode}
                                                             onChange={(e) => setManualCode(e.target.value)}
-                                                            placeholder="Mã thủ công..."
-                                                            className="w-full pl-10 pr-24 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-xs font-bold focus:border-primary/30 outline-none transition-all"
+                                                            placeholder="Nhập mã vé thủ công..."
+                                                            className="w-full pl-11 pr-24 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold focus:border-primary/30 outline-none transition-all placeholder:text-slate-300 uppercase tracking-widest"
                                                             onKeyDown={(e) => e.key === 'Enter' && handleManualCheckIn()}
                                                         />
                                                         <button
                                                             onClick={handleManualCheckIn}
-                                                            className="absolute right-2 top-2 bottom-2 px-4 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary transition-all active:scale-95"
+                                                            className="absolute right-1.5 top-1.5 bottom-1.5 px-5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary transition-all active:scale-95 shadow-lg"
                                                         >
-                                                            Gửi
+                                                            Xác nhận
                                                         </button>
                                                     </div>
+
+                                                    <div className="relative flex items-center justify-center py-1">
+                                                        <div className="w-full border-t border-slate-100"></div>
+                                                        <span className="absolute bg-white px-3 text-[9px] font-black text-slate-300 uppercase tracking-widest">Hoặc</span>
+                                                    </div>
+
+                                                    {/* Upload Area */}
+                                                    <label className="flex items-center gap-4 bg-slate-50 hover:bg-white p-4 rounded-2xl border border-slate-100 hover:border-primary/20 cursor-pointer transition-all active:scale-95 group/upload shadow-sm hover:shadow-md">
+                                                        <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center border border-slate-100 group-hover/upload:text-primary transition-all">
+                                                            <Icon name="upload_file" size="sm" />
+                                                        </div>
+                                                        <div>
+                                                            <span className="block text-[11px] font-black text-slate-700 uppercase tracking-widest">Tải ảnh QR từ máy</span>
+                                                            <span className="text-[9px] font-bold text-slate-400 uppercase">PNG, JPG tối đa 5MB</span>
+                                                        </div>
+                                                        <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+                                                    </label>
                                                 </div>
                                             </div>
                                         </div>
