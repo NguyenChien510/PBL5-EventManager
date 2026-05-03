@@ -360,7 +360,7 @@ const OrganizerEventManage = () => {
         if (isScanning && activeTab === 'guests') {
             html5QrCode = new Html5Qrcode("qr-reader");
 
-            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            const config = { fps: 10, aspectRatio: 1.0 };
 
             html5QrCode.start(
                 { facingMode: "environment" },
@@ -796,16 +796,21 @@ const OrganizerEventManage = () => {
                                     )}
                                     <button
                                         onClick={() => setIsScanning(!isScanning)}
-                                        className={`ml-auto px-6 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2.5 shadow-lg active:scale-95 group ${
-                                            isScanning 
-                                            ? 'bg-rose-500 text-white shadow-rose-200' 
-                                            : 'bg-slate-900 text-white shadow-slate-200'
-                                        }`}
+                                        className={`ml-auto px-6 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all duration-500 flex items-center gap-3 shadow-xl active:scale-95 group relative overflow-hidden ${isScanning
+                                            ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-rose-500/30 hover:shadow-rose-500/50'
+                                            : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-blue-600/30 hover:shadow-blue-600/50'
+                                            }`}
                                     >
-                                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-300 ${isScanning ? 'bg-white/20 rotate-90' : 'bg-primary group-hover:rotate-12'}`}>
+                                        {/* Glossy overlay */}
+                                        <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-500 shadow-sm ${isScanning
+                                            ? 'bg-white/20 rotate-180'
+                                            : 'bg-white/15 group-hover:rotate-12 group-hover:scale-110 group-hover:bg-white/20'
+                                            }`}>
                                             <Icon name={isScanning ? "close" : "qr_code_scanner"} size="xs" />
                                         </div>
-                                        {isScanning ? "Đóng Scanner" : "Quét mã QR"}
+                                        <span className="relative z-10">{isScanning ? "Đóng Scanner" : "Quét mã QR"}</span>
                                     </button>
                                 </div>
 
@@ -814,17 +819,11 @@ const OrganizerEventManage = () => {
                                         <div className="flex flex-col lg:flex-row gap-8 items-start">
                                             {/* Left Side: Camera */}
                                             <div className="w-full lg:w-1/2 space-y-4 animate-fade-in-up [animation-delay:200ms] opacity-0">
-                                                <div className="relative group/camera bg-slate-950 rounded-3xl overflow-hidden aspect-video max-h-[300px] flex items-center justify-center border-4 border-slate-100 shadow-inner">
-                                                    {/* Scanning Corners - Subtle */}
-                                                    <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-primary/50 rounded-tl-md" />
-                                                    <div className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-primary/50 rounded-tr-md" />
-                                                    <div className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-primary/50 rounded-bl-md" />
-                                                    <div className="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-primary/50 rounded-br-md" />
-                                                    
+                                                <div className="relative group/camera bg-slate-950 rounded-3xl overflow-hidden aspect-video max-h-[300px] flex items-center justify-center">
                                                     {/* Scan Line */}
                                                     <div className="absolute top-0 left-0 w-full h-[1px] bg-primary/40 animate-scan z-20" />
 
-                                                    <div id="qr-reader" className="w-full h-full object-cover relative z-10">
+                                                    <div id="qr-reader" className="w-full h-full object-cover relative z-10 [&_*]:border-none [&_img]:hidden [&_button]:hidden [&_a]:hidden [&_span]:hidden">
                                                         {qrError && (
                                                             <div className="absolute inset-0 z-30 bg-rose-500/90 backdrop-blur-sm flex flex-col items-center justify-center text-white p-6 text-center">
                                                                 <Icon name="error" size="sm" className="mb-2" />
@@ -833,16 +832,12 @@ const OrganizerEventManage = () => {
                                                         )}
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <div key="scanner-status-dot" className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Hệ thống đang chờ quét mã...</p>
-                                                </div>
                                             </div>
 
                                             {/* Right Side: Inputs */}
                                             <div className="flex-1 w-full space-y-6 self-center animate-fade-in-up [animation-delay:400ms] opacity-0">
                                                 <div className="space-y-1">
-                                                    <h4 className="text-lg font-black text-slate-900 tracking-tight">Quét mã đơn hàng</h4>
+                                                    <h4 className="text-lg font-black text-slate-900 tracking-tight">Quét mã QR</h4>
                                                     <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">Tự động nhận diện và check-in</p>
                                                 </div>
 
@@ -868,21 +863,19 @@ const OrganizerEventManage = () => {
                                                         </button>
                                                     </div>
 
-                                                    <div className="relative flex items-center justify-center py-1">
-                                                        <div className="w-full border-t border-slate-100"></div>
-                                                        <span className="absolute bg-white px-3 text-[9px] font-black text-slate-300 uppercase tracking-widest">Hoặc</span>
-                                                    </div>
-
-                                                    {/* Upload Area */}
-                                                    <label className="flex items-center gap-4 bg-slate-50 hover:bg-white p-4 rounded-2xl border border-slate-100 hover:border-primary/20 cursor-pointer transition-all active:scale-95 group/upload shadow-sm hover:shadow-md">
-                                                        <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center border border-slate-100 group-hover/upload:text-primary transition-all">
-                                                            <Icon name="upload_file" size="sm" />
+                                                    {/* Upload Area - Modernized & Colorful */}
+                                                    <label className="flex items-center gap-5 p-5 bg-gradient-to-br from-blue-50 to-indigo-50 hover:from-white hover:to-white rounded-[2rem] border-2 border-dashed border-blue-200 hover:border-blue-400 cursor-pointer transition-all duration-300 active:scale-[0.98] group/upload shadow-sm hover:shadow-xl hover:shadow-blue-500/10">
+                                                        <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center shadow-lg border border-blue-50 group-hover/upload:bg-blue-600 group-hover/upload:text-white group-hover/upload:scale-110 transition-all duration-500">
+                                                            <Icon name="add_photo_alternate" size="sm" className="group-hover/upload:rotate-12 transition-transform" />
                                                         </div>
-                                                        <div>
-                                                            <span className="block text-[11px] font-black text-slate-700 uppercase tracking-widest">Tải ảnh QR từ máy</span>
-                                                            <span className="text-[9px] font-bold text-slate-400 uppercase">PNG, JPG tối đa 5MB</span>
+                                                        <div className="flex-1">
+                                                            <span className="block text-[12px] font-black text-slate-800 uppercase tracking-widest group-hover/upload:text-blue-600 transition-colors">Tải ảnh QR từ máy</span>
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Hỗ trợ PNG, JPG • Tối đa 5MB</span>
                                                         </div>
                                                         <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+                                                        <div className="w-10 h-10 rounded-full flex items-center justify-center bg-white/50 text-slate-300 group-hover/upload:bg-blue-50 group-hover/upload:text-blue-600 transition-all">
+                                                            <Icon name="chevron_right" size="xs" className="group-hover/upload:translate-x-1 transition-transform" />
+                                                        </div>
                                                     </label>
                                                 </div>
                                             </div>
