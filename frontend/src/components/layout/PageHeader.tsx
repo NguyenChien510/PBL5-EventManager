@@ -7,13 +7,25 @@ interface PageHeaderProps {
   title: string
   subtitle?: string
   searchPlaceholder?: string
+  searchValue?: string
+  onSearch?: (value: string) => void
   actions?: React.ReactNode
   centerContent?: React.ReactNode
   breadcrumb?: string[]
   backTo?: string
 }
 
-const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, searchPlaceholder, actions, centerContent, breadcrumb, backTo }) => {
+const PageHeader: React.FC<PageHeaderProps> = ({ 
+  title, 
+  subtitle, 
+  searchPlaceholder, 
+  searchValue,
+  onSearch,
+  actions, 
+  centerContent, 
+  breadcrumb, 
+  backTo 
+}) => {
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between min-h-[80px]">
       <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -49,7 +61,12 @@ const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, searchPlacehol
 
       <div className="flex-1 flex items-center justify-end gap-4">
         {searchPlaceholder && (
-          <SearchInput placeholder={searchPlaceholder} className="w-72 hidden xl:block" />
+          <SearchInput 
+            placeholder={searchPlaceholder} 
+            value={searchValue}
+            onChange={onSearch}
+            className="w-72 hidden xl:block" 
+          />
         )}
         {actions}
         <button className="w-10 h-10 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:text-primary transition-colors">

@@ -116,7 +116,7 @@ public class EventService {
 
     @Transactional(readOnly = true)
     public com.pbl.pbl.dto.OrganizerDashboardResponseDTO getOrganizerDashboardData(UUID organizerId,
-            com.pbl.pbl.entity.EventStatus status, Pageable pageable) {
+            com.pbl.pbl.entity.EventStatus status, String keyword, Pageable pageable) {
         long totalEvents = eventRepository.countByOrganizer_Id(organizerId);
         long ticketsSold = seatRepository.countByOrganizerIdAndStatus(organizerId);
         BigDecimal revenue = seatRepository.sumRevenueByOrganizerIdAndStatus(organizerId);
@@ -124,10 +124,22 @@ public class EventService {
             revenue = BigDecimal.ZERO;
 
         Page<Event> eventsPage;
+        boolean hasKeyword = keyword != null && !keyword.trim().isEmpty();
+
         if (status != null) {
-            eventsPage = eventRepository.findByOrganizer_IdAndStatus(organizerId, status, pageable);
+            if (hasKeyword) {
+                eventsPage = eventRepository.findByOrganizer_IdAndStatusAndTitleContainingIgnoreCase(organizerId, status,
+                        keyword.trim(), pageable);
+            } else {
+                eventsPage = eventRepository.findByOrganizer_IdAndStatus(organizerId, status, pageable);
+            }
         } else {
-            eventsPage = eventRepository.findByOrganizer_Id(organizerId, pageable);
+            if (hasKeyword) {
+                eventsPage = eventRepository.findByOrganizer_IdAndTitleContainingIgnoreCase(organizerId, keyword.trim(),
+                        pageable);
+            } else {
+                eventsPage = eventRepository.findByOrganizer_Id(organizerId, pageable);
+            }
         }
 
         List<Long> eventIds = eventsPage.getContent().stream().map(Event::getId).collect(Collectors.toList());

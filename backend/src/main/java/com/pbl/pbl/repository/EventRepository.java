@@ -28,6 +28,12 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     org.springframework.data.domain.Page<Event> findByOrganizer_IdAndStatus(java.util.UUID organizerId, EventStatus status, org.springframework.data.domain.Pageable pageable);
 
     @EntityGraph(attributePaths = { "category", "province", "organizer" })
+    org.springframework.data.domain.Page<Event> findByOrganizer_IdAndTitleContainingIgnoreCase(java.util.UUID organizerId, String title, org.springframework.data.domain.Pageable pageable);
+
+    @EntityGraph(attributePaths = { "category", "province", "organizer" })
+    org.springframework.data.domain.Page<Event> findByOrganizer_IdAndStatusAndTitleContainingIgnoreCase(java.util.UUID organizerId, EventStatus status, String title, org.springframework.data.domain.Pageable pageable);
+
+    @EntityGraph(attributePaths = { "category", "province", "organizer" })
     long countByOrganizer_Id(java.util.UUID organizerId);
 
     @EntityGraph(attributePaths = { "category", "province", "organizer" })

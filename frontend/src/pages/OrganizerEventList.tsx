@@ -24,6 +24,7 @@ const OrganizerEventList = () => {
   const [totalPages, setTotalPages] = useState(0)
   const [totalElements, setTotalElements] = useState(0)
   const [selectedStatus, setSelectedStatus] = useState('all')
+  const [searchTerm, setSearchTerm] = useState('')
 
   const STATUS_TABS = [
     { key: 'all', label: 'Tất cả', icon: 'list_alt', color: 'bg-slate-900' },
@@ -34,10 +35,10 @@ const OrganizerEventList = () => {
     { key: 'rejected', label: 'Bị từ chối', icon: 'cancel', color: 'bg-red-500' }
   ]
 
-  const fetchDashboardData = async (page: number, status?: string) => {
+  const fetchDashboardData = async (page: number, status?: string, keyword?: string) => {
     setLoading(true)
     try {
-      const data = await EventService.getOrganizerDashboard(page, 3, status)
+      const data = await EventService.getOrganizerDashboard(page, 3, status, keyword)
       setStats({
         totalEvents: data.totalEvents,
         totalTicketsSold: data.totalTicketsSold,
@@ -55,8 +56,8 @@ const OrganizerEventList = () => {
   }
 
   useEffect(() => {
-    fetchDashboardData(currentPage, selectedStatus)
-  }, [currentPage, selectedStatus])
+    fetchDashboardData(currentPage, selectedStatus, searchTerm)
+  }, [currentPage, selectedStatus, searchTerm])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
@@ -66,12 +67,19 @@ const OrganizerEventList = () => {
     setCurrentPage(page - 1)
   }
 
+  const handleSearch = (value: string) => {
+    setSearchTerm(value)
+    setCurrentPage(0)
+  }
+
   return (
     <DashboardLayout sidebarProps={sidebarConfig}>
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
           <PageHeader
               title="Quản lý Sự kiện"
               searchPlaceholder="Tìm sự kiện..."
+              searchValue={searchTerm}
+              onSearch={handleSearch}
               actions={
                 <a href="/organizer/create" className="px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-xl hover:bg-blue-600 flex items-center gap-2 shadow-sm">
                   <Icon name="add" size="sm" /> Tạo mới

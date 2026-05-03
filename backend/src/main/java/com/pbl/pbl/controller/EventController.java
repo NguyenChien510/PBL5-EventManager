@@ -113,6 +113,7 @@ public class EventController {
     public ResponseEntity<?> getOrganizerDashboard(
             Authentication auth,
             @RequestParam(required = false) com.pbl.pbl.entity.EventStatus status,
+            @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         if (auth != null) {
@@ -130,7 +131,7 @@ public class EventController {
         System.out.println(">>> DASHBOARD REQUESTED FOR USER ID: " + user.getId() + " STATUS: " + status);
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        com.pbl.pbl.dto.OrganizerDashboardResponseDTO data = eventService.getOrganizerDashboardData(user.getId(), status, pageable);
+        com.pbl.pbl.dto.OrganizerDashboardResponseDTO data = eventService.getOrganizerDashboardData(user.getId(), status, keyword, pageable);
         
         System.out.println(">>> EVENTS FOUND FOR USER: " + data.getTotalEvents());
         return ResponseEntity.ok(data);
