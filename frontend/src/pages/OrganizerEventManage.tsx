@@ -9,6 +9,7 @@ import { EventService } from '../services/eventService';
 import toast from 'react-hot-toast';
 import { EditEventModal, ImagePreviewModal, SeatAttendeeModal } from './OrganizerEventModals';
 import { Html5Qrcode } from 'html5-qrcode';
+import { API_BASE_URL } from '../constants';
 
 interface ManageStats {
     totalSeats: number;
@@ -439,7 +440,7 @@ const OrganizerEventManage = () => {
                     checkInDate: a.checkInDate,
                     ticketId: a.ticketId,
                     status: a.status,
-                    avatarUrl: a.userAvatar
+                    avatarUrl: a.userAvatar ? (a.userAvatar.startsWith('http') ? a.userAvatar : `${API_BASE_URL.replace('/api', '')}${a.userAvatar.startsWith('/') ? '' : '/'}${a.userAvatar}`) : null
                 };
             } else {
                 groups[a.orderId].seatNumbers.push(a.seatNumber);
@@ -902,9 +903,17 @@ const OrganizerEventManage = () => {
                                                                     <tr key={attendee.id} className="hover:bg-slate-50/50 transition-colors">
                                                                         <td className="px-8 py-6">
                                                                             <div className="flex items-center gap-4">
-                                                                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-black text-lg shadow-inner overflow-hidden">
+                                                                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-black text-lg shadow-inner overflow-hidden border border-slate-200">
                                                                                     {attendee.avatarUrl ? (
-                                                                                        <img src={attendee.avatarUrl} alt={attendee.fullName} className="w-full h-full object-cover" />
+                                                                                        <img 
+                                                                                            src={attendee.avatarUrl} 
+                                                                                            alt={attendee.fullName} 
+                                                                                            className="w-full h-full object-cover"
+                                                                                            onError={(e) => {
+                                                                                                (e.target as HTMLImageElement).style.display = 'none';
+                                                                                                (e.target as HTMLImageElement).parentElement!.innerText = attendee.fullName.charAt(0);
+                                                                                            }}
+                                                                                        />
                                                                                     ) : (
                                                                                         attendee.fullName.charAt(0)
                                                                                     )}
@@ -972,18 +981,26 @@ const OrganizerEventManage = () => {
                                             </div>
                                         ) : (
                                             <div className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
-                                                <div className="flex flex-wrap justify-center gap-8 mb-12 text-[12px] font-black uppercase tracking-[0.2em] text-slate-500">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-4 h-4 rounded-lg bg-primary shadow-lg" /> <span>Đã Check-in</span>
+                                                <div className="flex flex-wrap justify-center gap-6 md:gap-10 mb-12 text-[11px] font-black uppercase tracking-[0.15em]">
+                                                    <div className="flex items-center gap-2.5 group">
+                                                        <div className="w-5 h-5 rounded-lg bg-emerald-500 shadow-lg shadow-emerald-100 group-hover:scale-110 transition-transform" /> 
+                                                        <span className="text-emerald-700">Đã Check-in</span>
                                                     </div>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-4 h-4 rounded-lg bg-amber-500 shadow-lg" /> <span>VIP</span>
+                                                    <div className="flex items-center gap-2.5 group">
+                                                        <div className="w-5 h-5 rounded-lg bg-amber-500 shadow-lg shadow-amber-100 group-hover:scale-110 transition-transform" /> 
+                                                        <span className="text-amber-700">VIP (Đã bán)</span>
                                                     </div>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-4 h-4 rounded-lg bg-primary/10 border-2 border-primary/20" /> <span>Trống (Thường)</span>
+                                                    <div className="flex items-center gap-2.5 group">
+                                                        <div className="w-5 h-5 rounded-lg bg-blue-600 shadow-lg shadow-blue-100 group-hover:scale-110 transition-transform" /> 
+                                                        <span className="text-blue-700">Thường (Đã bán)</span>
                                                     </div>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-4 h-4 rounded-lg bg-amber-50 border-2 border-amber-200" /> <span>Trống (VIP)</span>
+                                                    <div className="flex items-center gap-2.5 group">
+                                                        <div className="w-5 h-5 rounded-lg bg-amber-50 border-2 border-amber-200 group-hover:scale-110 transition-transform" /> 
+                                                        <span className="text-amber-500/70">Trống (VIP)</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2.5 group">
+                                                        <div className="w-5 h-5 rounded-lg bg-blue-50 border-2 border-blue-100 group-hover:scale-110 transition-transform" /> 
+                                                        <span className="text-blue-500/70">Trống (Thường)</span>
                                                     </div>
                                                 </div>
 
@@ -998,26 +1015,36 @@ const OrganizerEventManage = () => {
                                                             <div className="w-8 flex items-center justify-center text-xs font-black text-slate-300">{row}</div>
                                                             <div className="flex gap-2">
                                                                 {seats.filter((s: any) => s.seatNumber.startsWith(row))
-                                                                    .sort((a, b) => parseInt(a.seatNumber.substring(1)) - parseInt(b.seatNumber.substring(1)))
-                                                                    .map((seat: any) => {
-                                                                        const isOccupied = seat.status !== 'AVAILABLE';
-                                                                        const attendee = isOccupied ? attendees.find(a => a.seatNumber === seat.seatNumber) : null;
-                                                                        const isVIP = seat.ticketTypeName?.toUpperCase().includes('VIP');
+                                                                        .map((seat: any) => {
+                                                                            const isOccupied = seat.status !== 'AVAILABLE';
+                                                                            const attendee = isOccupied ? attendees.find(a => a.seatNumber === seat.seatNumber) : null;
+                                                                            const isCheckedIn = isOccupied && attendee?.status === 'CHECKED_IN';
+                                                                            const isVIP = seat.ticketTypeName?.toUpperCase().includes('VIP');
 
-                                                                        return (
-                                                                            <div
-                                                                                key={seat.id}
-                                                                                onClick={() => attendee && setSelectedSeatInfo(attendee)}
-                                                                                title={`${seat.seatNumber} - ${seat.ticketTypeName} - ${isOccupied ? 'Đã bán' : 'Trống'}`}
-                                                                                className={`w-9 h-9 rounded-xl flex items-center justify-center text-[10px] font-black transition-all ${isOccupied
-                                                                                    ? `${isVIP ? 'bg-amber-500 hover:bg-amber-600' : 'bg-slate-900 hover:bg-primary'} text-white cursor-pointer hover:scale-110 shadow-xl shadow-slate-200`
-                                                                                    : `${isVIP ? 'bg-amber-50 border-2 border-amber-200 text-amber-600' : 'bg-primary/5 text-primary border-2 border-primary/10'} hover:scale-110 cursor-help`
-                                                                                    }`}
-                                                                            >
-                                                                                {isOccupied ? <Icon name="person" size="xs" /> : seat.seatNumber.substring(1)}
-                                                                            </div>
-                                                                        );
-                                                                    })}
+                                                                            let seatStyle = "";
+                                                                            if (isCheckedIn) {
+                                                                                seatStyle = "bg-emerald-500 text-white shadow-lg shadow-emerald-100 hover:bg-emerald-600";
+                                                                            } else if (isOccupied) {
+                                                                                seatStyle = isVIP 
+                                                                                    ? "bg-amber-500 text-white shadow-lg shadow-amber-100 hover:bg-amber-600" 
+                                                                                    : "bg-blue-600 text-white shadow-lg shadow-blue-100 hover:bg-blue-700";
+                                                                            } else {
+                                                                                seatStyle = isVIP 
+                                                                                    ? "bg-amber-50 border-2 border-amber-200 text-amber-600 hover:bg-amber-100" 
+                                                                                    : "bg-blue-50 border-2 border-blue-100 text-blue-600 hover:bg-blue-100";
+                                                                            }
+
+                                                                            return (
+                                                                                <div
+                                                                                    key={seat.id}
+                                                                                    onClick={() => attendee && setSelectedSeatInfo(attendee)}
+                                                                                    title={`${seat.seatNumber} - ${seat.ticketTypeName} - ${isCheckedIn ? 'Đã Check-in' : isOccupied ? 'Đã bán' : 'Trống'}`}
+                                                                                    className={`w-9 h-9 rounded-xl flex items-center justify-center text-[10px] font-black transition-all cursor-pointer hover:scale-110 ${seatStyle}`}
+                                                                                >
+                                                                                    {isOccupied ? <Icon name="person" size="xs" /> : seat.seatNumber.substring(1)}
+                                                                                </div>
+                                                                            );
+                                                                        })}
                                                             </div>
                                                         </div>
                                                     ))}
