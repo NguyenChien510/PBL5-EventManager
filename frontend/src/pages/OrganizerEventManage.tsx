@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { DashboardLayout, PageHeader } from '../components/layout';
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig';
@@ -69,6 +70,17 @@ const OrganizerEventManage = () => {
     const [isScanning, setIsScanning] = useState(false);
     const [scanResult, setScanResult] = useState<any>(null);
     const [manualCode, setManualCode] = useState('');
+
+    useEffect(() => {
+        if (scanResult) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [scanResult]);
 
     const handleReply = async (commentId: number) => {
         const reply = replyTexts[commentId]?.trim() || "Ban tổ chức sẽ rút kinh nghiệm, cảm ơn bạn đã nhận xét";
@@ -324,12 +336,17 @@ const OrganizerEventManage = () => {
     const [qrError, setQrError] = useState<string | null>(null);
 
     const handleQrSuccess = async (decodedText: string) => {
-        const loadingToast = toast.loading("Đang truy vấn thông tin...");
+        const loadingToast = toast.loading("Đang thực hiện check-in...");
         try {
+            // 1. Get info
             const orderInfo = await EventService.getOrderByQR(decodedText);
+            // 2. Auto check-in
+            await EventService.checkInOrderByQR(decodedText);
+            
             setScanResult(orderInfo);
             setIsScanning(false);
-            toast.dismiss(loadingToast);
+            toast.success("Check-in thành công!", { id: loadingToast });
+            fetchData();
         } catch (error: any) {
             toast.error(error.response?.data?.message || "Mã QR không hợp lệ hoặc đã được sử dụng", { id: loadingToast });
         }
@@ -341,18 +358,6 @@ const OrganizerEventManage = () => {
             return;
         }
         handleQrSuccess(manualCode.trim());
-    };
-
-    const confirmCheckIn = async (qrCode: string) => {
-        const loadingToast = toast.loading("Đang thực hiện check-in...");
-        try {
-            await EventService.checkInOrderByQR(qrCode);
-            toast.success("Check-in thành công!", { id: loadingToast });
-            setScanResult(null);
-            fetchData();
-        } catch (error: any) {
-            toast.error(error.response?.data?.message || "Thao tác thất bại", { id: loadingToast });
-        }
     };
 
     useEffect(() => {
@@ -496,7 +501,10 @@ const OrganizerEventManage = () => {
 
 
     return (
-        <DashboardLayout sidebarProps={organizerSidebarConfig}>
+        <DashboardLayout 
+            sidebarProps={organizerSidebarConfig}
+            blur={!!scanResult}
+        >
             <div className="min-h-screen bg-slate-50" style={{ scrollbarGutter: 'stable' }}>
                 <PageHeader
                     title={event?.title || 'Quản lý sự kiện'}
@@ -1828,8 +1836,8 @@ const OrganizerEventManage = () => {
                     onClose={() => setSelectedImageUrl(null)}
                 />
 
-                {scanResult && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                {scanResult && createPortal(
+                    <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
                         <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setScanResult(null)} />
                         <div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
                             {/* Header */}
@@ -1842,7 +1850,10 @@ const OrganizerEventManage = () => {
                                         <Icon name="fact_check" size="md" />
                                     </div>
                                     <div>
-                                        <h3 className="text-xl font-black tracking-tight">Thông tin Check-in</h3>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="text-xl font-black tracking-tight">Check-in Thành công</h3>
+                                            <div className="px-2 py-0.5 bg-emerald-500 text-white text-[8px] font-black rounded-full animate-bounce">SUCCESS</div>
+                                        </div>
                                         <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Đơn hàng #{scanResult.id}</p>
                                     </div>
                                 </div>
@@ -1855,7 +1866,7 @@ const OrganizerEventManage = () => {
                             </div>
 
                             {/* Body - Scrollable */}
-                            <div className="p-8 space-y-6 overflow-y-auto">
+                            <div className="p-8 space-y-6 overflow-y-auto custom-scrollbar">
                                 <div className="space-y-5">
                                     <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
                                         <div className="flex items-center gap-3">
@@ -1918,25 +1929,18 @@ const OrganizerEventManage = () => {
                             </div>
 
                             {/* Footer */}
-                            <div className="p-8 bg-slate-50 border-t border-slate-100 shrink-0">
-                                <div className="flex gap-4">
-                                    <button
-                                        onClick={() => setScanResult(null)}
-                                        className="flex-1 py-4 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-100 transition-all active:scale-95 shadow-sm"
-                                    >
-                                        Hủy bỏ
-                                    </button>
-                                    <button
-                                        onClick={() => confirmCheckIn(scanResult.qrCode)}
-                                        className="flex-[2] py-4 bg-primary text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:shadow-xl hover:shadow-primary/20 transition-all active:scale-95 flex items-center justify-center gap-2"
-                                    >
-                                        <Icon name="check_circle" size="sm" />
-                                        Xác nhận Check-in
-                                    </button>
-                                </div>
+                            <div className="p-8 bg-slate-50 border-t border-slate-100 shrink-0 text-center">
+                                <button
+                                    onClick={() => setScanResult(null)}
+                                    className="w-full py-4 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:shadow-xl hover:shadow-slate-900/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+                                >
+                                    <Icon name="done_all" size="sm" />
+                                    Hoàn tất
+                                </button>
                             </div>
                         </div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
             </div>
         </DashboardLayout>

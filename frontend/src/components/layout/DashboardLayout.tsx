@@ -5,9 +5,10 @@ import { useAuthStore } from '@/stores/useAuthStore'
 interface DashboardLayoutProps {
   sidebarProps: any // Use any for simplicity in merging
   children: React.ReactNode
+  blur?: boolean
 }
 
-const DashboardLayout: React.FC<DashboardLayoutProps> = ({ sidebarProps, children }) => {
+const DashboardLayout: React.FC<DashboardLayoutProps> = ({ sidebarProps, children, blur }) => {
   const { user } = useAuthStore()
   
   const mergedSidebarProps = {
@@ -21,8 +22,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ sidebarProps, childre
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar {...mergedSidebarProps} />
-      <main className="ml-72 flex-1 flex flex-col min-h-screen animate-fade-in">
+      <div className={`transition-all duration-500 ${blur ? 'blur-md pointer-events-none' : ''}`}>
+        <Sidebar {...mergedSidebarProps} />
+      </div>
+      <main className={`ml-72 flex-1 flex flex-col min-h-screen animate-fade-in transition-all duration-500 ${blur ? 'blur-md pointer-events-none' : ''}`}>
         {children}
       </main>
     </div>
