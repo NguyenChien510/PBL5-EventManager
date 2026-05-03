@@ -71,16 +71,6 @@ const OrganizerEventManage = () => {
     const [scanResult, setScanResult] = useState<any>(null);
     const [manualCode, setManualCode] = useState('');
 
-    useEffect(() => {
-        if (scanResult) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = 'unset';
-        }
-        return () => {
-            document.body.style.overflow = 'unset';
-        };
-    }, [scanResult]);
 
     const handleReply = async (commentId: number) => {
         const reply = replyTexts[commentId]?.trim() || "Ban tổ chức sẽ rút kinh nghiệm, cảm ơn bạn đã nhận xét";
@@ -342,7 +332,7 @@ const OrganizerEventManage = () => {
             const orderInfo = await EventService.getOrderByQR(decodedText);
             // 2. Auto check-in
             await EventService.checkInOrderByQR(decodedText);
-            
+
             setScanResult(orderInfo);
             setIsScanning(false);
             toast.success("Check-in thành công!", { id: loadingToast });
@@ -405,15 +395,16 @@ const OrganizerEventManage = () => {
         }
     };
 
+    const isAnyModalOpen = !!selectedSeatInfo || isGeneratingPlan || !!activeEditType || !!scanResult || !!selectedImageUrl;
+
     useEffect(() => {
-        const isModalOpen = !!selectedSeatInfo || isGeneratingPlan || !!activeEditType;
-        if (isModalOpen) {
+        if (isAnyModalOpen) {
             document.body.classList.add('modal-open');
         } else {
             document.body.classList.remove('modal-open');
         }
         return () => document.body.classList.remove('modal-open');
-    }, [selectedSeatInfo, isGeneratingPlan, activeEditType]);
+    }, [isAnyModalOpen]);
 
 
 
@@ -433,11 +424,37 @@ const OrganizerEventManage = () => {
         }
     };
 
-    const filteredAttendees = attendees.filter(a =>
-        a.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        a.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        a.seatNumber.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const groupedAttendees = React.useMemo(() => {
+        const groups: Record<number, any> = {};
+        attendees.forEach(a => {
+            if (!groups[a.orderId]) {
+                groups[a.orderId] = {
+                    id: a.orderId,
+                    fullName: a.userName,
+                    email: a.userEmail,
+                    ticketTypeName: a.ticketTypeName,
+                    seatNumbers: [a.seatNumber],
+                    checkInStatus: a.status === 'CHECKED_IN',
+                    checkInDate: a.checkInDate,
+                    ticketId: a.ticketId,
+                    status: a.status
+                };
+            } else {
+                groups[a.orderId].seatNumbers.push(a.seatNumber);
+                if (a.status === 'CHECKED_IN') groups[a.orderId].checkInStatus = true;
+                if (a.checkInDate && (!groups[a.orderId].checkInDate || new Date(a.checkInDate) > new Date(groups[a.orderId].checkInDate))) {
+                    groups[a.orderId].checkInDate = a.checkInDate;
+                }
+            }
+        });
+
+        return Object.values(groups).filter((a: any) =>
+            a.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            a.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            a.seatNumbers.some((s: string) => s.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            String(a.id).includes(searchTerm)
+        );
+    }, [attendees, searchTerm]);
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -501,9 +518,9 @@ const OrganizerEventManage = () => {
 
 
     return (
-        <DashboardLayout 
+        <DashboardLayout
             sidebarProps={organizerSidebarConfig}
-            blur={!!scanResult}
+            blur={isAnyModalOpen}
         >
             <div className="min-h-screen bg-slate-50" style={{ scrollbarGutter: 'stable' }}>
                 <PageHeader
@@ -750,305 +767,266 @@ const OrganizerEventManage = () => {
 
                         {activeTab === 'guests' && (
                             <div className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                                        <p className="text-xs font-bold text-slate-400 uppercase mb-1">Tổng khách mời</p>
-                                        <p className="text-2xl font-black text-slate-900">{stats?.soldSeats}</p>
-                                    </div>
-                                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
-                                        <p className="text-xs font-bold text-slate-400 uppercase mb-1">Đã check-in</p>
-                                        <p className="text-2xl font-black text-emerald-600">{stats?.checkedInSeats}</p>
-                                    </div>
-                                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm border-l-4 border-l-orange-500">
-                                        <p className="text-xs font-bold text-slate-400 uppercase mb-1">Chưa đến</p>
-                                        <p className="text-2xl font-black text-orange-600">{(stats?.soldSeats || 0) - (stats?.checkedInSeats || 0)}</p>
-                                    </div>
-                                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm border-l-4 border-l-purple-500">
-                                        <p className="text-xs font-bold text-slate-400 uppercase mb-1">Tỷ lệ tham gia</p>
-                                        <p className="text-2xl font-black text-purple-600">{Math.round(((stats?.checkedInSeats || 0) / (stats?.soldSeats || 1)) * 100)}%</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex bg-slate-100 p-1 rounded-2xl w-fit">
-                                    <button
-                                        onClick={() => setGuestViewMode('list')}
-                                        className={`px-6 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${guestViewMode === 'list' ? 'bg-white shadow-sm text-primary' : 'text-slate-500'}`}
-                                    >
-                                        <Icon name="list" size="sm" /> Danh sách
-                                    </button>
-                                    <button
-                                        onClick={() => setGuestViewMode('seats')}
-                                        className={`px-6 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${guestViewMode === 'seats' ? 'bg-white shadow-sm text-primary' : 'text-slate-500'}`}
-                                    >
-                                        <Icon name="grid_view" size="sm" /> Sơ đồ ghế
-                                    </button>
-
+                                <div className="flex justify-between items-center mb-6">
+                                    {!isScanning && (
+                                        <div className="flex bg-slate-100 p-1 rounded-2xl w-fit">
+                                            <button
+                                                onClick={() => setGuestViewMode('list')}
+                                                className={`px-6 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${guestViewMode === 'list' ? 'bg-white shadow-sm text-primary' : 'text-slate-500'}`}
+                                            >
+                                                <Icon name="list" size="sm" /> Danh sách
+                                            </button>
+                                            <button
+                                                onClick={() => setGuestViewMode('seats')}
+                                                className={`px-6 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${guestViewMode === 'seats' ? 'bg-white shadow-sm text-primary' : 'text-slate-500'}`}
+                                            >
+                                                <Icon name="grid_view" size="sm" /> Sơ đồ ghế
+                                            </button>
+                                        </div>
+                                    )}
                                     <button
                                         onClick={() => setIsScanning(!isScanning)}
-                                        className={`ml-auto px-6 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${isScanning ? 'bg-rose-500 text-white shadow-lg shadow-rose-200' : 'bg-primary text-white shadow-lg shadow-primary/20'}`}
+                                        className={`ml-auto px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2.5 shadow-lg ${isScanning ? 'bg-rose-500 text-white shadow-rose-200' : 'bg-slate-900 text-white shadow-slate-200'}`}
                                     >
-                                        <Icon name={isScanning ? "videocam_off" : "videocam"} size="sm" />
-                                        {isScanning ? "Tắt Camera" : "Quét mã QR Check-in"}
+                                        <Icon name={isScanning ? "close" : "videocam"} size="sm" />
+                                        {isScanning ? "Đóng Scanner" : "Quét mã QR"}
                                     </button>
                                 </div>
 
-                                {isScanning && (
-                                    <div className="bg-white p-8 rounded-[2.5rem] border-2 border-primary/20 shadow-2xl animate-in zoom-in-95 duration-300">
-                                        <div className="max-w-md mx-auto space-y-6">
-                                            <div className="text-center space-y-2">
-                                                <h4 className="text-lg font-black text-slate-900">Quét mã QR đơn hàng</h4>
-                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Đưa mã QR của khách vào khung hình để tự động check-in</p>
-                                            </div>
-
-                                            {qrError && (
-                                                <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 text-xs font-bold text-center">
-                                                    {qrError}
+                                {isScanning ? (
+                                    <div className="bg-white p-6 rounded-[2.5rem] border-2 border-primary/20 shadow-2xl animate-in zoom-in-95 duration-300 max-w-xl mx-auto w-full">
+                                        <div className="flex flex-col md:flex-row gap-8">
+                                            {/* Camera Side */}
+                                            <div className="flex-1 space-y-4">
+                                                <div id="qr-reader" className="overflow-hidden rounded-3xl border-4 border-slate-100 bg-slate-950 shadow-inner aspect-square flex items-center justify-center relative">
+                                                    {qrError && (
+                                                        <div className="absolute inset-0 z-10 p-4 bg-rose-500/90 backdrop-blur-sm flex items-center justify-center text-white text-xs font-bold text-center">
+                                                            {qrError}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
-
-                                            <div id="qr-reader" className="overflow-hidden rounded-3xl border-4 border-slate-100 bg-slate-950 shadow-inner aspect-square flex items-center justify-center relative">
-                                                {!qrError && !isScanning && (
-                                                    <div className="text-slate-500 flex flex-col items-center gap-2">
-                                                        <Icon name="videocam_off" size="lg" />
-                                                        <span className="text-xs font-bold">Camera đang tắt</span>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            <div className="flex flex-col gap-3">
-                                                <label className="flex items-center justify-center gap-3 bg-slate-100 hover:bg-slate-200 p-4 rounded-2xl border border-slate-200 cursor-pointer transition-all active:scale-95 group">
-                                                    <Icon name="upload_file" size="sm" className="text-slate-600 group-hover:text-primary transition-colors" />
-                                                    <span className="text-xs font-black text-slate-700">Tải ảnh QR từ thiết bị</span>
-                                                    <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
-                                                </label>
-
-                                                <div className="relative">
-                                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                                        <Icon name="key" size="xs" className="text-slate-400" />
-                                                    </div>
-                                                    <input
-                                                        type="text"
-                                                        value={manualCode}
-                                                        onChange={(e) => setManualCode(e.target.value)}
-                                                        placeholder="Nhập mã code thủ công..."
-                                                        className="w-full pl-10 pr-24 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-xs font-bold focus:border-primary/30 focus:ring-4 focus:ring-primary/5 outline-none transition-all"
-                                                        onKeyDown={(e) => e.key === 'Enter' && handleManualCheckIn()}
-                                                    />
-                                                    <button
-                                                        onClick={handleManualCheckIn}
-                                                        className="absolute right-2 top-2 bottom-2 px-4 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary transition-all active:scale-95"
-                                                    >
-                                                        Xác nhận
-                                                    </button>
+                                                <div className="text-center">
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Đưa mã QR vào khung hình</p>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                )}
 
-                                {guestViewMode === 'list' ? (
-                                    <div className="lg:col-span-2 space-y-4">
+                                            {/* Action Side */}
+                                            <div className="flex-1 space-y-5 flex flex-col justify-center">
+                                                <div className="space-y-1">
+                                                    <h4 className="text-base font-black text-slate-900">Quét mã đơn hàng</h4>
+                                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Tự động nhận diện và check-in</p>
+                                                </div>
 
+                                                <div className="space-y-3">
+                                                    <label className="flex items-center justify-center gap-3 bg-slate-50 hover:bg-slate-100 p-4 rounded-2xl border border-slate-200 cursor-pointer transition-all active:scale-95 group">
+                                                        <Icon name="upload_file" size="sm" className="text-slate-600 group-hover:text-primary transition-colors" />
+                                                        <span className="text-xs font-black text-slate-700">Tải ảnh QR</span>
+                                                        <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+                                                    </label>
 
-                                        {/* Redesigned Table/List */}
-                                        <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl shadow-slate-200/50 overflow-hidden relative">
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full border-separate border-spacing-0">
-                                                    <thead>
-                                                        <tr className="bg-slate-50 border-b border-slate-100">
-                                                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">Khách mời</th>
-                                                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">Thông tin vé</th>
-                                                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">Check-in Date</th>
-                                                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">Trạng thái</th>
-                                                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100 text-center">Hành động</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-slate-50/80">
-                                                        {Object.values(filteredAttendees.reduce((acc, current) => {
-                                                            const key = current.orderId ? `order-${current.orderId}` : `user-${current.userEmail}`;
-                                                            if (!acc[key]) acc[key] = { ...current, tickets: [] };
-                                                            acc[key].tickets.push(current);
-                                                            return acc;
-                                                        }, {} as Record<string, Attendee & { tickets: Attendee[] }>)).map((group, idx) => (
-                                                            <tr
-                                                                key={group.orderId || group.userEmail}
-                                                                className="group hover:bg-slate-50/50 transition-all duration-300 relative"
-                                                                style={{ animationDelay: `${idx * 50}ms` }}
-                                                            >
-                                                                <td className="px-8 py-6 relative">
-                                                                    {/* Subtle hover accent */}
-                                                                    <div className="absolute left-0 top-4 bottom-4 w-1 bg-primary scale-y-0 group-hover:scale-y-100 transition-transform duration-300 rounded-r-full" />
-                                                                    <div className="flex items-center gap-4">
-                                                                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-black text-sm shadow-sm border border-white">
-                                                                            {group.userName.substring(0, 1).toUpperCase()}
-                                                                        </div>
-                                                                        <div className="flex flex-col">
-                                                                            <span className="font-black text-slate-900 text-sm tracking-tight group-hover:text-primary transition-colors">{group.userName}</span>
-                                                                            <div className="flex items-center gap-2">
-                                                                                <span className="text-[10px] text-slate-400 font-bold tracking-tight">{group.userEmail}</span>
-                                                                                <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md font-black">ID: #{group.orderId}</span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </td>
-                                                                <td className="px-8 py-6">
-                                                                    <div className="flex flex-wrap gap-1.5 mb-2">
-                                                                        {group.tickets.map((t, tidx) => (
-                                                                            <div key={tidx} className={`px-2.5 py-1 rounded-xl text-[10px] font-black shadow-sm border ${t.ticketTypeName.toUpperCase().includes('VIP')
-                                                                                ? 'bg-amber-500 text-white border-amber-400 shadow-amber-200/50'
-                                                                                : 'bg-primary text-white border-primary/20 shadow-primary/20'}`}>
-                                                                                {t.seatNumber}
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
-                                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter flex items-center gap-1.5">
-                                                                        <span className="w-1 h-1 bg-slate-300 rounded-full" />
-                                                                        {group.tickets.length} vé • {group.tickets[0].ticketTypeName}
-                                                                    </p>
-                                                                </td>
-                                                                <td className="px-8 py-6">
-                                                                    {group.checkInDate ? (
-                                                                        <div className="flex flex-col">
-                                                                            <span className="text-[11px] font-black text-slate-700">
-                                                                                {new Date(group.checkInDate).toLocaleString('vi-VN', {
-                                                                                    hour: '2-digit', minute: '2-digit'
-                                                                                })}
-                                                                            </span>
-                                                                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                                                                                {new Date(group.checkInDate).toLocaleString('vi-VN', {
-                                                                                    day: '2-digit', month: '2-digit', year: 'numeric'
-                                                                                })}
-                                                                            </span>
-                                                                        </div>
-                                                                    ) : (
-                                                                        <span className="text-[10px] font-bold text-slate-300 italic">Chưa check-in</span>
-                                                                    )}
-                                                                </td>
-                                                                <td className="px-8 py-6">
-                                                                    {group.tickets.every(t => t.status === 'CHECKED_IN') ? (
-                                                                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-emerald-100">
-                                                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                                                                            Hoàn tất ({group.tickets.length})
-                                                                        </div>
-                                                                    ) : group.tickets.some(t => t.status === 'CHECKED_IN') ? (
-                                                                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-amber-100">
-                                                                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-                                                                            {group.tickets.filter(t => t.status === 'CHECKED_IN').length}/{group.tickets.length} Đã đến
-                                                                        </div>
-                                                                    ) : (
-                                                                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-wider border border-slate-100">
-                                                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                                                                            Chưa đến
-                                                                        </div>
-                                                                    )}
-                                                                </td>
-                                                                <td className="px-8 py-6 text-center">
-                                                                    <div className="flex items-center justify-center gap-2.5">
-                                                                        {group.tickets.map((t, tidx) => (
-                                                                            <button
-                                                                                key={tidx}
-                                                                                onClick={() => handleCheckIn(t.ticketId, t.status)}
-                                                                                className={`w-10 h-10 rounded-[1.15rem] flex items-center justify-center transition-all shadow-sm font-black text-[11px] relative overflow-hidden group/btn ${t.status === 'CHECKED_IN'
-                                                                                    ? 'bg-emerald-600 text-white shadow-emerald-200 ring-4 ring-emerald-50 border-emerald-500'
-                                                                                    : 'bg-white text-slate-600 border border-slate-200 hover:border-primary hover:text-primary hover:scale-110 active:scale-95 shadow-slate-100'}`}
-                                                                            >
-                                                                                {t.status === 'CHECKED_IN' ? <Icon name="done" size="xs" /> : t.seatNumber}
-                                                                                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
-                                                                            </button>
-                                                                        ))}
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                        {filteredAttendees.length === 0 && (
-                                                            <tr>
-                                                                <td colSpan={4} className="py-20 text-center">
-                                                                    <div className="flex flex-col items-center gap-3">
-                                                                        <div className="w-20 h-20 bg-slate-50 rounded-[2.5rem] flex items-center justify-center text-slate-200 mb-2">
-                                                                            <Icon name="search_off" size="xl" />
-                                                                        </div>
-                                                                        <h5 className="font-black text-slate-900">Không tìm thấy khách mời</h5>
-                                                                        <p className="text-xs text-slate-400 font-bold max-w-[200px] leading-relaxed">Hãy thử tìm kiếm bằng một từ khóa khác</p>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        )}
-                                                    </tbody>
-                                                </table>
+                                                    <div className="relative">
+                                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                                            <Icon name="key" size="xs" className="text-slate-400" />
+                                                        </div>
+                                                        <input
+                                                            type="text"
+                                                            value={manualCode}
+                                                            onChange={(e) => setManualCode(e.target.value)}
+                                                            placeholder="Mã thủ công..."
+                                                            className="w-full pl-10 pr-24 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-xs font-bold focus:border-primary/30 outline-none transition-all"
+                                                            onKeyDown={(e) => e.key === 'Enter' && handleManualCheckIn()}
+                                                        />
+                                                        <button
+                                                            onClick={handleManualCheckIn}
+                                                            className="absolute right-2 top-2 bottom-2 px-4 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary transition-all active:scale-95"
+                                                        >
+                                                            Gửi
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="bg-white p-10 rounded-3xl border border-slate-200 shadow-sm" >
-                                        <div className="max-w-4xl mx-auto space-y-12" >
-                                            <div className="text-center space-y-3" >
-                                                <h4 className="text-xl font-black text-slate-900 tracking-tight" >Sơ đồ khán đài thực tế</h4>
-                                                <div className="flex flex-wrap justify-center gap-6 text-[10px] font-black uppercase tracking-widest text-slate-400" >
-                                                    <div className="flex items-center gap-2" >
-                                                        <div className="w-3 h-3 rounded-sm bg-slate-900" /> <span>Đã bán (Thường)</span>
+                                    <>
+                                        {guestViewMode === 'list' ? (
+                                            <div className="space-y-6">
+                                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-stretch">
+                                                    <div className="md:col-span-2 relative group">
+                                                        <div className="absolute left-5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none z-10">
+                                                            <Icon name="search" size="md" className="text-slate-400 group-focus-within:text-primary transition-colors" />
+                                                        </div>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Tìm kiếm khách, email, số ghế..."
+                                                            value={searchTerm}
+                                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                                            className="w-full h-full pl-14 pr-6 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-black focus:border-primary/30 outline-none transition-all shadow-sm"
+                                                        />
                                                     </div>
-                                                    <div className="flex items-center gap-2" >
-                                                        <div className="w-3 h-3 rounded-sm bg-amber-500" /> <span>Đã bán (VIP)</span>
+                                                    <div className="bg-emerald-50 border border-emerald-100 p-2.5 rounded-2xl flex items-center gap-3">
+                                                        <div className="w-9 h-9 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 shrink-0">
+                                                            <Icon name="check_circle" size="sm" />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">Đã Check-in</p>
+                                                            <p className="text-base font-black text-emerald-700 leading-none">{attendees.filter(a => a.status === 'CHECKED_IN').length}</p>
+                                                        </div>
                                                     </div>
-                                                    <div className="flex items-center gap-2" >
-                                                        <div className="w-3 h-3 rounded-sm bg-primary/20 border border-primary/30" /> <span>Trống (Thường)</span>
+                                                    <div className="bg-indigo-50 border border-indigo-100 p-2.5 rounded-2xl flex items-center gap-3">
+                                                        <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 shrink-0">
+                                                            <Icon name="groups" size="sm" />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="text-[8px] font-black text-indigo-600 uppercase tracking-widest leading-none mb-1">Tổng vé</p>
+                                                            <p className="text-base font-black text-indigo-900 leading-none">{attendees.length}</p>
+                                                        </div>
                                                     </div>
-                                                    <div className="flex items-center gap-2" >
-                                                        <div className="w-3 h-3 rounded-sm bg-amber-50 border border-amber-200" /> <span>Trống (VIP)</span>
+                                                </div>
+
+                                                <div className="bg-white rounded-[1.5rem] border border-slate-200 shadow-sm overflow-hidden">
+                                                    <div className="overflow-x-auto">
+                                                        <table className="w-full text-left border-collapse">
+                                                            <thead>
+                                                                <tr className="bg-slate-50/50">
+                                                                    <th className="px-8 py-4 text-[14px] font-black uppercase">Khách mời</th>
+                                                                    <th className="px-8 py-4 text-[14px] font-black uppercase">Thông tin vé</th>
+                                                                    <th className="px-8 py-4 text-[14px] font-black uppercase">Check-in Date</th>
+                                                                    <th className="px-8 py-4 text-[14px] font-black uppercase text-center">Trạng thái</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody className="divide-y divide-slate-50">
+                                                                {groupedAttendees.map((attendee) => (
+                                                                    <tr key={attendee.id} className="hover:bg-slate-50/50 transition-colors">
+                                                                        <td className="px-8 py-6">
+                                                                            <div className="flex items-center gap-4">
+                                                                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-black text-lg shadow-inner">
+                                                                                    {attendee.fullName.charAt(0)}
+                                                                                </div>
+                                                                                <div>
+                                                                                    <div className="text-base font-black text-slate-900 leading-tight">{attendee.fullName}</div>
+                                                                                    <div className="text-xs font-bold text-slate-500">{attendee.email}</div>
+                                                                                    <div className="text-[10px] font-black text-primary mt-1">ID: #{attendee.id}</div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="px-8 py-6">
+                                                                            <div className="space-y-1">
+                                                                                <div className="flex flex-wrap gap-1.5">
+                                                                                    {attendee.seatNumbers.map((seat: string) => (
+                                                                                        <span
+                                                                                            key={seat}
+                                                                                            className={`px-2.5 py-1 rounded-lg text-[10px] font-black shadow-sm text-white ${attendee.ticketTypeName.toUpperCase().includes('VIP')
+                                                                                                ? 'bg-amber-500'
+                                                                                                : 'bg-blue-600'
+                                                                                                }`}
+                                                                                        >
+                                                                                            {seat}
+                                                                                        </span>
+                                                                                    ))}
+                                                                                </div>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="px-8 py-6">
+                                                                            {attendee.checkInDate ? (
+                                                                                <div className="flex flex-col gap-0.5">
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <span className="text-base font-black text-primary leading-tight">
+                                                                                            {new Date(attendee.checkInDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                                                                        </span>
+                                                                                        <span className="text-sm font-black">
+                                                                                            {new Date(attendee.checkInDate).toLocaleDateString('vi-VN')}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <span className="text-xs font-bold text-slate-400 italic">Chưa check-in</span>
+                                                                            )}
+                                                                        </td>
+                                                                        <td className="px-8 py-6 text-center">
+                                                                            {attendee.checkInStatus ? (
+                                                                                <div className="flex items-center justify-center">
+                                                                                    <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-100">
+                                                                                        <Icon name="done" size="sm" />
+                                                                                    </div>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <button
+                                                                                    onClick={() => handleCheckIn(attendee.ticketId, attendee.status)}
+                                                                                    className="px-6 py-2.5 bg-slate-100 hover:bg-primary hover:text-white text-slate-900 rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-95 border border-slate-200 hover:border-primary"
+                                                                                >
+                                                                                    Check-in
+                                                                                </button>
+                                                                            )}
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
                                                     </div>
                                                 </div>
                                             </div>
-
-                                            {/* Stage */}
-                                            <div className="w-full h-3 bg-slate-200 rounded-full relative shadow-inner overflow-hidden mb-16" >
-                                                <div className="absolute inset-x-0 h-full bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
-                                                <p className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] font-black text-slate-400 uppercase tracking-[0.5em]" >Sân Khấu / Stage</p>
-                                            </div>
-
-                                            <div className="flex flex-col items-center gap-3 overflow-x-auto pb-8" >
-                                                {Array.from(new Set(seats.map((s: any) => s.seatNumber.charAt(0)))).sort().map(row => (
-                                                    <div key={row} className="flex gap-2" >
-                                                        <div className="w-8 flex items-center justify-center text-[10px] font-black text-slate-300" >{row}</div>
-                                                        <div className="flex gap-1.5 md:gap-2" >
-                                                            {seats.filter((s: any) => s.seatNumber.startsWith(row))
-                                                                .sort((a, b) => {
-                                                                    const numA = parseInt(a.seatNumber.substring(1));
-                                                                    const numB = parseInt(b.seatNumber.substring(1));
-                                                                    return numA - numB;
-                                                                })
-                                                                .map((seat: any) => {
-                                                                    const isOccupied = seat.status !== 'AVAILABLE';
-                                                                    const attendee = isOccupied ? attendees.find(a => a.seatNumber === seat.seatNumber) : null;
-                                                                    const isVIP = seat.ticketTypeName?.toUpperCase().includes('VIP');
-
-                                                                    return (
-                                                                        <div
-                                                                            key={seat.id}
-                                                                            onClick={() => {
-                                                                                if (attendee) setSelectedSeatInfo(attendee);
-                                                                            }}
-                                                                            title={`${seat.seatNumber} - ${seat.ticketTypeName} - ${isOccupied ? 'Đã bán' : 'Trống'}`}
-                                                                            className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-[10px] font-bold transition-all ${isOccupied
-                                                                                ? `${isVIP ? 'bg-amber-500 hover:bg-amber-600' : 'bg-slate-900 hover:bg-primary'} text-white cursor-pointer hover:scale-110 shadow-lg shadow-slate-200`
-                                                                                : `${isVIP ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-primary/5 text-primary border border-primary/20'} hover:scale-110 cursor-help`
-                                                                                }`}
-                                                                        >
-                                                                            {isOccupied ? <Icon name="person" size="xs" /> : seat.seatNumber.substring(1)}
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                        </div>
+                                        ) : (
+                                            <div className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
+                                                <div className="flex flex-wrap justify-center gap-8 mb-12 text-[12px] font-black uppercase tracking-[0.2em] text-slate-500">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-4 h-4 rounded-lg bg-primary shadow-lg" /> <span>Đã Check-in</span>
                                                     </div>
-                                                ))}
-                                            </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-4 h-4 rounded-lg bg-amber-500 shadow-lg" /> <span>VIP</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-4 h-4 rounded-lg bg-primary/10 border-2 border-primary/20" /> <span>Trống (Thường)</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-4 h-4 rounded-lg bg-amber-50 border-2 border-amber-200" /> <span>Trống (VIP)</span>
+                                                    </div>
+                                                </div>
 
-                                            <SeatAttendeeModal
-                                                attendee={selectedSeatInfo}
-                                                onClose={() => setSelectedSeatInfo(null)}
-                                                onCheckIn={handleCheckIn}
-                                            />
-                                        </div>
-                                    </div>
+                                                <div className="w-full h-4 bg-slate-200 rounded-full relative shadow-inner overflow-hidden mb-20">
+                                                    <div className="absolute inset-x-0 h-full bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+                                                    <p className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] font-black text-slate-400 uppercase tracking-[0.5em]">Sân Khấu / Stage</p>
+                                                </div>
+
+                                                <div className="flex flex-col items-center gap-4 overflow-x-auto pb-8">
+                                                    {Array.from(new Set(seats.map((s: any) => s.seatNumber.charAt(0)))).sort().map(row => (
+                                                        <div key={row} className="flex gap-4">
+                                                            <div className="w-8 flex items-center justify-center text-xs font-black text-slate-300">{row}</div>
+                                                            <div className="flex gap-2">
+                                                                {seats.filter((s: any) => s.seatNumber.startsWith(row))
+                                                                    .sort((a, b) => parseInt(a.seatNumber.substring(1)) - parseInt(b.seatNumber.substring(1)))
+                                                                    .map((seat: any) => {
+                                                                        const isOccupied = seat.status !== 'AVAILABLE';
+                                                                        const attendee = isOccupied ? attendees.find(a => a.seatNumber === seat.seatNumber) : null;
+                                                                        const isVIP = seat.ticketTypeName?.toUpperCase().includes('VIP');
+
+                                                                        return (
+                                                                            <div
+                                                                                key={seat.id}
+                                                                                onClick={() => attendee && setSelectedSeatInfo(attendee)}
+                                                                                title={`${seat.seatNumber} - ${seat.ticketTypeName} - ${isOccupied ? 'Đã bán' : 'Trống'}`}
+                                                                                className={`w-9 h-9 rounded-xl flex items-center justify-center text-[10px] font-black transition-all ${isOccupied
+                                                                                    ? `${isVIP ? 'bg-amber-500 hover:bg-amber-600' : 'bg-slate-900 hover:bg-primary'} text-white cursor-pointer hover:scale-110 shadow-xl shadow-slate-200`
+                                                                                    : `${isVIP ? 'bg-amber-50 border-2 border-amber-200 text-amber-600' : 'bg-primary/5 text-primary border-2 border-primary/10'} hover:scale-110 cursor-help`
+                                                                                    }`}
+                                                                            >
+                                                                                {isOccupied ? <Icon name="person" size="xs" /> : seat.seatNumber.substring(1)}
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+
+                                                <SeatAttendeeModal
+                                                    attendee={selectedSeatInfo}
+                                                    onClose={() => setSelectedSeatInfo(null)}
+                                                    onCheckIn={handleCheckIn}
+                                                />
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         )}
@@ -1879,13 +1857,13 @@ const OrganizerEventManage = () => {
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email</p>
-                                            <p className="text-[11px] font-bold text-slate-600">{scanResult.userEmail}</p>
+                                            <p className="text-xs font-black text-slate-500 uppercase tracking-widest">Email</p>
+                                            <p className="text-sm font-bold text-slate-700">{scanResult.userEmail}</p>
                                         </div>
                                     </div>
 
                                     <div className="space-y-3">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                        <p className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                                             <Icon name="confirmation_number" size="xs" />
                                             Danh sách vé ({scanResult.tickets?.length || 0})
                                         </p>
@@ -1907,18 +1885,18 @@ const OrganizerEventManage = () => {
                                                             </div>
                                                             <div>
                                                                 <div className="flex items-center gap-2">
-                                                                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg ${isVIP ? 'bg-amber-100 text-amber-700' : 'bg-primary/10 text-primary'
+                                                                    <span className={`text-xs font-black uppercase tracking-widest px-2 py-0.5 rounded-lg ${isVIP ? 'bg-amber-100 text-amber-700' : 'bg-primary/10 text-primary'
                                                                         }`}>
                                                                         {ticket.ticketTypeName}
                                                                     </span>
-                                                                    <span className="text-[10px] font-black text-slate-400">|</span>
-                                                                    <span className="text-[11px] font-black text-slate-900">Ghế {ticket.seatNumber}</span>
+                                                                    <span className="text-xs font-black text-slate-400">|</span>
+                                                                    <span className="text-sm font-black text-slate-900">Ghế {ticket.seatNumber}</span>
                                                                 </div>
-                                                                <p className="text-[10px] font-bold text-slate-500 mt-0.5 truncate max-w-[200px]">{ticket.sessionName}</p>
+                                                                <p className="text-xs font-bold text-slate-600 mt-0.5 truncate max-w-[200px]">{ticket.sessionName}</p>
                                                             </div>
                                                         </div>
                                                         <div className="text-right shrink-0">
-                                                            <p className="text-sm font-black text-slate-900">{formatCurrency(ticket.price)}</p>
+                                                            <p className="text-base font-black text-slate-900">{formatCurrency(ticket.price)}</p>
                                                         </div>
                                                     </div>
                                                 );
