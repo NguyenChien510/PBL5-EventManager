@@ -61,6 +61,7 @@ public class EventService {
     private final com.pbl.pbl.repository.TicketRepository ticketRepository;
     private final ArtistService artistService;
     private final com.pbl.pbl.repository.UserRepository userRepository;
+    private final com.pbl.pbl.repository.OrderRepository orderRepository;
 
     @Transactional(readOnly = true)
     public List<Event> getUpcomingEvents() {
@@ -600,19 +601,60 @@ public class EventService {
     public void updateTicketStatus(Long ticketId, com.pbl.pbl.entity.TicketStatus status) {
         com.pbl.pbl.entity.Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new RuntimeException("Ticket not found"));
+        
+        // Prevent undoing check-in
+        if (ticket.getStatus() == com.pbl.pbl.entity.TicketStatus.CHECKED_IN) {
+            throw new RuntimeException("Vé này đã được check-in và không thể hoàn tác");
+        }
+
         ticket.setStatus(status);
+        if (status == com.pbl.pbl.entity.TicketStatus.CHECKED_IN && ticket.getOrder() != null) {
+            if (ticket.getOrder().getCheckInDate() == null) {
+                ticket.getOrder().setCheckInDate(LocalDateTime.now());
+                orderRepository.save(ticket.getOrder());
+            }
+        }
         ticketRepository.save(ticket);
+    }
+
+    @Transactional
+    public void checkInByOrderQR(String qrCode) {
+        com.pbl.pbl.entity.Order order = orderRepository.findByQrCode(qrCode)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với mã QR này"));
+        
+        if (order.getTickets().isEmpty()) {
+            throw new RuntimeException("Đơn hàng không có vé nào");
+        }
+
+        boolean allAlreadyCheckedIn = true;
+        LocalDateTime now = LocalDateTime.now();
+        for (com.pbl.pbl.entity.Ticket ticket : order.getTickets()) {
+            if (ticket.getStatus() != com.pbl.pbl.entity.TicketStatus.CHECKED_IN) {
+                ticket.setStatus(com.pbl.pbl.entity.TicketStatus.CHECKED_IN);
+                ticketRepository.save(ticket);
+                allAlreadyCheckedIn = false;
+            }
+        }
+
+        if (allAlreadyCheckedIn) {
+            throw new RuntimeException("Tất cả vé trong đơn hàng này đã được check-in từ trước");
+        }
+
+        order.setCheckInDate(now);
+        orderRepository.save(order);
     }
 
     private com.pbl.pbl.dto.EventAttendeeDTO convertToAttendeeDTO(com.pbl.pbl.entity.Ticket ticket) {
         return com.pbl.pbl.dto.EventAttendeeDTO.builder()
                 .ticketId(ticket.getId())
+                .orderId(ticket.getOrder() != null ? ticket.getOrder().getId() : null)
                 .userName(ticket.getUser().getFullName())
                 .userEmail(ticket.getUser().getEmail())
                 .seatNumber(ticket.getSeat().getSeatNumber())
                 .ticketTypeName(ticket.getSeat().getTicketType().getName())
                 .status(ticket.getStatus().name())
                 .purchaseDate(ticket.getPurchaseDate())
+                .checkInDate(ticket.getOrder() != null ? ticket.getOrder().getCheckInDate() : null)
                 .build();
     }
 }

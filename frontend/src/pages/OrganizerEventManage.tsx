@@ -7,6 +7,7 @@ import Avatar from '../components/ui/Avatar';
 import { EventService } from '../services/eventService';
 import toast from 'react-hot-toast';
 import { EditEventModal, ImagePreviewModal, SeatAttendeeModal } from './OrganizerEventModals';
+import { Html5Qrcode } from 'html5-qrcode';
 
 interface ManageStats {
     totalSeats: number;
@@ -21,10 +22,12 @@ interface Attendee {
     ticketId: number;
     userName: string;
     userEmail: string;
+    orderId: number;
     seatNumber: string;
     ticketTypeName: string;
     status: string;
     purchaseDate: string;
+    checkInDate?: string;
 }
 
 // Sub-components for Roster
@@ -63,6 +66,7 @@ const OrganizerEventManage = () => {
     const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
     const [replyTexts, setReplyTexts] = useState<Record<number, string>>({});
     const [ratingFilter, setRatingFilter] = useState<number | null>(null);
+    const [isScanning, setIsScanning] = useState(false);
 
     const handleReply = async (commentId: number) => {
         const reply = replyTexts[commentId]?.trim() || "Ban tổ chức sẽ rút kinh nghiệm, cảm ơn bạn đã nhận xét";
@@ -314,6 +318,65 @@ const OrganizerEventManage = () => {
         }
     }, [event]);
 
+    // QR Scanning Logic
+    const [qrError, setQrError] = useState<string | null>(null);
+
+    const handleQrSuccess = async (decodedText: string) => {
+        try {
+            await EventService.checkInOrderByQR(decodedText);
+            toast.success("Check-in thành công cho toàn bộ đơn hàng!");
+            setIsScanning(false);
+            fetchData();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || "Mã QR không hợp lệ hoặc đã được sử dụng");
+        }
+    };
+
+    useEffect(() => {
+        let html5QrCode: Html5Qrcode | null = null;
+
+        if (isScanning && activeTab === 'guests') {
+            html5QrCode = new Html5Qrcode("qr-reader");
+            
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            
+            html5QrCode.start(
+                { facingMode: "environment" },
+                config,
+                handleQrSuccess,
+                (errorMessage) => {
+                    // Ignored error
+                }
+            ).catch(err => {
+                console.error("Unable to start scanning", err);
+                setQrError("Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập hoặc sử dụng HTTPS.");
+            });
+        }
+
+        return () => {
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode?.clear();
+                }).catch(err => console.error("Failed to stop scanner", err));
+            }
+        };
+    }, [isScanning, activeTab]);
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const html5QrCode = new Html5Qrcode("qr-reader");
+        try {
+            const decodedText = await html5QrCode.scanFile(file, true);
+            handleQrSuccess(decodedText);
+        } catch (err) {
+            toast.error("Không thể nhận diện mã QR từ ảnh này");
+        } finally {
+            html5QrCode.clear();
+        }
+    };
+
     useEffect(() => {
         const isModalOpen = !!selectedSeatInfo || isGeneratingPlan || !!activeEditType;
         if (isModalOpen) {
@@ -327,19 +390,18 @@ const OrganizerEventManage = () => {
 
 
     const handleCheckIn = async (ticketId: number, currentStatus: string) => {
-        const isCheckedIn = currentStatus === 'CHECKED_IN';
+        if (currentStatus === 'CHECKED_IN') {
+            toast.error('Không thể hoàn tác check-in');
+            return;
+        }
+
         try {
-            await EventService.checkInTicket(ticketId, !isCheckedIn);
-            toast.success(isCheckedIn ? 'Đã hủy check-in' : 'Check-in thành công');
-            // Update local state
-            setAttendees(prev => prev.map(a =>
-                a.ticketId === ticketId ? { ...a, status: isCheckedIn ? 'PAID' : 'CHECKED_IN' } : a
-            ));
-            // Refresh stats
-            const newStats = await EventService.getEventManageStats(id!);
-            setStats(newStats);
-        } catch (error) {
-            toast.error('Thao tác thất bại');
+            await EventService.checkInTicket(ticketId, true);
+            toast.success('Check-in thành công');
+            // Refresh everything to get the latest dates and statuses
+            fetchData();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Thao tác thất bại');
         }
     };
 
@@ -689,7 +751,56 @@ const OrganizerEventManage = () => {
                                     >
                                         <Icon name="grid_view" size="sm" /> Sơ đồ ghế
                                     </button>
+
+                                    <button
+                                        onClick={() => setIsScanning(!isScanning)}
+                                        className={`ml-auto px-6 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${isScanning ? 'bg-rose-500 text-white shadow-lg shadow-rose-200' : 'bg-primary text-white shadow-lg shadow-primary/20'}`}
+                                    >
+                                        <Icon name={isScanning ? "videocam_off" : "videocam"} size="sm" />
+                                        {isScanning ? "Tắt Camera" : "Quét mã QR Check-in"}
+                                    </button>
                                 </div>
+
+                                {isScanning && (
+                                    <div className="bg-white p-8 rounded-[2.5rem] border-2 border-primary/20 shadow-2xl animate-in zoom-in-95 duration-300">
+                                        <div className="max-w-md mx-auto space-y-6">
+                                            <div className="text-center space-y-2">
+                                                <h4 className="text-lg font-black text-slate-900">Quét mã QR đơn hàng</h4>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Đưa mã QR của khách vào khung hình để tự động check-in</p>
+                                            </div>
+
+                                            {qrError && (
+                                                <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 text-xs font-bold text-center">
+                                                    {qrError}
+                                                </div>
+                                            )}
+
+                                            <div id="qr-reader" className="overflow-hidden rounded-3xl border-4 border-slate-100 bg-slate-950 shadow-inner aspect-square flex items-center justify-center relative">
+                                                {!qrError && !isScanning && (
+                                                    <div className="text-slate-500 flex flex-col items-center gap-2">
+                                                        <Icon name="videocam_off" size="lg" />
+                                                        <span className="text-xs font-bold">Camera đang tắt</span>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="flex flex-col gap-3">
+                                                <label className="flex items-center justify-center gap-3 bg-slate-100 hover:bg-slate-200 p-4 rounded-2xl border border-slate-200 cursor-pointer transition-all active:scale-95 group">
+                                                    <Icon name="upload_file" size="sm" className="text-slate-600 group-hover:text-primary transition-colors" />
+                                                    <span className="text-xs font-black text-slate-700">Tải ảnh QR từ thiết bị</span>
+                                                    <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+                                                </label>
+                                                
+                                                <div className="flex items-center gap-3 bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                                                    <Icon name="info" size="sm" className="text-blue-500" />
+                                                    <p className="text-[10px] text-blue-700 font-bold leading-relaxed italic">
+                                                        Mẹo: Giữ mã QR cách camera khoảng 15-20cm để lấy nét tốt nhất.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {guestViewMode === 'list' ? (
                                     <div className="lg:col-span-2 space-y-4">
@@ -703,19 +814,20 @@ const OrganizerEventManage = () => {
                                                         <tr className="bg-slate-50 border-b border-slate-100">
                                                             <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">Khách mời</th>
                                                             <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">Thông tin vé</th>
+                                                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">Check-in Date</th>
                                                             <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">Trạng thái</th>
-                                                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100 text-center">Check-in</th>
+                                                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100 text-center">Hành động</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-slate-50/80">
                                                         {Object.values(filteredAttendees.reduce((acc, current) => {
-                                                            const key = current.userEmail;
+                                                            const key = current.orderId ? `order-${current.orderId}` : `user-${current.userEmail}`;
                                                             if (!acc[key]) acc[key] = { ...current, tickets: [] };
                                                             acc[key].tickets.push(current);
                                                             return acc;
                                                         }, {} as Record<string, Attendee & { tickets: Attendee[] }>)).map((group, idx) => (
                                                             <tr
-                                                                key={group.userEmail}
+                                                                key={group.orderId || group.userEmail}
                                                                 className="group hover:bg-slate-50/50 transition-all duration-300 relative"
                                                                 style={{ animationDelay: `${idx * 50}ms` }}
                                                             >
@@ -728,7 +840,10 @@ const OrganizerEventManage = () => {
                                                                         </div>
                                                                         <div className="flex flex-col">
                                                                             <span className="font-black text-slate-900 text-sm tracking-tight group-hover:text-primary transition-colors">{group.userName}</span>
-                                                                            <span className="text-[10px] text-slate-400 font-bold tracking-tight mt-0.5">{group.userEmail}</span>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className="text-[10px] text-slate-400 font-bold tracking-tight">{group.userEmail}</span>
+                                                                                <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md font-black">ID: #{group.orderId}</span>
+                                                                            </div>
                                                                         </div>
                                                                     </div>
                                                                 </td>
@@ -746,6 +861,24 @@ const OrganizerEventManage = () => {
                                                                         <span className="w-1 h-1 bg-slate-300 rounded-full" />
                                                                         {group.tickets.length} vé • {group.tickets[0].ticketTypeName}
                                                                     </p>
+                                                                </td>
+                                                                <td className="px-8 py-6">
+                                                                    {group.checkInDate ? (
+                                                                        <div className="flex flex-col">
+                                                                            <span className="text-[11px] font-black text-slate-700">
+                                                                                {new Date(group.checkInDate).toLocaleString('vi-VN', {
+                                                                                    hour: '2-digit', minute: '2-digit'
+                                                                                })}
+                                                                            </span>
+                                                                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                                                                                {new Date(group.checkInDate).toLocaleString('vi-VN', {
+                                                                                    day: '2-digit', month: '2-digit', year: 'numeric'
+                                                                                })}
+                                                                            </span>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span className="text-[10px] font-bold text-slate-300 italic">Chưa check-in</span>
+                                                                    )}
                                                                 </td>
                                                                 <td className="px-8 py-6">
                                                                     {group.tickets.every(t => t.status === 'CHECKED_IN') ? (

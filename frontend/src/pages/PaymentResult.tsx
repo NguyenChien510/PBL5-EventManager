@@ -13,7 +13,7 @@ export default function PaymentResult() {
   useEffect(() => {
     if (isSuccess) {
       const timer = setTimeout(() => {
-        navigate('/tickets');
+        navigate('/profile');
       }, 5000);
       return () => clearTimeout(timer);
     }
@@ -67,14 +67,14 @@ export default function PaymentResult() {
           {/* Action Buttons */}
           <div className="pt-4 flex flex-col gap-3">
             <Link 
-              to={isSuccess ? '/tickets' : '/seat-selection'} 
+              to={isSuccess ? '/profile' : '/seat-selection'} 
               className={`w-full py-4 rounded-2xl font-bold text-center text-white transition-all shadow-lg hover:-translate-y-1 ${
                 isSuccess 
                   ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30' 
                   : 'bg-primary hover:bg-primary-dark shadow-primary/30'
               }`}
             >
-              {isSuccess ? 'Xem vé của tôi' : 'Thử lại thanh toán'}
+              {isSuccess ? 'Về Tổng quan' : 'Thử lại thanh toán'}
             </Link>
             
             <Link 

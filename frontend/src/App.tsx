@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 
 // Page imports
 import UserProfile from './pages/UserProfile'
-import UserTickets from './pages/UserTickets'
+// import UserTickets from './pages/UserTickets'
 import UserHistory from './pages/UserHistory'
 import UserSettings from './pages/UserSettings'
 import EventExplore from './pages/EventExplore'
@@ -89,7 +89,7 @@ function App() {
     title: '👤 Người dùng',
     links: [
       { to: '/profile', label: 'Hồ sơ cá nhân', icon: 'person' },
-      { to: '/tickets', label: 'Vé của tôi', icon: 'confirmation_number' },
+      // { to: '/tickets', label: 'Vé của tôi', icon: 'confirmation_number' },
       { to: '/history', label: 'Sự kiện đã tham gia', icon: 'history' },
       { to: '/vouchers', label: 'Ưu đãi & Quà tặng', icon: 'redeem' },
       { to: '/reviews', label: 'Đánh giá sự kiện', icon: 'rate_review' },
@@ -211,7 +211,7 @@ function App() {
           <Route path="/payment-result" element={<PaymentResult />} />
           <Route path="/vnpay-sandbox" element={<VnpaySandbox />} />
           <Route path="/profile" element={<UserProfile />} />
-          <Route path="/tickets" element={<UserTickets />} />
+          {/* <Route path="/tickets" element={<UserTickets />} /> */}
           <Route path="/history" element={<UserHistory />} />
           <Route path="/settings" element={<UserSettings />} />
           <Route path="/vouchers" element={<VouchersRewards />} />

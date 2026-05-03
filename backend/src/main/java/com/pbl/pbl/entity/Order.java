@@ -44,6 +44,9 @@ public class Order {
     @Column(name = "qr_code", unique = true)
     private String qrCode;
 
+    @Column(name = "check_in_date")
+    private LocalDateTime checkInDate;
+
     @Builder.Default
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Ticket> tickets = new ArrayList<>();

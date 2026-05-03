@@ -294,17 +294,35 @@ export const SeatAttendeeModal = React.memo(({ attendee, onClose, onCheckIn }: S
                 </p>
               </div>
             </div>
+            {attendee.checkInDate && (
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-500 border border-emerald-100">
+                  <Icon name="history" size="xs" />
+                </div>
+                <div>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Thời gian check-in</p>
+                  <p className="text-xs font-bold text-slate-700">
+                    {new Date(attendee.checkInDate).toLocaleString('vi-VN', {
+                      hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric'
+                    })}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2">
             <button
               onClick={() => {
-                onCheckIn(attendee.ticketId, attendee.status);
-                onClose();
+                if (attendee.status !== 'CHECKED_IN') {
+                  onCheckIn(attendee.ticketId, attendee.status);
+                  onClose();
+                }
               }}
-              className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${attendee.status === 'CHECKED_IN' ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-primary text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:scale-[1.02]'}`}
+              disabled={attendee.status === 'CHECKED_IN'}
+              className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${attendee.status === 'CHECKED_IN' ? 'bg-emerald-50 text-emerald-600 cursor-not-allowed opacity-80' : 'bg-primary text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:scale-[1.02]'}`}
             >
-              {attendee.status === 'CHECKED_IN' ? 'Hủy Check-in' : 'Check-in ngay'}
+              {attendee.status === 'CHECKED_IN' ? 'Đã Check-in' : 'Check-in ngay'}
             </button>
           </div>
         </div>

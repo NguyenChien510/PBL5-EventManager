@@ -466,7 +466,7 @@ const UserProfile = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/80 transition-opacity" onClick={() => setSelectedTicket(null)} />
 
-          <div className="relative bg-white w-full max-w-lg rounded-[2rem] overflow-hidden shadow-xl animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <div className="relative bg-white w-full max-w-md rounded-[2rem] overflow-hidden shadow-xl animate-in fade-in slide-in-from-bottom-4 duration-200">
             {/* Header with Close Button */}
             <div className="absolute top-4 right-4 z-20">
               <button
@@ -479,7 +479,7 @@ const UserProfile = () => {
 
             <div className="max-h-[90vh] overflow-y-auto overflow-x-hidden">
               {/* Simplified Event Header */}
-              <div className="relative h-32">
+              <div className="relative h-24">
                 <img
                   src={Array.isArray(selectedTicket) ? selectedTicket[0].image : selectedTicket.image}
                   className="w-full h-full object-cover"
@@ -493,21 +493,46 @@ const UserProfile = () => {
                 </div>
               </div>
 
-              <div className="p-4 space-y-4">
+              <div className="p-5 pt-4 space-y-4">
                 {/* QR Section */}
-                <div className="text-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Mã QR Đơn Hàng</p>
-                  <div className="inline-block p-2 bg-white rounded-xl shadow-sm mb-3">
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${Array.isArray(selectedTicket) ? selectedTicket[0].orderQrCode : selectedTicket.orderQrCode}`}
-                      alt="Order QR Code"
-                      className="w-32 h-32"
-                    />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-mono font-bold text-slate-500 bg-slate-200/50 py-1 px-3 rounded-full inline-block">
-                      {Array.isArray(selectedTicket) ? selectedTicket[0].orderQrCode : selectedTicket.orderQrCode}
-                    </p>
+                <div className="relative group/qr">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-blue-600/20 rounded-[2.5rem] blur opacity-25 group-hover/qr:opacity-50 transition duration-1000" />
+                  <div className="relative text-center bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mb-3">Mã QR Check-in Duy nhất</p>
+                    
+                    <div className="relative inline-block mb-3 p-3 bg-slate-50 rounded-3xl group-hover/qr:bg-white transition-colors duration-500">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${Array.isArray(selectedTicket) ? selectedTicket[0].orderQrCode : selectedTicket.orderQrCode}`}
+                        alt="Order QR Code"
+                        className="w-32 h-32 relative z-10"
+                      />
+                      {/* Decorative corners */}
+                      <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-primary/30 rounded-tl-2xl" />
+                      <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-primary/30 rounded-tr-2xl" />
+                      <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-primary/30 rounded-bl-2xl" />
+                      <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-primary/30 rounded-br-2xl" />
+                    </div>
+
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-full border border-slate-100 group/code">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                        <span className="text-[10px] font-mono font-bold text-slate-600 tracking-wider">
+                          {Array.isArray(selectedTicket) ? selectedTicket[0].orderQrCode : selectedTicket.orderQrCode}
+                        </span>
+                        <button
+                          onClick={() => {
+                            const code = Array.isArray(selectedTicket) ? selectedTicket[0].orderQrCode : selectedTicket.orderQrCode
+                            navigator.clipboard.writeText(code)
+                            toast.success('Đã sao chép mã đơn hàng')
+                          }}
+                          className="p-1 rounded-md hover:bg-slate-200 text-slate-400 hover:text-primary transition-colors flex items-center justify-center"
+                          title="Sao chép mã"
+                        >
+                          <Icon name="content_copy" size="sm" className="!text-[14px]" />
+                        </button>
+                      </div>
+                      <p className="text-[9px] text-slate-400 font-medium italic">Vui lòng đưa mã này cho nhân viên check-in tại cửa</p>
+                    </div>
                   </div>
                 </div>
 
@@ -519,7 +544,7 @@ const UserProfile = () => {
                       {Array.isArray(selectedTicket) ? selectedTicket.length : 1} VÉ
                     </span>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1 custom-scrollbar">
                     {(Array.isArray(selectedTicket) ? selectedTicket : [selectedTicket]).map((ticket: any, index: number) => {
                       const isVIP = ticket.type?.toUpperCase().includes('VIP')
                       return (
@@ -560,10 +585,13 @@ const UserProfile = () => {
                       handleDownloadQR(firstTicket.orderQrCode, firstTicket.orderId?.toString() || 'N/A')
                     }
                   }}
-                  className="w-full h-12 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 group"
+                  className="w-full h-14 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-indigo-500/40 hover:shadow-indigo-500/60 hover:-translate-y-1 active:scale-[0.98] transition-all flex items-center justify-center gap-3 group relative overflow-hidden"
                 >
-                  <Icon name="download" size="sm" className="group-hover:translate-y-0.5 transition-transform" />
-                  Tải ảnh QRCode
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_2s_infinite] pointer-events-none" />
+                  <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm group-hover:bg-white/30 transition-colors">
+                    <Icon name="download" size="sm" className="group-hover:translate-y-0.5 transition-transform" />
+                  </div>
+                  <span className="relative z-10">Lưu mã QR Check-in</span>
                 </button>
               </div>
             </div>

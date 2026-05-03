@@ -105,6 +105,11 @@ export class EventService {
     return response.data;
   }
 
+  static async checkInOrderByQR(qrCode: string) {
+    const response = await apiClient.patch(`/organizer/orders/check-in-by-qr?qrCode=${qrCode}`);
+    return response.data;
+  }
+
   static async getEventComments(eventId: string | number) {
     const response = await apiClient.get(`/comments/event/${eventId}`);
     return response.data;

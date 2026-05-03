@@ -56,6 +56,12 @@ public class OrganizerManagementController {
         return ResponseEntity.ok().build();
     }
 
+    @PatchMapping("/orders/check-in-by-qr")
+    public ResponseEntity<?> checkInOrderByQR(@RequestParam String qrCode) {
+        eventService.checkInByOrderQR(qrCode);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/events/{id}/manage/orders")
     public ResponseEntity<List<OrderDTO>> getEventOrders(@PathVariable Long id) {
         List<Order> orders = orderRepository.findOrdersWithDetailsByEventId(id);

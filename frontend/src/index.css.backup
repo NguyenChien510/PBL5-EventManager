@@ -340,6 +340,15 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  cursor: default;
+}
+
+input, textarea, [contenteditable="true"], .cursor-text {
+  cursor: text;
+}
+
+a, button, [role="button"], select, .cursor-pointer {
+  cursor: pointer;
 }
 
 body {
@@ -543,23 +552,4 @@ body:not(.modal-open) main > div {
 
 .blue-map-filter {
   background: #0f172a !important; /* Slate 900 background */
-}
-
-@keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
-
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #e2e8f0;
-  border-radius: 10px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #cbd5e1;
 }

@@ -96,13 +96,6 @@ const Navbar = () => {
                       >
                         <Icon name="person" size="sm" /> Thông tin cá nhân
                       </Link>
-                      <Link
-                        to="/tickets"
-                        onClick={() => setIsUserMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors font-medium"
-                      >
-                        <Icon name="confirmation_number" size="sm" /> Vé của tôi
-                      </Link>
                       <div className="my-1 border-t border-slate-100" />
                     </>
                   )}
