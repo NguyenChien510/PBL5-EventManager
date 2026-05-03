@@ -64,6 +64,8 @@ const OrganizerEventManage = () => {
     const [eventOrders, setEventOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState<'ALL' | 'CHECKED_IN' | 'PENDING'>('ALL');
+    const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [guestViewMode, setGuestViewMode] = useState<'list' | 'seats'>('list');
     const [selectedSeatInfo, setSelectedSeatInfo] = useState<Attendee | null>(null);
     const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
@@ -451,13 +453,18 @@ const OrganizerEventManage = () => {
             }
         });
 
-        return Object.values(groups).filter((a: any) =>
-            a.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            a.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            a.seatNumbers.some((s: string) => s.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            String(a.id).includes(searchTerm)
-        );
-    }, [attendees, searchTerm]);
+        return Object.values(groups).filter((a: any) => {
+            const matchesSearch = a.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                a.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                a.seatNumbers.some((s: string) => s.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                String(a.id).includes(searchTerm);
+
+            if (statusFilter === 'ALL') return matchesSearch;
+            if (statusFilter === 'CHECKED_IN') return matchesSearch && a.checkInStatus;
+            if (statusFilter === 'PENDING') return matchesSearch && !a.checkInStatus;
+            return matchesSearch;
+        });
+    }, [attendees, searchTerm, statusFilter]);
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -854,35 +861,86 @@ const OrganizerEventManage = () => {
                                     <>
                                         {guestViewMode === 'list' ? (
                                             <div className="space-y-6">
-                                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-stretch">
-                                                    <div className="md:col-span-2 relative group">
-                                                        <div className="absolute left-5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none z-10">
-                                                            <Icon name="search" size="md" className="text-slate-400 group-focus-within:text-primary transition-colors" />
+                                                <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
+                                                    {/* Search - 6 cols */}
+                                                    <div className="xl:col-span-6 relative group">
+                                                        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-primary transition-colors">
+                                                            <Icon name="search" size="xs" />
                                                         </div>
                                                         <input
                                                             type="text"
-                                                            placeholder="Tìm kiếm khách, email, số ghế..."
+                                                            placeholder="Tìm tên khách, email, số ghế..."
+                                                            className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 focus:border-primary focus:bg-white rounded-2xl font-bold outline-none transition-all placeholder:text-slate-400 shadow-sm"
                                                             value={searchTerm}
                                                             onChange={(e) => setSearchTerm(e.target.value)}
-                                                            className="w-full h-full pl-14 pr-6 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-black focus:border-primary/30 outline-none transition-all shadow-sm"
                                                         />
                                                     </div>
-                                                    <div className="bg-emerald-50 border border-emerald-100 p-2.5 rounded-2xl flex items-center gap-3">
-                                                        <div className="w-9 h-9 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 shrink-0">
-                                                            <Icon name="check_circle" size="sm" />
-                                                        </div>
-                                                        <div className="min-w-0">
-                                                            <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">Đã Check-in</p>
-                                                            <p className="text-base font-black text-emerald-700 leading-none">{attendees.filter(a => a.status === 'CHECKED_IN').length}</p>
-                                                        </div>
+
+                                                    {/* Custom Premium Dropdown - 3 cols */}
+                                                    <div className="xl:col-span-3 relative">
+                                                        <button
+                                                            onClick={() => setIsFilterOpen(!isFilterOpen)}
+                                                            className="w-full flex items-center justify-between px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl font-black text-[10px] uppercase tracking-widest text-slate-700 hover:bg-white hover:border-primary/30 transition-all shadow-sm group"
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <Icon name={
+                                                                    statusFilter === 'ALL' ? 'apps' :
+                                                                        statusFilter === 'CHECKED_IN' ? 'check_circle' : 'hourglass_empty'
+                                                                } size="xs" className="text-primary" />
+                                                                <span className="truncate">{
+                                                                    statusFilter === 'ALL' ? 'Tất cả' :
+                                                                        statusFilter === 'CHECKED_IN' ? 'Đã đến' : 'Chưa đến'
+                                                                }</span>
+                                                            </div>
+                                                            <Icon name="expand_more" size="xs" className={`text-slate-400 transition-transform duration-300 ${isFilterOpen ? 'rotate-180' : ''}`} />
+                                                        </button>
+
+                                                        {isFilterOpen && (
+                                                            <>
+                                                                <div className="fixed inset-0 z-[40]" onClick={() => setIsFilterOpen(false)} />
+                                                                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl z-[50] py-2 animate-in zoom-in-95 fade-in duration-200 overflow-hidden">
+                                                                    {[
+                                                                        { id: 'ALL', label: 'Tất cả trạng thái', icon: 'apps', color: 'text-slate-400' },
+                                                                        { id: 'CHECKED_IN', label: 'Đã check-in', icon: 'check_circle', color: 'text-emerald-500' },
+                                                                        { id: 'PENDING', label: 'Chưa check-in', icon: 'hourglass_empty', color: 'text-amber-500' }
+                                                                    ].map((opt) => (
+                                                                        <button
+                                                                            key={opt.id}
+                                                                            onClick={() => {
+                                                                                setStatusFilter(opt.id as any);
+                                                                                setIsFilterOpen(false);
+                                                                            }}
+                                                                            className={`w-full flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-wider transition-all hover:bg-slate-50 ${statusFilter === opt.id ? 'text-primary bg-primary/5' : 'text-slate-600'
+                                                                                }`}
+                                                                        >
+                                                                            <Icon name={opt.icon} size="xs" className={statusFilter === opt.id ? 'text-primary' : opt.color} />
+                                                                            {opt.label}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </>
+                                                        )}
                                                     </div>
-                                                    <div className="bg-indigo-50 border border-indigo-100 p-2.5 rounded-2xl flex items-center gap-3">
-                                                        <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 shrink-0">
-                                                            <Icon name="groups" size="sm" />
+
+                                                    {/* Compact Stats - 3 cols */}
+                                                    <div className="xl:col-span-3 flex items-center gap-2">
+                                                        <div className="flex-1 bg-emerald-50 border border-emerald-100 p-2 rounded-2xl flex items-center gap-3 shadow-sm">
+                                                            <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-white shadow-md shadow-emerald-100 shrink-0">
+                                                                <Icon name="check_circle" size="xs" />
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">Đã đến</p>
+                                                                <p className="text-sm font-black text-emerald-900 leading-none">{stats?.checkedInSeats || 0}</p>
+                                                            </div>
                                                         </div>
-                                                        <div className="min-w-0">
-                                                            <p className="text-[8px] font-black text-indigo-600 uppercase tracking-widest leading-none mb-1">Tổng vé</p>
-                                                            <p className="text-base font-black text-indigo-900 leading-none">{attendees.length}</p>
+                                                        <div className="flex-1 bg-indigo-50 border border-indigo-100 p-2 rounded-2xl flex items-center gap-3 shadow-sm">
+                                                            <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-white shadow-md shadow-indigo-100 shrink-0">
+                                                                <Icon name="groups" size="xs" />
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <p className="text-[8px] font-black text-indigo-600 uppercase tracking-widest leading-none mb-1">Tổng vé</p>
+                                                                <p className="text-sm font-black text-indigo-900 leading-none">{stats?.soldSeats || 0}</p>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -905,9 +963,9 @@ const OrganizerEventManage = () => {
                                                                             <div className="flex items-center gap-4">
                                                                                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-black text-lg shadow-inner overflow-hidden border border-slate-200">
                                                                                     {attendee.avatarUrl ? (
-                                                                                        <img 
-                                                                                            src={attendee.avatarUrl} 
-                                                                                            alt={attendee.fullName} 
+                                                                                        <img
+                                                                                            src={attendee.avatarUrl}
+                                                                                            alt={attendee.fullName}
                                                                                             className="w-full h-full object-cover"
                                                                                             onError={(e) => {
                                                                                                 (e.target as HTMLImageElement).style.display = 'none';
@@ -983,23 +1041,23 @@ const OrganizerEventManage = () => {
                                             <div className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
                                                 <div className="flex flex-wrap justify-center gap-6 md:gap-10 mb-12 text-[11px] font-black uppercase tracking-[0.15em]">
                                                     <div className="flex items-center gap-2.5 group">
-                                                        <div className="w-5 h-5 rounded-lg bg-emerald-500 shadow-lg shadow-emerald-100 group-hover:scale-110 transition-transform" /> 
+                                                        <div className="w-5 h-5 rounded-lg bg-emerald-500 shadow-lg shadow-emerald-100 group-hover:scale-110 transition-transform" />
                                                         <span className="text-emerald-700">Đã Check-in</span>
                                                     </div>
                                                     <div className="flex items-center gap-2.5 group">
-                                                        <div className="w-5 h-5 rounded-lg bg-amber-500 shadow-lg shadow-amber-100 group-hover:scale-110 transition-transform" /> 
+                                                        <div className="w-5 h-5 rounded-lg bg-amber-500 shadow-lg shadow-amber-100 group-hover:scale-110 transition-transform" />
                                                         <span className="text-amber-700">VIP (Đã bán)</span>
                                                     </div>
                                                     <div className="flex items-center gap-2.5 group">
-                                                        <div className="w-5 h-5 rounded-lg bg-blue-600 shadow-lg shadow-blue-100 group-hover:scale-110 transition-transform" /> 
+                                                        <div className="w-5 h-5 rounded-lg bg-blue-600 shadow-lg shadow-blue-100 group-hover:scale-110 transition-transform" />
                                                         <span className="text-blue-700">Thường (Đã bán)</span>
                                                     </div>
                                                     <div className="flex items-center gap-2.5 group">
-                                                        <div className="w-5 h-5 rounded-lg bg-amber-50 border-2 border-amber-200 group-hover:scale-110 transition-transform" /> 
+                                                        <div className="w-5 h-5 rounded-lg bg-amber-50 border-2 border-amber-200 group-hover:scale-110 transition-transform" />
                                                         <span className="text-amber-500/70">Trống (VIP)</span>
                                                     </div>
                                                     <div className="flex items-center gap-2.5 group">
-                                                        <div className="w-5 h-5 rounded-lg bg-blue-50 border-2 border-blue-100 group-hover:scale-110 transition-transform" /> 
+                                                        <div className="w-5 h-5 rounded-lg bg-blue-50 border-2 border-blue-100 group-hover:scale-110 transition-transform" />
                                                         <span className="text-blue-500/70">Trống (Thường)</span>
                                                     </div>
                                                 </div>
@@ -1015,36 +1073,36 @@ const OrganizerEventManage = () => {
                                                             <div className="w-8 flex items-center justify-center text-xs font-black text-slate-300">{row}</div>
                                                             <div className="flex gap-2">
                                                                 {seats.filter((s: any) => s.seatNumber.startsWith(row))
-                                                                        .map((seat: any) => {
-                                                                            const isOccupied = seat.status !== 'AVAILABLE';
-                                                                            const attendee = isOccupied ? attendees.find(a => a.seatNumber === seat.seatNumber) : null;
-                                                                            const isCheckedIn = isOccupied && attendee?.status === 'CHECKED_IN';
-                                                                            const isVIP = seat.ticketTypeName?.toUpperCase().includes('VIP');
+                                                                    .map((seat: any) => {
+                                                                        const isOccupied = seat.status !== 'AVAILABLE';
+                                                                        const attendee = isOccupied ? attendees.find(a => a.seatNumber === seat.seatNumber) : null;
+                                                                        const isCheckedIn = isOccupied && attendee?.status === 'CHECKED_IN';
+                                                                        const isVIP = seat.ticketTypeName?.toUpperCase().includes('VIP');
 
-                                                                            let seatStyle = "";
-                                                                            if (isCheckedIn) {
-                                                                                seatStyle = "bg-emerald-500 text-white shadow-lg shadow-emerald-100 hover:bg-emerald-600";
-                                                                            } else if (isOccupied) {
-                                                                                seatStyle = isVIP 
-                                                                                    ? "bg-amber-500 text-white shadow-lg shadow-amber-100 hover:bg-amber-600" 
-                                                                                    : "bg-blue-600 text-white shadow-lg shadow-blue-100 hover:bg-blue-700";
-                                                                            } else {
-                                                                                seatStyle = isVIP 
-                                                                                    ? "bg-amber-50 border-2 border-amber-200 text-amber-600 hover:bg-amber-100" 
-                                                                                    : "bg-blue-50 border-2 border-blue-100 text-blue-600 hover:bg-blue-100";
-                                                                            }
+                                                                        let seatStyle = "";
+                                                                        if (isCheckedIn) {
+                                                                            seatStyle = "bg-emerald-500 text-white shadow-lg shadow-emerald-100 hover:bg-emerald-600";
+                                                                        } else if (isOccupied) {
+                                                                            seatStyle = isVIP
+                                                                                ? "bg-amber-500 text-white shadow-lg shadow-amber-100 hover:bg-amber-600"
+                                                                                : "bg-blue-600 text-white shadow-lg shadow-blue-100 hover:bg-blue-700";
+                                                                        } else {
+                                                                            seatStyle = isVIP
+                                                                                ? "bg-amber-50 border-2 border-amber-200 text-amber-600 hover:bg-amber-100"
+                                                                                : "bg-blue-50 border-2 border-blue-100 text-blue-600 hover:bg-blue-100";
+                                                                        }
 
-                                                                            return (
-                                                                                <div
-                                                                                    key={seat.id}
-                                                                                    onClick={() => attendee && setSelectedSeatInfo(attendee)}
-                                                                                    title={`${seat.seatNumber} - ${seat.ticketTypeName} - ${isCheckedIn ? 'Đã Check-in' : isOccupied ? 'Đã bán' : 'Trống'}`}
-                                                                                    className={`w-9 h-9 rounded-xl flex items-center justify-center text-[10px] font-black transition-all cursor-pointer hover:scale-110 ${seatStyle}`}
-                                                                                >
-                                                                                    {isOccupied ? <Icon name="person" size="xs" /> : seat.seatNumber.substring(1)}
-                                                                                </div>
-                                                                            );
-                                                                        })}
+                                                                        return (
+                                                                            <div
+                                                                                key={seat.id}
+                                                                                onClick={() => attendee && setSelectedSeatInfo(attendee)}
+                                                                                title={`${seat.seatNumber} - ${seat.ticketTypeName} - ${isCheckedIn ? 'Đã Check-in' : isOccupied ? 'Đã bán' : 'Trống'}`}
+                                                                                className={`w-9 h-9 rounded-xl flex items-center justify-center text-[10px] font-black transition-all cursor-pointer hover:scale-110 ${seatStyle}`}
+                                                                            >
+                                                                                {isOccupied ? <Icon name="person" size="xs" /> : seat.seatNumber.substring(1)}
+                                                                            </div>
+                                                                        );
+                                                                    })}
                                                             </div>
                                                         </div>
                                                     ))}
