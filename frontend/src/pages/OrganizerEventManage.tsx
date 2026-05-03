@@ -810,10 +810,10 @@ const OrganizerEventManage = () => {
                                 </div>
 
                                 {isScanning ? (
-                                    <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl animate-in zoom-in-95 duration-500 max-w-4xl mx-auto w-full relative overflow-hidden">
+                                    <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl animate-scale-in max-w-4xl mx-auto w-full relative overflow-hidden">
                                         <div className="flex flex-col lg:flex-row gap-8 items-start">
                                             {/* Left Side: Camera */}
-                                            <div className="w-full lg:w-1/2 space-y-4">
+                                            <div className="w-full lg:w-1/2 space-y-4 animate-fade-in-up [animation-delay:200ms] opacity-0">
                                                 <div className="relative group/camera bg-slate-950 rounded-3xl overflow-hidden aspect-video max-h-[300px] flex items-center justify-center border-4 border-slate-100 shadow-inner">
                                                     {/* Scanning Corners - Subtle */}
                                                     <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-primary/50 rounded-tl-md" />
@@ -834,13 +834,13 @@ const OrganizerEventManage = () => {
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center justify-center gap-2">
-                                                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                                                    <div key="scanner-status-dot" className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
                                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Hệ thống đang chờ quét mã...</p>
                                                 </div>
                                             </div>
 
                                             {/* Right Side: Inputs */}
-                                            <div className="flex-1 w-full space-y-6 self-center">
+                                            <div className="flex-1 w-full space-y-6 self-center animate-fade-in-up [animation-delay:400ms] opacity-0">
                                                 <div className="space-y-1">
                                                     <h4 className="text-lg font-black text-slate-900 tracking-tight">Quét mã đơn hàng</h4>
                                                     <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">Tự động nhận diện và check-in</p>
@@ -894,7 +894,7 @@ const OrganizerEventManage = () => {
                                             <div className="space-y-6">
                                                 <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
                                                     {/* Search - 6 cols */}
-                                                    <div className="xl:col-span-6 relative group">
+                                                    <div key="search-icon-wrapper" className="xl:col-span-6 relative group">
                                                         <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-primary transition-colors">
                                                             <Icon name="search" size="xs" />
                                                         </div>
@@ -917,7 +917,10 @@ const OrganizerEventManage = () => {
                                                                 <Icon name={
                                                                     statusFilter === 'ALL' ? 'apps' :
                                                                         statusFilter === 'CHECKED_IN' ? 'check_circle' : 'hourglass_empty'
-                                                                } size="xs" className="text-primary" />
+                                                                } size="xs" className={
+                                                                    statusFilter === 'ALL' ? 'text-blue-600' :
+                                                                        statusFilter === 'CHECKED_IN' ? 'text-emerald-500' : 'text-amber-500'
+                                                                } />
                                                                 <span className="truncate">{
                                                                     statusFilter === 'ALL' ? 'Tất cả' :
                                                                         statusFilter === 'CHECKED_IN' ? 'Đã đến' : 'Chưa đến'
@@ -931,7 +934,7 @@ const OrganizerEventManage = () => {
                                                                 <div className="fixed inset-0 z-[40]" onClick={() => setIsFilterOpen(false)} />
                                                                 <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl z-[50] py-2 animate-in zoom-in-95 fade-in duration-200 overflow-hidden">
                                                                     {[
-                                                                        { id: 'ALL', label: 'Tất cả trạng thái', icon: 'apps', color: 'text-slate-400' },
+                                                                        { id: 'ALL', label: 'Tất cả trạng thái', icon: 'apps', color: 'text-blue-600' },
                                                                         { id: 'CHECKED_IN', label: 'Đã check-in', icon: 'check_circle', color: 'text-emerald-500' },
                                                                         { id: 'PENDING', label: 'Chưa check-in', icon: 'hourglass_empty', color: 'text-amber-500' }
                                                                     ].map((opt) => (
@@ -941,10 +944,10 @@ const OrganizerEventManage = () => {
                                                                                 setStatusFilter(opt.id as any);
                                                                                 setIsFilterOpen(false);
                                                                             }}
-                                                                            className={`w-full flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-wider transition-all hover:bg-slate-50 ${statusFilter === opt.id ? 'text-primary bg-primary/5' : 'text-slate-600'
+                                                                            className={`w-full flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-wider transition-all hover:bg-slate-50 ${statusFilter === opt.id ? 'bg-slate-50' : 'text-slate-600'
                                                                                 }`}
                                                                         >
-                                                                            <Icon name={opt.icon} size="xs" className={statusFilter === opt.id ? 'text-primary' : opt.color} />
+                                                                            <Icon name={opt.icon} size="xs" className={opt.color} />
                                                                             {opt.label}
                                                                         </button>
                                                                     ))}
