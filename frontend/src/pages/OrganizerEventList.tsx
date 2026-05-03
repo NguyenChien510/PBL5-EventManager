@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Icon, StatusBadge, Pagination, Loader } from '../components/ui'
+import { Icon, StatusBadge, Pagination, Loader, SearchInput } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig'
 import { useAuthStore } from '../stores/useAuthStore'
@@ -77,20 +77,30 @@ const OrganizerEventList = () => {
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
           <PageHeader
               title="Quản lý Sự kiện"
-              searchPlaceholder="Tìm sự kiện..."
-              searchValue={searchTerm}
-              onSearch={handleSearch}
-              actions={
-                <a href="/organizer/create" className="px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-xl hover:bg-blue-600 flex items-center gap-2 shadow-sm">
-                  <Icon name="add" size="sm" /> Tạo mới
-                </a>
-              }
             />
           
           <div className="p-8 space-y-8">
-            {/* Filter tabs */}
-            <div className="flex justify-start border-b border-slate-100 pb-4 animate-fade-in" style={{ animationDelay: '250ms' }}>
-              <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-1.5 flex flex-wrap md:flex-nowrap gap-1.5 w-full md:w-fit overflow-x-auto custom-scrollbar">
+            {/* Filter tabs and Search/Action */}
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-slate-100 pb-6 animate-fade-in" style={{ animationDelay: '250ms' }}>
+              <div className="flex items-center gap-3 w-full xl:w-auto order-2 xl:order-1">
+                <SearchInput 
+                  placeholder="Tìm sự kiện..." 
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  className="flex-1 xl:w-80 h-12 shadow-sm" 
+                />
+                <a 
+                  href="/organizer/create" 
+                  className="px-6 h-12 bg-gradient-to-r from-primary to-blue-600 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl hover:shadow-[0_10px_25px_-5px_rgba(59,130,246,0.5)] hover:translate-y-[-2px] transition-all duration-300 flex items-center gap-3 shrink-0 group/btn select-none cursor-pointer"
+                >
+                  <div className="w-7 h-7 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover/btn:scale-110 transition-transform duration-500">
+                    <Icon name="add" size="xs" />
+                  </div>
+                  <span>Tạo mới</span>
+                </a>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-1.5 flex flex-wrap md:flex-nowrap gap-1.5 w-full md:w-fit overflow-x-auto custom-scrollbar order-1 xl:order-2">
                 {STATUS_TABS.map((tab, idx) => (
                   <button
                     key={tab.key}
