@@ -19,4 +19,5 @@ public class EventAttendeeDTO {
     private String status; // TicketStatus
     private java.time.LocalDateTime purchaseDate;
     private java.time.LocalDateTime checkInDate;
+    private String userAvatar;
 }

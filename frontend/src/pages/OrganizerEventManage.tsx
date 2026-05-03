@@ -29,6 +29,7 @@ interface Attendee {
     status: string;
     purchaseDate: string;
     checkInDate?: string;
+    userAvatar?: string;
 }
 
 // Sub-components for Roster
@@ -437,7 +438,8 @@ const OrganizerEventManage = () => {
                     checkInStatus: a.status === 'CHECKED_IN',
                     checkInDate: a.checkInDate,
                     ticketId: a.ticketId,
-                    status: a.status
+                    status: a.status,
+                    avatarUrl: a.userAvatar
                 };
             } else {
                 groups[a.orderId].seatNumbers.push(a.seatNumber);
@@ -900,8 +902,12 @@ const OrganizerEventManage = () => {
                                                                     <tr key={attendee.id} className="hover:bg-slate-50/50 transition-colors">
                                                                         <td className="px-8 py-6">
                                                                             <div className="flex items-center gap-4">
-                                                                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-black text-lg shadow-inner">
-                                                                                    {attendee.fullName.charAt(0)}
+                                                                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-black text-lg shadow-inner overflow-hidden">
+                                                                                    {attendee.avatarUrl ? (
+                                                                                        <img src={attendee.avatarUrl} alt={attendee.fullName} className="w-full h-full object-cover" />
+                                                                                    ) : (
+                                                                                        attendee.fullName.charAt(0)
+                                                                                    )}
                                                                                 </div>
                                                                                 <div>
                                                                                     <div className="text-base font-black text-slate-900 leading-tight">{attendee.fullName}</div>
@@ -929,18 +935,16 @@ const OrganizerEventManage = () => {
                                                                         </td>
                                                                         <td className="px-8 py-6">
                                                                             {attendee.checkInDate ? (
-                                                                                <div className="flex flex-col gap-0.5">
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <span className="text-base font-black text-primary leading-tight">
-                                                                                            {new Date(attendee.checkInDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                                                                                        </span>
-                                                                                        <span className="text-sm font-black">
-                                                                                            {new Date(attendee.checkInDate).toLocaleDateString('vi-VN')}
-                                                                                        </span>
-                                                                                    </div>
+                                                                                <div className="flex flex-row items-baseline gap-3">
+                                                                                    <span className="text-lg font-black text-primary">
+                                                                                        {new Date(attendee.checkInDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                                                                    </span>
+                                                                                    <span className="text-base font-black text-slate-400">
+                                                                                        {new Date(attendee.checkInDate).toLocaleDateString('vi-VN')}
+                                                                                    </span>
                                                                                 </div>
                                                                             ) : (
-                                                                                <span className="text-xs font-bold text-slate-400 italic">Chưa check-in</span>
+                                                                                <span className="text-xs font-bold text-slate-400 italic whitespace-nowrap">Chưa check-in</span>
                                                                             )}
                                                                         </td>
                                                                         <td className="px-8 py-6 text-center">

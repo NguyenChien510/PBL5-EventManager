@@ -703,6 +703,7 @@ public class EventService {
                 .status(ticket.getStatus().name())
                 .purchaseDate(ticket.getPurchaseDate())
                 .checkInDate(ticket.getOrder() != null ? ticket.getOrder().getCheckInDate() : null)
+                .userAvatar(ticket.getUser().getAvatar())
                 .build();
     }
 }
