@@ -74,6 +74,8 @@ const OrganizerEventManage = () => {
     const [isScanning, setIsScanning] = useState(false);
     const [scanResult, setScanResult] = useState<any>(null);
     const [manualCode, setManualCode] = useState('');
+    const [guestPage, setGuestPage] = useState(1);
+    const itemsPerPage = 3;
 
 
     const handleReply = async (commentId: number) => {
@@ -466,6 +468,18 @@ const OrganizerEventManage = () => {
         });
     }, [attendees, searchTerm, statusFilter]);
 
+    // Reset page when filters change
+    useEffect(() => {
+        setGuestPage(1);
+    }, [searchTerm, statusFilter]);
+
+    const paginatedAttendees = React.useMemo(() => {
+        const startIndex = (guestPage - 1) * itemsPerPage;
+        return groupedAttendees.slice(startIndex, startIndex + itemsPerPage);
+    }, [groupedAttendees, guestPage]);
+
+    const totalGuestPages = Math.ceil(groupedAttendees.length / itemsPerPage);
+
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
     };
@@ -538,9 +552,9 @@ const OrganizerEventManage = () => {
                     subtitle="Theo dõi và quản lý chi tiết sự kiện của bạn"
                 />
 
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 pb-10">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4 pb-10">
                     {/* Tab Navigation - Fixed structure with sticky behavior */}
-                    <div className="sticky top-[80px] z-40 py-4 transition-all flex justify-start items-center gap-4">
+                    <div className="sticky top-[80px] z-40 py-2 transition-all flex justify-start items-center gap-4">
                         <Link
                             to="/organizer/events"
                             className="w-12 h-12 bg-white rounded-2xl shadow-md border border-slate-200 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all group shrink-0 animate-in fade-in slide-in-from-left-4 duration-500"
@@ -568,7 +582,7 @@ const OrganizerEventManage = () => {
                     </div>
 
                     {/* Tab Content */}
-                    <div className="space-y-6 pt-4">
+                    <div className="space-y-6 pt-0">
                         {activeTab === 'overview' && (
                             <div className="space-y-8">
                                 {/* Rejection Alert */}
@@ -984,7 +998,7 @@ const OrganizerEventManage = () => {
                                                                 </tr>
                                                             </thead>
                                                             <tbody className="divide-y divide-slate-50">
-                                                                {groupedAttendees.map((attendee) => (
+                                                                {paginatedAttendees.map((attendee) => (
                                                                     <tr key={attendee.id} className="hover:bg-slate-50/50 transition-colors">
                                                                         <td className="px-8 py-6">
                                                                             <div className="flex items-center gap-4">
@@ -1063,6 +1077,59 @@ const OrganizerEventManage = () => {
                                                         </table>
                                                     </div>
                                                 </div>
+
+                                                {/* Modern Pagination UI */}
+                                                {totalGuestPages > 1 && (
+                                                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 animate-fade-in">
+                                                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                                                            Trang <span className="text-primary">{guestPage}</span> / {totalGuestPages} 
+                                                            <span className="mx-2 text-slate-200">•</span> 
+                                                            Tổng <span className="text-slate-900">{groupedAttendees.length}</span> khách mời
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                onClick={() => setGuestPage(p => Math.max(1, p - 1))}
+                                                                disabled={guestPage === 1}
+                                                                className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed group"
+                                                            >
+                                                                 <Icon name="chevron_left" size="sm" className="group-hover:-translate-x-0.5 transition-transform" />
+                                                            </button>
+
+                                                            <div className="flex items-center gap-1.5 px-2">
+                                                                {[...Array(totalGuestPages)].map((_, i) => {
+                                                                    const pageNum = i + 1;
+                                                                    if (totalGuestPages > 5) {
+                                                                        if (pageNum !== 1 && pageNum !== totalGuestPages && Math.abs(pageNum - guestPage) > 1) {
+                                                                            if (pageNum === 2 || pageNum === totalGuestPages - 1) return <span key={pageNum} className="text-slate-300">...</span>;
+                                                                            return null;
+                                                                        }
+                                                                    }
+                                                                    return (
+                                                                        <button
+                                                                            key={pageNum}
+                                                                            onClick={() => setGuestPage(pageNum)}
+                                                                            className={`min-w-[40px] h-10 rounded-xl text-[11px] font-black transition-all ${
+                                                                                guestPage === pageNum
+                                                                                    ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-110'
+                                                                                    : 'bg-white text-slate-500 border border-slate-200 hover:border-primary/30'
+                                                                            }`}
+                                                                        >
+                                                                            {pageNum}
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+
+                                                            <button
+                                                                onClick={() => setGuestPage(p => Math.min(totalGuestPages, p + 1))}
+                                                                disabled={guestPage === totalGuestPages}
+                                                                className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed group"
+                                                            >
+                                                                <Icon name="chevron_right" size="sm" className="group-hover:translate-x-0.5 transition-transform" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         ) : (
                                             <div className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
