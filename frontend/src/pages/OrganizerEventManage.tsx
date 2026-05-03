@@ -67,6 +67,8 @@ const OrganizerEventManage = () => {
     const [replyTexts, setReplyTexts] = useState<Record<number, string>>({});
     const [ratingFilter, setRatingFilter] = useState<number | null>(null);
     const [isScanning, setIsScanning] = useState(false);
+    const [scanResult, setScanResult] = useState<any>(null);
+    const [manualCode, setManualCode] = useState('');
 
     const handleReply = async (commentId: number) => {
         const reply = replyTexts[commentId]?.trim() || "Ban tổ chức sẽ rút kinh nghiệm, cảm ơn bạn đã nhận xét";
@@ -322,13 +324,34 @@ const OrganizerEventManage = () => {
     const [qrError, setQrError] = useState<string | null>(null);
 
     const handleQrSuccess = async (decodedText: string) => {
+        const loadingToast = toast.loading("Đang truy vấn thông tin...");
         try {
-            await EventService.checkInOrderByQR(decodedText);
-            toast.success("Check-in thành công cho toàn bộ đơn hàng!");
+            const orderInfo = await EventService.getOrderByQR(decodedText);
+            setScanResult(orderInfo);
             setIsScanning(false);
+            toast.dismiss(loadingToast);
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || "Mã QR không hợp lệ hoặc đã được sử dụng", { id: loadingToast });
+        }
+    };
+
+    const handleManualCheckIn = async () => {
+        if (!manualCode.trim()) {
+            toast.error("Vui lòng nhập mã code");
+            return;
+        }
+        handleQrSuccess(manualCode.trim());
+    };
+
+    const confirmCheckIn = async (qrCode: string) => {
+        const loadingToast = toast.loading("Đang thực hiện check-in...");
+        try {
+            await EventService.checkInOrderByQR(qrCode);
+            toast.success("Check-in thành công!", { id: loadingToast });
+            setScanResult(null);
             fetchData();
         } catch (error: any) {
-            toast.error(error.response?.data?.message || "Mã QR không hợp lệ hoặc đã được sử dụng");
+            toast.error(error.response?.data?.message || "Thao tác thất bại", { id: loadingToast });
         }
     };
 
@@ -337,9 +360,9 @@ const OrganizerEventManage = () => {
 
         if (isScanning && activeTab === 'guests') {
             html5QrCode = new Html5Qrcode("qr-reader");
-            
+
             const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-            
+
             html5QrCode.start(
                 { facingMode: "environment" },
                 config,
@@ -790,12 +813,25 @@ const OrganizerEventManage = () => {
                                                     <span className="text-xs font-black text-slate-700">Tải ảnh QR từ thiết bị</span>
                                                     <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
                                                 </label>
-                                                
-                                                <div className="flex items-center gap-3 bg-blue-50 p-4 rounded-2xl border border-blue-100">
-                                                    <Icon name="info" size="sm" className="text-blue-500" />
-                                                    <p className="text-[10px] text-blue-700 font-bold leading-relaxed italic">
-                                                        Mẹo: Giữ mã QR cách camera khoảng 15-20cm để lấy nét tốt nhất.
-                                                    </p>
+
+                                                <div className="relative">
+                                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                                        <Icon name="key" size="xs" className="text-slate-400" />
+                                                    </div>
+                                                    <input
+                                                        type="text"
+                                                        value={manualCode}
+                                                        onChange={(e) => setManualCode(e.target.value)}
+                                                        placeholder="Nhập mã code thủ công..."
+                                                        className="w-full pl-10 pr-24 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-xs font-bold focus:border-primary/30 focus:ring-4 focus:ring-primary/5 outline-none transition-all"
+                                                        onKeyDown={(e) => e.key === 'Enter' && handleManualCheckIn()}
+                                                    />
+                                                    <button
+                                                        onClick={handleManualCheckIn}
+                                                        className="absolute right-2 top-2 bottom-2 px-4 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary transition-all active:scale-95"
+                                                    >
+                                                        Xác nhận
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
@@ -1791,6 +1827,117 @@ const OrganizerEventManage = () => {
                     imageUrl={selectedImageUrl}
                     onClose={() => setSelectedImageUrl(null)}
                 />
+
+                {scanResult && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setScanResult(null)} />
+                        <div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+                            {/* Header */}
+                            <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 text-white relative shrink-0">
+                                <div className="absolute top-0 right-0 p-8 opacity-10">
+                                    <Icon name="qr_code_2" size="xl" />
+                                </div>
+                                <div className="flex items-center gap-4 relative z-10">
+                                    <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md">
+                                        <Icon name="fact_check" size="md" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-black tracking-tight">Thông tin Check-in</h3>
+                                        <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Đơn hàng #{scanResult.id}</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setScanResult(null)}
+                                    className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 transition-all"
+                                >
+                                    <Icon name="close" size="sm" />
+                                </button>
+                            </div>
+
+                            {/* Body - Scrollable */}
+                            <div className="p-8 space-y-6 overflow-y-auto">
+                                <div className="space-y-5">
+                                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-primary">
+                                                <Icon name="person" size="sm" />
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Người mua</p>
+                                                <p className="text-sm font-black text-slate-900">{scanResult.userName}</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email</p>
+                                            <p className="text-[11px] font-bold text-slate-600">{scanResult.userEmail}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                            <Icon name="confirmation_number" size="xs" />
+                                            Danh sách vé ({scanResult.tickets?.length || 0})
+                                        </p>
+                                        <div className="grid gap-3">
+                                            {scanResult.tickets?.map((ticket: any) => {
+                                                const isVIP = ticket.ticketTypeName?.toLowerCase().includes('vip');
+                                                return (
+                                                    <div
+                                                        key={ticket.id}
+                                                        className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${isVIP
+                                                            ? 'bg-amber-50/50 border-amber-200/50 shadow-sm shadow-amber-100/20'
+                                                            : 'bg-primary/5 border-primary/10 shadow-sm shadow-primary/5'
+                                                            }`}
+                                                    >
+                                                        <div className="flex items-center gap-4">
+                                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${isVIP ? 'bg-amber-500 text-white' : 'bg-primary text-white'
+                                                                }`}>
+                                                                <Icon name={isVIP ? "stars" : "confirmation_number"} size="xs" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg ${isVIP ? 'bg-amber-100 text-amber-700' : 'bg-primary/10 text-primary'
+                                                                        }`}>
+                                                                        {ticket.ticketTypeName}
+                                                                    </span>
+                                                                    <span className="text-[10px] font-black text-slate-400">|</span>
+                                                                    <span className="text-[11px] font-black text-slate-900">Ghế {ticket.seatNumber}</span>
+                                                                </div>
+                                                                <p className="text-[10px] font-bold text-slate-500 mt-0.5 truncate max-w-[200px]">{ticket.sessionName}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right shrink-0">
+                                                            <p className="text-sm font-black text-slate-900">{formatCurrency(ticket.price)}</p>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="p-8 bg-slate-50 border-t border-slate-100 shrink-0">
+                                <div className="flex gap-4">
+                                    <button
+                                        onClick={() => setScanResult(null)}
+                                        className="flex-1 py-4 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-100 transition-all active:scale-95 shadow-sm"
+                                    >
+                                        Hủy bỏ
+                                    </button>
+                                    <button
+                                        onClick={() => confirmCheckIn(scanResult.qrCode)}
+                                        className="flex-[2] py-4 bg-primary text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:shadow-xl hover:shadow-primary/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+                                    >
+                                        <Icon name="check_circle" size="sm" />
+                                        Xác nhận Check-in
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </DashboardLayout>
     );

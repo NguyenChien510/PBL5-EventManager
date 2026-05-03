@@ -21,4 +21,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.user LEFT JOIN FETCH o.tickets t LEFT JOIN FETCH t.seat s LEFT JOIN FETCH s.ticketType LEFT JOIN FETCH s.eventSession es LEFT JOIN FETCH es.event e WHERE e.id = :eventId")
     List<Order> findOrdersWithDetailsByEventId(@Param("eventId") Long eventId);
+    java.util.Optional<Order> findByQrCode(String qrCode);
+
+    @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.user LEFT JOIN FETCH o.tickets t LEFT JOIN FETCH t.seat s LEFT JOIN FETCH s.ticketType LEFT JOIN FETCH s.eventSession es LEFT JOIN FETCH es.event e WHERE o.qrCode = :qrCode")
+    java.util.Optional<Order> findWithDetailsByQrCode(@Param("qrCode") String qrCode);
 }

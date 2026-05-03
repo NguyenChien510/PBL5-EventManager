@@ -62,50 +62,17 @@ public class OrganizerManagementController {
         return ResponseEntity.ok().build();
     }
 
+    @GetMapping("/orders/info-by-qr")
+    public ResponseEntity<OrderDTO> getOrderByQR(@RequestParam String qrCode) {
+        return ResponseEntity.ok(eventService.getOrderByQR(qrCode));
+    }
+
     @GetMapping("/events/{id}/manage/orders")
     public ResponseEntity<List<OrderDTO>> getEventOrders(@PathVariable Long id) {
         List<Order> orders = orderRepository.findOrdersWithDetailsByEventId(id);
         List<OrderDTO> dtos = orders.stream()
                 .sorted(Comparator.comparing(Order::getPurchaseDate).reversed())
-                .map(order -> {
-                    var firstTicket = order.getTickets().isEmpty() ? null : order.getTickets().get(0);
-                    var mainSeat = (firstTicket != null) ? firstTicket.getSeat() : null;
-                    var mainSession = (mainSeat != null) ? mainSeat.getEventSession() : null;
-                    var mainEvent = (mainSession != null) ? mainSession.getEvent() : null;
-
-                    return OrderDTO.builder()
-                        .id(order.getId())
-                        .userEmail(order.getUser() != null ? order.getUser().getEmail() : "Unknown")
-                        .userName(order.getUser() != null ? order.getUser().getFullName() : "Unknown")
-                        .totalAmount(order.getTotalAmount())
-                        .platformFee(order.getPlatformFee())
-                        .status(order.getStatus() != null ? order.getStatus().name() : "PENDING")
-                        .paymentMethod(order.getPaymentMethod())
-                        .purchaseDate(order.getPurchaseDate())
-                        .eventId(mainEvent != null ? mainEvent.getId() : null)
-                        .eventTitle(mainEvent != null ? mainEvent.getTitle() : "Unknown Event")
-                        .eventPosterUrl(mainEvent != null ? mainEvent.getPosterUrl() : null)
-                        .eventSessionId(mainSession != null ? mainSession.getId() : null)
-                        .tickets(order.getTickets().stream()
-                                .map(ticket -> {
-                                    var seat = ticket.getSeat();
-                                    var session = (seat != null) ? seat.getEventSession() : null;
-                                    var event = (session != null) ? session.getEvent() : null;
-                                    var type = (seat != null) ? seat.getTicketType() : null;
-
-                                    return OrderDTO.TicketDetailDTO.builder()
-                                            .id(ticket.getId())
-                                            .eventTitle(event != null ? event.getTitle() : "Unknown Event")
-                                            .seatNumber(seat != null ? seat.getSeatNumber() : "N/A")
-                                            .price(type != null ? type.getPrice() : java.math.BigDecimal.ZERO)
-                                            .sessionName(session != null ? session.getName() : "N/A")
-                                            .seatId(seat != null ? seat.getId() : null)
-                                            .ticketTypeName(type != null ? type.getName() : "N/A")
-                                            .build();
-                                })
-                                .collect(Collectors.toList()))
-                        .build();
-                })
+                .map(eventService::convertToOrderDTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
     }
@@ -119,45 +86,7 @@ public class OrganizerManagementController {
         List<Order> orders = orderRepository.findOrdersWithDetailsByOrganizerId(organizer.getId());
         List<OrderDTO> dtos = orders.stream()
                 .sorted(Comparator.comparing(Order::getPurchaseDate).reversed())
-                .map(order -> {
-                    var firstTicket = order.getTickets().isEmpty() ? null : order.getTickets().get(0);
-                    var mainSeat = (firstTicket != null) ? firstTicket.getSeat() : null;
-                    var mainSession = (mainSeat != null) ? mainSeat.getEventSession() : null;
-                    var mainEvent = (mainSession != null) ? mainSession.getEvent() : null;
-
-                    return OrderDTO.builder()
-                        .id(order.getId())
-                        .userEmail(order.getUser() != null ? order.getUser().getEmail() : "Unknown")
-                        .userName(order.getUser() != null ? order.getUser().getFullName() : "Unknown")
-                        .totalAmount(order.getTotalAmount())
-                        .platformFee(order.getPlatformFee())
-                        .status(order.getStatus() != null ? order.getStatus().name() : "PENDING")
-                        .paymentMethod(order.getPaymentMethod())
-                        .purchaseDate(order.getPurchaseDate())
-                        .eventId(mainEvent != null ? mainEvent.getId() : null)
-                        .eventTitle(mainEvent != null ? mainEvent.getTitle() : "Unknown Event")
-                        .eventPosterUrl(mainEvent != null ? mainEvent.getPosterUrl() : null)
-                        .eventSessionId(mainSession != null ? mainSession.getId() : null)
-                        .tickets(order.getTickets().stream()
-                                .map(ticket -> {
-                                    var seat = ticket.getSeat();
-                                    var session = (seat != null) ? seat.getEventSession() : null;
-                                    var event = (session != null) ? session.getEvent() : null;
-                                    var type = (seat != null) ? seat.getTicketType() : null;
-
-                                    return OrderDTO.TicketDetailDTO.builder()
-                                            .id(ticket.getId())
-                                            .eventTitle(event != null ? event.getTitle() : "Unknown Event")
-                                            .seatNumber(seat != null ? seat.getSeatNumber() : "N/A")
-                                            .price(type != null ? type.getPrice() : java.math.BigDecimal.ZERO)
-                                            .sessionName(session != null ? session.getName() : "N/A")
-                                            .seatId(seat != null ? seat.getId() : null)
-                                            .ticketTypeName(type != null ? type.getName() : "N/A")
-                                            .build();
-                                })
-                                .collect(Collectors.toList()))
-                        .build();
-                })
+                .map(eventService::convertToOrderDTO)
                 .collect(Collectors.toList());
                 
         return ResponseEntity.ok(dtos);

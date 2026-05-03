@@ -644,6 +644,54 @@ public class EventService {
         orderRepository.save(order);
     }
 
+    @Transactional(readOnly = true)
+    public com.pbl.pbl.dto.OrderDTO getOrderByQR(String qrCode) {
+        com.pbl.pbl.entity.Order order = orderRepository.findWithDetailsByQrCode(qrCode)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với mã QR này"));
+        return convertToOrderDTO(order);
+    }
+
+    public com.pbl.pbl.dto.OrderDTO convertToOrderDTO(com.pbl.pbl.entity.Order order) {
+        var firstTicket = order.getTickets().isEmpty() ? null : order.getTickets().get(0);
+        var mainSeat = (firstTicket != null) ? firstTicket.getSeat() : null;
+        var mainSession = (mainSeat != null) ? mainSeat.getEventSession() : null;
+        var mainEvent = (mainSession != null) ? mainSession.getEvent() : null;
+
+        return com.pbl.pbl.dto.OrderDTO.builder()
+            .id(order.getId())
+            .userEmail(order.getUser() != null ? order.getUser().getEmail() : "Unknown")
+            .userName(order.getUser() != null ? order.getUser().getFullName() : "Unknown")
+            .totalAmount(order.getTotalAmount())
+            .platformFee(order.getPlatformFee())
+            .status(order.getStatus() != null ? order.getStatus().name() : "PENDING")
+            .paymentMethod(order.getPaymentMethod())
+            .purchaseDate(order.getPurchaseDate())
+            .eventId(mainEvent != null ? mainEvent.getId() : null)
+            .eventTitle(mainEvent != null ? mainEvent.getTitle() : "Unknown Event")
+            .eventPosterUrl(mainEvent != null ? mainEvent.getPosterUrl() : null)
+            .eventSessionId(mainSession != null ? mainSession.getId() : null)
+            .qrCode(order.getQrCode())
+            .tickets(order.getTickets().stream()
+                    .map(ticket -> {
+                        var seat = ticket.getSeat();
+                        var session = (seat != null) ? seat.getEventSession() : null;
+                        var event = (session != null) ? session.getEvent() : null;
+                        var type = (seat != null) ? seat.getTicketType() : null;
+
+                        return com.pbl.pbl.dto.OrderDTO.TicketDetailDTO.builder()
+                                .id(ticket.getId())
+                                .eventTitle(event != null ? event.getTitle() : "Unknown Event")
+                                .seatNumber(seat != null ? seat.getSeatNumber() : "N/A")
+                                .price(type != null ? type.getPrice() : java.math.BigDecimal.ZERO)
+                                .sessionName(session != null ? session.getName() : "N/A")
+                                .seatId(seat != null ? seat.getId() : null)
+                                .ticketTypeName(type != null ? type.getName() : "N/A")
+                                .build();
+                    })
+                    .collect(Collectors.toList()))
+            .build();
+    }
+
     private com.pbl.pbl.dto.EventAttendeeDTO convertToAttendeeDTO(com.pbl.pbl.entity.Ticket ticket) {
         return com.pbl.pbl.dto.EventAttendeeDTO.builder()
                 .ticketId(ticket.getId())
