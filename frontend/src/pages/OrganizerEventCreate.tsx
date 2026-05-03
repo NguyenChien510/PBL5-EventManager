@@ -472,6 +472,7 @@ const OrganizerEventCreate = () => {
         title="Tạo Sự Kiện Mới"
         breadcrumb={['Sự kiện', 'Tạo sự kiện mới']}
         centerContent={compactProgressBar}
+        backTo="/organizer/events"
       />
 
       <div className={`p-6 mx-auto transition-all duration-500 ${currentStep === 1 ? 'max-w-5xl' :

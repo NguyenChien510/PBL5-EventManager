@@ -12,6 +12,7 @@ public class OrderDTO {
     private Long id;
     private String userEmail;
     private String userName;
+    private String userAvatar;
     private BigDecimal totalAmount;
     private BigDecimal platformFee;
     private String status;
@@ -22,6 +23,7 @@ public class OrderDTO {
     private String eventPosterUrl;
     private Long eventSessionId; 
     private String qrCode;
+    private LocalDateTime checkInDate;
     private List<TicketDetailDTO> tickets;
 
     @Data
@@ -34,5 +36,6 @@ public class OrderDTO {
         private String sessionName;
         private Long seatId;
         private String ticketTypeName;
+        private String status;
     }
 }

@@ -568,16 +568,15 @@ public class EventService {
 
     @Transactional(readOnly = true)
     public List<com.pbl.pbl.dto.EventAttendeeDTO> getEventAttendees(Long eventId) {
-        List<com.pbl.pbl.entity.Ticket> tickets = ticketRepository.findBySeat_EventSession_Event_Id(eventId);
+        List<com.pbl.pbl.entity.Ticket> tickets = ticketRepository.findByEventIdWithDetails(eventId);
         return tickets.stream().map(this::convertToAttendeeDTO).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public com.pbl.pbl.dto.EventManagementStatsDTO getEventManagementStats(Long eventId) {
-        List<com.pbl.pbl.entity.Ticket> tickets = ticketRepository.findBySeat_EventSession_Event_Id(eventId);
-        List<Seat> allSeats = seatRepository.findByEventSession_Event_Id(eventId);
-
-        long totalSeats = allSeats.size();
+        List<com.pbl.pbl.entity.Ticket> tickets = ticketRepository.findByEventIdWithDetails(eventId);
+        
+        long totalSeats = seatRepository.countByEventSession_Event_Id(eventId);
         long soldSeats = tickets.stream().filter(t -> t.getStatus() != com.pbl.pbl.entity.TicketStatus.CANCELLED)
                 .count();
         long checkedInSeats = tickets.stream().filter(t -> t.getStatus() == com.pbl.pbl.entity.TicketStatus.CHECKED_IN)
@@ -649,7 +648,7 @@ public class EventService {
         }
 
         if (allAlreadyCheckedIn) {
-            throw new RuntimeException("Tất cả vé trong đơn hàng này đã được check-in từ trước");
+            throw new com.pbl.pbl.exception.BadRequestException("Tất cả vé trong đơn hàng này đã được check-in từ trước");
         }
 
         order.setCheckInDate(now);
@@ -673,6 +672,7 @@ public class EventService {
             .id(order.getId())
             .userEmail(order.getUser() != null ? order.getUser().getEmail() : "Unknown")
             .userName(order.getUser() != null ? order.getUser().getFullName() : "Unknown")
+            .userAvatar(order.getUser() != null ? order.getUser().getAvatar() : null)
             .totalAmount(order.getTotalAmount())
             .platformFee(order.getPlatformFee())
             .status(order.getStatus() != null ? order.getStatus().name() : "PENDING")
@@ -698,10 +698,12 @@ public class EventService {
                                 .sessionName(session != null ? session.getName() : "N/A")
                                 .seatId(seat != null ? seat.getId() : null)
                                 .ticketTypeName(type != null ? type.getName() : "N/A")
+                                .status(ticket.getStatus() != null ? ticket.getStatus().name() : "PAID")
                                 .build();
                     })
                     .collect(Collectors.toList()))
-            .build();
+                .checkInDate(order.getCheckInDate())
+                .build();
     }
 
     private com.pbl.pbl.dto.EventAttendeeDTO convertToAttendeeDTO(com.pbl.pbl.entity.Ticket ticket) {
