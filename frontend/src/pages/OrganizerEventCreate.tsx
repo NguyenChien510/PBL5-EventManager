@@ -43,6 +43,53 @@ function MapUpdater({ center }: { center: L.LatLngExpression }) {
   return null;
 }
 
+
+
+// --- ACCORDION SESSION ITEM ---
+const SessionAccordionItem = ({ session, index, isOpen, toggle, remove, update, stepColor }: any) => {
+  return (
+    <div className={`rounded-3xl border transition-all duration-300 ${isOpen ? 'bg-white shadow-xl shadow-sky-900/5 border-blue-100 ring-1 ring-blue-50' : 'bg-slate-50 border-slate-200 hover:bg-white hover:border-slate-300 hover:shadow-sm'}`}>
+      <div onClick={toggle} className="w-full flex items-center justify-between p-4 cursor-pointer select-none">
+        <div className="flex items-center gap-4">
+          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-lg transition-colors ${isOpen ? stepColor.gradient + ' text-white shadow-md' : 'bg-white border border-slate-200 text-slate-400'}`}>
+            {index + 1}
+          </div>
+          <div className="text-left">
+            <h4 className={`font-bold text-sm md:text-base ${isOpen ? 'text-slate-900' : 'text-slate-600'}`}>Phiên {index + 1}</h4>
+            <div className="text-[11px] font-medium text-slate-400 flex gap-3 mt-0.5">
+              <span className="flex items-center gap-1"><Icon name="calendar_today" size="xs" /> {session.sessionDate || '--/--'}</span>
+              <span className="flex items-center gap-1"><Icon name="schedule" size="xs" /> {session.startTime || '--:--'} - {session.endTime || '--:--'}</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={(e) => { e.stopPropagation(); remove(); }} className="w-8 h-8 rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-500 flex items-center justify-center transition-colors"><Icon name="delete" size="sm" /></button>
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-300 ${isOpen ? 'rotate-180 bg-blue-50 text-blue-600' : 'text-slate-400'}`}><Icon name="keyboard_arrow_down" /></div>
+        </div>
+      </div>
+
+      <div className={`grid transition-all duration-300 ease-in-out border-slate-50 ${isOpen ? 'grid-rows-[1fr] opacity-100 border-t' : 'grid-rows-[0fr] opacity-0'}`}>
+        <div className="overflow-hidden">
+          <div className="px-4 pb-5 pt-3 grid grid-cols-2 gap-3">
+            <div className="space-y-1.5 col-span-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Ngày diễn ra</label>
+              <input type="date" value={session.sessionDate} onChange={(e) => update({ ...session, sessionDate: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none hover:border-blue-300 transition-all shadow-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Bắt đầu</label>
+              <input type="time" value={session.startTime} onChange={(e) => update({ ...session, startTime: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none hover:border-blue-300 transition-all shadow-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Kết thúc</label>
+              <input type="time" value={session.endTime} onChange={(e) => update({ ...session, endTime: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none hover:border-blue-300 transition-all shadow-sm" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const steps = [
   { id: 1, title: 'Thông tin cơ bản' },
   { id: 2, title: 'Thời gian & Địa điểm' },
@@ -73,6 +120,9 @@ const OrganizerEventCreate = () => {
   const [isWardOpen, setIsWardOpen] = useState(false);
   const [selectedWard, setSelectedWard] = useState<any>(null);
 
+  const [provinceSearch, setProvinceSearch] = useState('');
+  const [wardSearch, setWardSearch] = useState('');
+
 
   // Ticket & Seat Map State
   const [hasSeatMap, setHasSeatMap] = useState<boolean>(false);
@@ -98,6 +148,7 @@ const OrganizerEventCreate = () => {
   const [sessions, setSessions] = useState([
     { id: 1, sessionDate: '', startTime: '', endTime: '', name: 'Phiên 1' }
   ]);
+  const [activeAccordionIndex, setActiveAccordionIndex] = useState<number | null>(0);
 
   // Schedule State
   const [schedules, setSchedules] = useState([
@@ -208,9 +259,11 @@ const OrganizerEventCreate = () => {
       }
       if (provinceRef.current && !provinceRef.current.contains(event.target as Node)) {
         setIsProvinceOpen(false);
+        setProvinceSearch('');
       }
       if (wardRef.current && !wardRef.current.contains(event.target as Node)) {
         setIsWardOpen(false);
+        setWardSearch('');
       }
       if (artistRef.current && !artistRef.current.contains(event.target as Node)) {
         setIsArtistDropdownOpen(false);
@@ -232,6 +285,30 @@ const OrganizerEventCreate = () => {
 
   const removeArtist = (name: string) => {
     setSelectedArtists(selectedArtists.filter(a => a !== name));
+  };
+
+
+  const centerMapOnLocation = async (provinceName: string, wardName?: string) => {
+    let query = provinceName;
+    if (wardName) {
+      query = `${wardName}, ${provinceName}`;
+    }
+    query += ", Việt Nam";
+
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const { lat, lon } = data[0];
+        const newPos = new L.LatLng(parseFloat(lat), parseFloat(lon));
+        setMapPosition(newPos);
+        setMapCenter(newPos);
+        // update search input to cleaner name if preferred
+        setSearchQuery(query.replace(", Việt Nam", ""));
+      }
+    } catch (err) {
+      console.error("Auto centering failed", err);
+    }
   };
 
 
@@ -300,7 +377,7 @@ const OrganizerEventCreate = () => {
   const getNextSeatLabel = (ticketTypeId: number) => {
     const count = seats.filter(s => s.ticketTypeId === ticketTypeId).length + 1;
     const tt = ticketTypes.find(t => t.id === ticketTypeId);
-    const prefix = tt ? tt.name.substring(0,1).toUpperCase() : 'S';
+    const prefix = tt ? tt.name.substring(0, 1).toUpperCase() : 'S';
     return `${prefix}${count}`;
   };
 
@@ -341,14 +418,9 @@ const OrganizerEventCreate = () => {
         setCurrentStep(2);
         return;
       }
-      if (schedules.some(s => !s.startTime || !s.activity.trim())) {
-        alert("Vui lòng điền đầy đủ thông tin lịch trình sự kiện");
-        setCurrentStep(2);
-        return;
-      }
       if (ticketTypes.length === 0 || ticketTypes.some(t => !t.name?.trim())) {
         alert("Vui lòng tạo ít nhất 1 hạng vé hợp lệ");
-        setCurrentStep(3);
+        setCurrentStep(4);
         return;
       }
 
@@ -368,10 +440,12 @@ const OrganizerEventCreate = () => {
           endTime: s.endTime,
           name: s.name
         })),
-        schedules: schedules.map(s => ({
-          startTime: s.startTime + ':00', // ensure HH:mm:ss for backend
-          activity: s.activity
-        })),
+        schedules: schedules
+          .filter(s => s.startTime && s.activity.trim())
+          .map(s => ({
+            startTime: s.startTime + (s.startTime.length === 5 ? ':00' : ''),
+            activity: s.activity
+          })),
         ticketTypes: ticketTypes.map(t => ({
           name: t.name,
           price: t.price,
@@ -671,13 +745,15 @@ const OrganizerEventCreate = () => {
                         <button
                           onClick={() => {
                             const firstSession = sessions[0];
+                            const newId = Date.now();
                             setSessions([...sessions, {
-                              id: Date.now(),
+                              id: newId,
                               sessionDate: '',
                               startTime: firstSession ? firstSession.startTime : '',
                               endTime: firstSession ? firstSession.endTime : '',
                               name: `Phiên ${sessions.length + 1}`
                             }]);
+                            setActiveAccordionIndex(sessions.length);
                           }}
                           className={`px-4 py-2 ${stepColor.gradient} text-white font-bold rounded-xl hover:brightness-110 transition-all flex items-center gap-1.5 text-sm shadow-md shadow-blue-200/50`}
                         >
@@ -686,23 +762,22 @@ const OrganizerEventCreate = () => {
 
 
                       </div>
-                      <div className="space-y-4 max-h-[650px] overflow-y-auto pr-2 custom-scrollbar">
+                      <div className="space-y-3 h-[520px] overflow-y-auto pr-2 custom-scrollbar p-3 bg-slate-50/40 rounded-3xl border border-slate-100/80 shadow-inner shadow-slate-900/5">
                         {sessions.map((session, index) => (
-                          <div key={session.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl relative group hover:border-primary/20 transition-colors">
-                            <div className="space-y-3">
-
-                              <div>
-                                <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">{session.name} - Ngày diễn ra</label>
-                                <input type="date" value={session.sessionDate} onChange={(e) => { const newSessions = [...sessions]; newSessions[index].sessionDate = e.target.value; setSessions(newSessions); }} className={smoothFieldClass} />
-                              </div>
-                              <div className="grid grid-cols-2 gap-3">
-                                <div><label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">Bắt đầu</label><input type="time" value={session.startTime} onChange={(e) => { const newSessions = [...sessions]; newSessions[index].startTime = e.target.value; setSessions(newSessions); }} className={`${smoothFieldClass} px-2.5`} /></div>
-                                <div><label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">Kết thúc</label><input type="time" value={session.endTime} onChange={(e) => { const newSessions = [...sessions]; newSessions[index].endTime = e.target.value; setSessions(newSessions); }} className={`${smoothFieldClass} px-2.5`} /></div>
-                              </div>
-
-                            </div>
-                            {sessions.length > 1 && <button onClick={() => setSessions(sessions.filter(s => s.id !== session.id))} className="absolute -top-2 -right-2 w-7 h-7 bg-white border border-slate-200 text-red-400 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all shadow-sm opacity-0 group-hover:opacity-100"><Icon name="close" size="xs" /></button>}
-                          </div>
+                          <SessionAccordionItem
+                            key={session.id}
+                            session={session}
+                            index={index}
+                            isOpen={activeAccordionIndex === index}
+                            toggle={() => setActiveAccordionIndex(activeAccordionIndex === index ? null : index)}
+                            remove={() => setSessions(sessions.filter(s => s.id !== session.id))}
+                            update={(updatedData: any) => {
+                              const newSessions = [...sessions];
+                              newSessions[index] = updatedData;
+                              setSessions(newSessions);
+                            }}
+                            stepColor={stepColor}
+                          />
                         ))}
                       </div>
                     </div>
@@ -720,13 +795,50 @@ const OrganizerEventCreate = () => {
                           <label className={`text-sm font-bold mb-2 block ${stepColor.text}`}>Tỉnh / Thành phố *</label>
                           <div className="relative" ref={provinceRef}>
 
-                            <button onClick={() => setIsProvinceOpen(!isProvinceOpen)} className={smoothDropdownClass}>
+                            <button
+                              type="button"
+                              onClick={() => { setIsProvinceOpen(!isProvinceOpen); setProvinceSearch(''); }}
+                              className={smoothDropdownClass}
+                            >
                               <span className="font-semibold text-slate-700">{selectedProvince?.name || 'Chọn tỉnh thành'}</span>
                               <Icon name={isProvinceOpen ? "expand_less" : "expand_more"} className="text-slate-400" />
                             </button>
                             {isProvinceOpen && (
-                              <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200 max-h-60 overflow-y-auto shadow-sky-900/10">
-                                {provinces.map((p) => (<button key={p.id} onClick={() => { setSelectedProvince(p); setIsProvinceOpen(false); }} className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${selectedProvince?.id === p.id ? 'bg-primary/5 text-primary font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'}`}>{p.name}</button>))}
+                              <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200 flex flex-col shadow-sky-900/10">
+                                <div className="p-2 border-b border-slate-100 sticky top-0 bg-white z-10">
+                                  <div className="relative">
+                                    <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
+                                    <input
+                                      type="text"
+                                      placeholder="Tìm kiếm..."
+                                      value={provinceSearch}
+                                      onChange={(e) => setProvinceSearch(e.target.value)}
+                                      autoFocus
+                                      className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-400 transition-colors"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="max-h-60 overflow-y-auto">
+                                  {provinces
+                                    .filter(p => !provinceSearch || normalizeLocationName(p.name).includes(normalizeLocationName(provinceSearch)))
+                                    .map((p) => (
+                                      <button
+                                        key={p.id}
+                                        onClick={() => {
+                                          setSelectedProvince(p);
+                                          setIsProvinceOpen(false);
+                                          setProvinceSearch('');
+                                          centerMapOnLocation(p.name);
+                                        }}
+                                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${selectedProvince?.id === p.id ? 'bg-primary/5 text-primary font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'}`}
+                                      >
+                                        {p.name}
+                                      </button>
+                                    ))}
+                                  {provinces.filter(p => !provinceSearch || normalizeLocationName(p.name).includes(normalizeLocationName(provinceSearch))).length === 0 && (
+                                    <div className="px-4 py-3 text-sm text-slate-400 italic text-center">Không tìm thấy kết quả</div>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -734,13 +846,53 @@ const OrganizerEventCreate = () => {
                         <div>
                           <label className={`text-sm font-bold mb-2 block ${stepColor.text}`}>Quận / Huyện *</label>
                           <div className="relative" ref={wardRef}>
-                            <button onClick={() => setIsWardOpen(!isWardOpen)} disabled={!selectedProvince} className={`${smoothDropdownClass} disabled:opacity-50`}>
+                            <button
+                              type="button"
+                              onClick={() => { setIsWardOpen(!isWardOpen); setWardSearch(''); }}
+                              disabled={!selectedProvince}
+                              className={`${smoothDropdownClass} disabled:opacity-50`}
+                            >
                               <span className="font-semibold text-slate-700">{selectedWard?.name || 'Chọn quận huyện'}</span>
                               <Icon name={isWardOpen ? "expand_less" : "expand_more"} className="text-slate-400" />
                             </button>
                             {isWardOpen && (
-                              <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200 max-h-60 overflow-y-auto shadow-sky-900/10">
-                                {wards.map((w) => (<button key={w.id} onClick={() => { setSelectedWard(w); setIsWardOpen(false); }} className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${selectedWard?.id === w.id ? 'bg-primary/5 text-primary font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'}`}>{w.name}</button>))}
+                              <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200 flex flex-col shadow-sky-900/10">
+                                <div className="p-2 border-b border-slate-100 sticky top-0 bg-white z-10">
+                                  <div className="relative">
+                                    <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
+                                    <input
+                                      type="text"
+                                      placeholder="Tìm kiếm..."
+                                      value={wardSearch}
+                                      onChange={(e) => setWardSearch(e.target.value)}
+                                      autoFocus
+                                      className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-400 transition-colors"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="max-h-60 overflow-y-auto">
+                                  {wards
+                                    .filter(w => !wardSearch || normalizeLocationName(w.name).includes(normalizeLocationName(wardSearch)))
+                                    .map((w) => (
+                                      <button
+                                        key={w.id}
+                                        onClick={() => {
+                                          setSelectedWard(w);
+                                          setIsWardOpen(false);
+                                          setWardSearch('');
+                                          if (selectedProvince) {
+                                            centerMapOnLocation(selectedProvince.name, w.name);
+                                          }
+                                        }}
+                                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${selectedWard?.id === w.id ? 'bg-primary/5 text-primary font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'}`}
+                                      >
+                                        {w.name}
+                                      </button>
+                                    ))}
+                                  {wards.filter(w => !wardSearch || normalizeLocationName(w.name).includes(normalizeLocationName(wardSearch))).length === 0 && (
+                                    <div className="px-4 py-3 text-sm text-slate-400 italic text-center">Không tìm thấy kết quả</div>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -778,7 +930,6 @@ const OrganizerEventCreate = () => {
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h2 className={`text-2xl font-extrabold ${stepColor.text}`}>Lịch trình sự kiện</h2>
-                      <p className="text-sm text-slate-500 font-medium">Chi tiết các hoạt động diễn ra trong cùng một sự kiện</p>
                     </div>
                     <button onClick={() => setSchedules([...schedules, { id: Date.now(), startTime: '', activity: '' }])} className={`px-5 py-2.5 ${stepColor.gradient} text-white font-bold rounded-xl hover:brightness-110 transition-all flex items-center gap-2 text-sm shadow-md shadow-blue-200/50`}>
                       <Icon name="add" size="sm" /> Thêm hoạt động
@@ -790,7 +941,7 @@ const OrganizerEventCreate = () => {
                       <div key={sched.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl relative group flex flex-col md:flex-row gap-10 items-start md:items-center">
 
 
-                        <div className="w-full md:w-48 shrink-0">
+                        <div className="w-full md:w-44 shrink-0">
                           <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">Thời gian</label>
                           <input type="time" value={sched.startTime} onChange={(e) => { const newSchedules = [...schedules]; newSchedules[index].startTime = e.target.value; setSchedules(newSchedules); }} className={smoothFieldClass + " py-2"} />
                         </div>
@@ -808,7 +959,7 @@ const OrganizerEventCreate = () => {
 
               {currentStep === 4 && (
                 <div className="space-y-10 animate-in fade-in slide-in-from-right-8 duration-500 ease-out fill-mode-both">
-                  
+
                   {/* EVENT TYPE SELECTION */}
                   <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200">
                     <div className="flex items-center gap-3 mb-4">
@@ -820,7 +971,7 @@ const OrganizerEventCreate = () => {
                         <p className="text-sm font-medium text-slate-500">Lựa chọn hình thức bán vé cho sự kiện của bạn</p>
                       </div>
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <button
                         type="button"
@@ -859,12 +1010,12 @@ const OrganizerEventCreate = () => {
                         <h2 className={`text-2xl font-extrabold ${stepColor.text}`}>1. Các hạng vé</h2>
                         <p className="text-sm text-slate-500 font-medium">Thiết lập tên, giá tiền và màu sắc nhận diện cho từng hạng vé</p>
                       </div>
-                      <button 
+                      <button
                         type="button"
-                        onClick={() => { 
-                          const newId = Math.max(...ticketTypes.map(t => t.id), 0) + 1; 
-                          setTicketTypes([...ticketTypes, { id: newId, name: 'Loại vé mới', price: 0, color: '#94a3b8', totalQuantity: 0 }]); 
-                        }} 
+                        onClick={() => {
+                          const newId = Math.max(...ticketTypes.map(t => t.id), 0) + 1;
+                          setTicketTypes([...ticketTypes, { id: newId, name: 'Loại vé mới', price: 0, color: '#94a3b8', totalQuantity: 0 }]);
+                        }}
                         className={`px-5 py-2.5 ${stepColor.gradient} text-white font-bold rounded-xl hover:brightness-110 transition-all flex items-center gap-2 text-sm shadow-md shadow-blue-200/50`}
                       >
                         <Icon name="add" size="sm" /> Thêm hạng vé
@@ -874,10 +1025,10 @@ const OrganizerEventCreate = () => {
                     <div className="grid grid-cols-1 gap-4">
                       {ticketTypes.map((ticket, index) => (
                         <div key={ticket.id} className="flex flex-col md:flex-row items-center gap-4 p-5 bg-white border border-slate-200 rounded-2xl shadow-sm relative group hover:border-blue-200 transition-colors">
-                          
+
                           {/* Color Picker */}
                           <div className="relative shrink-0">
-                            <button 
+                            <button
                               type="button"
                               onClick={() => setActiveColorPicker(activeColorPicker === ticket.id ? null : ticket.id)}
                               className="w-14 h-14 rounded-2xl shadow-md flex items-center justify-center cursor-pointer hover:scale-105 transition-transform group"
@@ -889,13 +1040,13 @@ const OrganizerEventCreate = () => {
                               <div className="absolute z-50 top-full mt-2 left-0">
                                 <div className="fixed inset-0 z-10" onClick={() => setActiveColorPicker(null)} />
                                 <div className="relative z-20 bg-white rounded-xl shadow-2xl p-2 border border-slate-100">
-                                  <ChromePicker 
-                                    color={ticket.color} 
+                                  <ChromePicker
+                                    color={ticket.color}
                                     onChange={(color) => {
                                       const newTypes = [...ticketTypes];
                                       newTypes[index].color = color.hex;
                                       setTicketTypes(newTypes);
-                                    }} 
+                                    }}
                                     disableAlpha={true}
                                   />
                                 </div>
@@ -915,9 +1066,15 @@ const OrganizerEventCreate = () => {
                             <div>
                               <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">Giá vé (VNĐ)</label>
                               <input
-                                type="number"
-                                value={ticket.price}
-                                onChange={(e) => { const newTypes = [...ticketTypes]; newTypes[index].price = parseInt(e.target.value) || 0; setTicketTypes(newTypes); }}
+                                type="text"
+                                value={ticket.price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}
+                                onChange={(e) => {
+                                  const raw = e.target.value.replace(/\D/g, "");
+                                  const val = raw ? parseInt(raw, 10) : 0;
+                                  const newTypes = [...ticketTypes];
+                                  newTypes[index].price = val;
+                                  setTicketTypes(newTypes);
+                                }}
                                 className={`w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:bg-white transition-all ${stepColor.border} focus:ring-4 ${stepColor.ring}`}
                               />
                             </div>
@@ -991,7 +1148,7 @@ const OrganizerEventCreate = () => {
                               </div>
                               <button
                                 type="button"
-                                onClick={() => { if(window.confirm("Xóa toàn bộ ghế?")) setSeats([]) }}
+                                onClick={() => { if (window.confirm("Xóa toàn bộ ghế?")) setSeats([]) }}
                                 className="w-full py-2.5 bg-red-50 text-red-500 hover:bg-red-100 font-bold rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
                               >
                                 <Icon name="delete_forever" size="sm" /> Xóa toàn bộ
@@ -1002,8 +1159,8 @@ const OrganizerEventCreate = () => {
                               <Icon name="info" size="xs" className="shrink-0" />
                               <div>
                                 <strong className="block mb-0.5">Tips:</strong>
-                                - Click lên khung canvas để đặt ghế mới.<br/>
-                                - Click vào ghế đã có để xóa ghế đó.<br/>
+                                - Click lên khung canvas để đặt ghế mới.<br />
+                                - Click vào ghế đã có để xóa ghế đó.<br />
                                 - Ghế có thể di chuyển bằng cách kéo thả.
                               </div>
                             </div>
@@ -1017,11 +1174,11 @@ const OrganizerEventCreate = () => {
                                 Sân Khấu / Stage
                               </div>
                             </div>
-                            
+
                             <div className="relative w-full bg-slate-900 aspect-[4/3] lg:aspect-video max-h-[600px] overflow-hidden cursor-crosshair">
-                              <Stage 
-                                width={800} 
-                                height={500} 
+                              <Stage
+                                width={800}
+                                height={500}
                                 className="bg-[#0f172a]"
                                 onMouseDown={(e) => {
                                   // Check if click on empty area of Stage
@@ -1029,12 +1186,12 @@ const OrganizerEventCreate = () => {
                                   if (clickedOnEmpty && activePaintTicketId) {
                                     const stage = e.target.getStage();
                                     const pos = stage?.getRelativePointerPosition();
-                                    if(pos) {
+                                    if (pos) {
                                       const label = getNextSeatLabel(activePaintTicketId);
-                                      setSeats([...seats, { 
-                                        id: uuidv4(), 
-                                        x: pos.x, 
-                                        y: pos.y, 
+                                      setSeats([...seats, {
+                                        id: uuidv4(),
+                                        x: pos.x,
+                                        y: pos.y,
                                         ticketTypeId: activePaintTicketId,
                                         label: label
                                       }]);
@@ -1044,26 +1201,26 @@ const OrganizerEventCreate = () => {
                               >
                                 <Layer>
                                   {/* Grid helpers (optional but looks nice) */}
-                                  {Array.from({length: 20}).map((_, i) => (
-                                    <Rect key={'v'+i} x={i * 40} y={0} width={1} height={500} fill="#1e293b" opacity={0.3} />
+                                  {Array.from({ length: 20 }).map((_, i) => (
+                                    <Rect key={'v' + i} x={i * 40} y={0} width={1} height={500} fill="#1e293b" opacity={0.3} />
                                   ))}
-                                  {Array.from({length: 15}).map((_, i) => (
-                                    <Rect key={'h'+i} x={0} y={i * 40} width={800} height={1} fill="#1e293b" opacity={0.3} />
+                                  {Array.from({ length: 15 }).map((_, i) => (
+                                    <Rect key={'h' + i} x={0} y={i * 40} width={800} height={1} fill="#1e293b" opacity={0.3} />
                                   ))}
 
                                   {/* Render Seats */}
                                   {seats.map((seat) => {
                                     const tt = ticketTypes.find(t => t.id === seat.ticketTypeId);
                                     const color = tt ? tt.color : '#ccc';
-                                    
+
                                     return (
-                                      <Group 
-                                        key={seat.id} 
-                                        x={seat.x} 
-                                        y={seat.y} 
+                                      <Group
+                                        key={seat.id}
+                                        x={seat.x}
+                                        y={seat.y}
                                         draggable
                                         onDragEnd={(e) => {
-                                          const newSeats = seats.map(s => 
+                                          const newSeats = seats.map(s =>
                                             s.id === seat.id ? { ...s, x: e.target.x(), y: e.target.y() } : s
                                           );
                                           setSeats(newSeats);
@@ -1084,13 +1241,13 @@ const OrganizerEventCreate = () => {
                                           stroke="#fff"
                                           strokeWidth={1.5}
                                         />
-                                        <Text 
-                                          text={seat.label} 
-                                          fontSize={10} 
+                                        <Text
+                                          text={seat.label}
+                                          fontSize={10}
                                           fontStyle="bold"
-                                          fill="#fff" 
-                                          align="center" 
-                                          verticalAlign="middle" 
+                                          fill="#fff"
+                                          align="center"
+                                          verticalAlign="middle"
                                           offsetX={seat.label.length > 2 ? 7 : 5}
                                           offsetY={5}
                                         />

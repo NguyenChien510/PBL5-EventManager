@@ -4,11 +4,12 @@ interface IconProps {
   name: string
   className?: string
   filled?: boolean
-  size?: 'sm' | 'md' | 'lg' | 'xl'
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
   onClick?: () => void
 }
 
 const sizeMap = {
+  xs: 'text-xs',
   sm: 'text-sm',
   md: 'text-xl',
   lg: 'text-2xl',
