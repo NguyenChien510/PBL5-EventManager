@@ -99,15 +99,15 @@ const OrganizerEventList = () => {
                 onChange={handleSearch}
                 className="flex-1 xl:w-80 h-12 shadow-sm"
               />
-              <a
-                href="/organizer/create"
+              <Link
+                to="/organizer/create"
                 className="px-6 h-12 bg-gradient-to-r from-primary to-blue-600 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl hover:shadow-[0_10px_25px_-5px_rgba(59,130,246,0.5)] hover:translate-y-[-2px] transition-all duration-300 flex items-center gap-3 shrink-0 group/btn select-none cursor-pointer"
               >
                 <div className="w-7 h-7 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover/btn:scale-110 transition-transform duration-500">
                   <Icon name="add" size="xs" />
                 </div>
                 <span>Tạo mới</span>
-              </a>
+              </Link>
             </div>
 
             <div className="bg-white rounded-[1rem] shadow-sm border border-slate-200 p-1 flex flex-wrap md:flex-nowrap gap-1 w-full md:w-fit overflow-x-auto custom-scrollbar order-1 xl:order-2">
