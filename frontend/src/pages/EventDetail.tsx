@@ -215,15 +215,15 @@ const EventDetail = () => {
     );
   }
 
-  const averageRating = comments.length > 0 
+  const averageRating = comments.length > 0
     ? (comments.reduce((acc, curr) => acc + curr.rating, 0) / comments.length).toFixed(1)
     : "0.0";
-  
+
   const ratingCounts = [5, 4, 3, 2, 1].map(r => ({
     rating: r,
     count: comments.filter(c => c.rating === r).length,
-    percentage: comments.length > 0 
-      ? Math.round((comments.filter(c => c.rating === r).length / comments.length) * 100) 
+    percentage: comments.length > 0
+      ? Math.round((comments.filter(c => c.rating === r).length / comments.length) * 100)
       : 0
   }));
 
@@ -319,13 +319,13 @@ const EventDetail = () => {
                   >
                     <Icon name="format_list_bulleted" size="xs" />
                   </button>
-                    <button
-                      onClick={() => setViewMode('calendar')}
-                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5
+                  <button
+                    onClick={() => setViewMode('calendar')}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5
                         ${viewMode === 'calendar' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-slate-400 hover:text-slate-600'}`}
-                    >
-                      <Icon name="calendar_month" size="xs" />
-                    </button>
+                  >
+                    <Icon name="calendar_month" size="xs" />
+                  </button>
                 </div>
               </div>
 
@@ -489,77 +489,65 @@ const EventDetail = () => {
 
         {/* Reviews Section */}
         <div className="mt-20 pt-16 border-t border-slate-200">
-          <div className="flex flex-col lg:flex-row gap-12">
-            {/* Review Summary */}
-            <div className="lg:w-1/3 space-y-6">
-              <div>
-                <h2 className="text-2xl font-black text-slate-900 mb-2">Đánh giá từ cộng đồng</h2>
-                <p className="text-sm text-slate-500 font-medium">Lắng nghe trải nghiệm thực tế từ những người tham gia trước đó</p>
-              </div>
+          {comments.length > 0 ? (
+            <div className="flex flex-col lg:flex-row gap-12">
+              {/* Review Summary */}
+              <div className="lg:w-1/3 space-y-6">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900 mb-2">Đánh giá từ cộng đồng</h2>
+                  <p className="text-sm text-slate-500 font-medium">Lắng nghe trải nghiệm thực tế từ những người tham gia trước đó</p>
+                </div>
 
-              <div className="p-8 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm text-center relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-yellow-400/10 transition-colors duration-700" />
-                
-                {comments.length > 0 ? (
-                  <>
-                    <p className="text-5xl font-black text-slate-900 mb-2">{averageRating}</p>
-                    <div className="flex justify-center gap-1 mb-4">
-                      {[1, 2, 3, 4, 5].map(s => (
-                        <Icon key={s} name="star" className={s <= Math.round(Number(averageRating)) ? "text-yellow-400" : "text-slate-200"} size="sm" />
-                      ))}
-                    </div>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Dựa trên {comments.length} đánh giá</p>
+                <div className="p-8 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm text-center relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-yellow-400/10 transition-colors duration-700" />
 
-                    <div className="mt-8 space-y-3">
-                      {ratingCounts.map(item => (
-                        <div key={item.rating} className="flex items-center gap-3">
-                          <span className="text-[10px] font-black text-slate-400 w-3">{item.rating}</span>
-                          <div className="flex-1 h-1.5 bg-slate-50 rounded-full overflow-hidden">
-                            <div 
-                              className="h-full bg-yellow-400 rounded-full" 
-                              style={{ width: `${item.percentage}%` }} 
-                            />
-                          </div>
-                          <span className="text-[10px] font-bold text-slate-400 w-8 text-right">{item.percentage}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <div className="py-8">
-                    <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                      <Icon name="star_outline" className="text-slate-300" size="md" />
-                    </div>
-                    <p className="text-sm font-bold text-slate-400">Chưa có đánh giá</p>
-                    <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-tight">Hãy là người đầu tiên!</p>
+                  <p className="text-5xl font-black text-slate-900 mb-2">{averageRating}</p>
+                  <div className="flex justify-center gap-1 mb-4">
+                    {[1, 2, 3, 4, 5].map(s => (
+                      <Icon key={s} name="star" className={s <= Math.round(Number(averageRating)) ? "text-yellow-400" : "text-slate-200"} size="sm" />
+                    ))}
                   </div>
-                )}
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Dựa trên {comments.length} đánh giá</p>
+
+                  <div className="mt-8 space-y-3">
+                    {ratingCounts.map(item => (
+                      <div key={item.rating} className="flex items-center gap-3">
+                        <span className="text-[10px] font-black text-slate-400 w-3">{item.rating}</span>
+                        <div className="flex-1 h-1.5 bg-slate-50 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-yellow-400 rounded-full"
+                            style={{ width: `${item.percentage}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-400 w-8 text-right">{item.percentage}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
 
-            {/* Review List & Input */}
-            <div className="lg:w-2/3 space-y-8">
+              {/* Review List & Input */}
+              <div className="lg:w-2/3 space-y-8">
 
-              {/* Individual Reviews */}
-              <div className="space-y-8 animate-in fade-in duration-700">
-                {comments.length > 0 ? (
-                  comments.map((rev, i) => (
-                    <div 
-                      key={rev.id || i} 
+                {/* Individual Reviews */}
+                <div className="space-y-8 animate-in fade-in duration-700">
+                  {comments.map((rev, i) => (
+                    <div
+                      key={rev.id || i}
                       className="bg-white p-6 sm:p-8 rounded-[3rem] border border-slate-100/80 shadow-sm hover:shadow-xl hover:shadow-slate-200/40 transition-all duration-500 group/card relative overflow-hidden"
                       style={{ animationDelay: `${(i % 5) * 100}ms` }}
                     >
                       <div className="flex gap-4 sm:gap-6">
                         <div className="flex-shrink-0">
-                          <Avatar 
-                            src={rev.user?.avatar} 
-                            alt={rev.user?.fullName} 
-                            size="xl" 
-                            className="rounded-3xl shadow-sm border-4 border-white group-hover/card:scale-105 transition-transform duration-500" 
+                          <Avatar
+                            src={rev.user?.avatar}
+                            alt={rev.user?.fullName}
+                            size="xl"
+                            className="rounded-3xl shadow-sm border-4 border-white group-hover/card:scale-105 transition-transform duration-500"
                             fallback={rev.user?.fullName?.substring(0, 2)}
                           />
                         </div>
-                        
+
                         <div className="flex-1 min-w-0 space-y-4">
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-3">
@@ -572,15 +560,15 @@ const EventDetail = () => {
                                 </span>
                               )}
                             </div>
-                            
+
                             <div className="flex items-center gap-3">
                               <div className="flex gap-0.5">
                                 {[1, 2, 3, 4, 5].map(s => (
-                                  <Icon 
-                                    key={s} 
-                                    name="star" 
-                                    className={s <= rev.rating ? "text-yellow-400" : "text-slate-100"} 
-                                    size="xs" 
+                                  <Icon
+                                    key={s}
+                                    name="star"
+                                    className={s <= rev.rating ? "text-yellow-400" : "text-slate-100"}
+                                    size="xs"
                                     filled={s <= rev.rating}
                                   />
                                 ))}
@@ -596,19 +584,19 @@ const EventDetail = () => {
                               {rev.content}
                             </p>
                           </div>
-                          
+
                           {/* Review Images */}
-                          {rev.images && rev.images.filter(img => img && img.trim() !== "").length > 0 && (
+                          {rev.images && rev.images.filter((img: string) => img && img.trim() !== "").length > 0 && (
                             <div className="flex flex-wrap gap-3 pt-2">
-                              {rev.images.filter(img => img && img.trim() !== "").map((img: string, idx: number) => (
-                                <div 
-                                  key={idx} 
+                              {rev.images.filter((img: string) => img && img.trim() !== "").map((img: string, idx: number) => (
+                                <div
+                                  key={idx}
                                   className="relative group/img overflow-hidden rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-zoom-in"
                                   onClick={() => setSelectedImageUrl(img)}
                                 >
-                                  <img 
-                                    src={img} 
-                                    alt={`Review ${idx}`} 
+                                  <img
+                                    src={img}
+                                    alt={`Review ${idx}`}
                                     className="w-20 h-20 sm:w-24 sm:h-24 object-cover transition-all duration-700 group-hover/img:scale-110"
                                   />
                                   <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/5 transition-colors" />
@@ -616,7 +604,7 @@ const EventDetail = () => {
                               ))}
                             </div>
                           )}
- 
+
                           {/* Organizer Reply */}
                           {rev.reply && (
                             <div className="bg-slate-50/80 p-5 sm:p-6 rounded-[2.5rem] border border-slate-100/50 space-y-3 mt-6 relative overflow-hidden group/reply hover:bg-slate-50 transition-colors">
@@ -643,44 +631,57 @@ const EventDetail = () => {
                         </div>
                       </div>
                     </div>
-                  ))
-                ) : (
-                  <div className="text-center py-20 bg-white rounded-[3rem] border border-dashed border-slate-200 shadow-inner">
-                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-200">
-                      <Icon name="rate_review" size="lg" />
-                    </div>
-                    <p className="text-base font-black text-slate-400 uppercase tracking-widest">Chưa có đánh giá nào</p>
-                    <p className="text-xs text-slate-300 font-bold mt-2">Hãy là người đầu tiên chia sẻ cảm nhận về sự kiện này!</p>
-                  </div>
-                )}
-                
-                {comments.length > 5 && (
-                  <button className="w-full py-5 bg-white rounded-3xl border-2 border-dashed border-slate-200 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] hover:border-primary/20 hover:text-primary hover:bg-primary/5 transition-all shadow-sm">
-                    Xem thêm đánh giá ({comments.length - 5}+)
-                  </button>
-                )}
+                  ))}
+
+                  {comments.length > 5 && (
+                    <button className="w-full py-5 bg-white rounded-3xl border-2 border-dashed border-slate-200 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] hover:border-primary/20 hover:text-primary hover:bg-primary/5 transition-all shadow-sm">
+                      Xem thêm đánh giá ({comments.length - 5}+)
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-6 mb-2">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900 mb-2">Đánh giá từ cộng đồng</h2>
+                <p className="text-sm text-slate-500 font-medium">Lắng nghe trải nghiệm thực tế từ những người tham gia trước đó</p>
+              </div>
+
+              <div className="relative overflow-hidden bg-white sm:p-20 rounded-[3rem] border border-slate-100 shadow-sm text-center flex flex-col items-center group">
+                <div className="absolute top-0 right-0 w-80 h-80 bg-primary/5 rounded-full blur-3xl -mr-40 -mt-40 group-hover:bg-primary/10 transition-colors duration-700" />
+                <div className="absolute bottom-0 left-0 w-80 h-80 bg-yellow-400/5 rounded-full blur-3xl -ml-40 -mb-40 group-hover:bg-yellow-400/10 transition-colors duration-700" />
+
+                <div className="w-24 h-24 bg-slate-50 border border-slate-100 rounded-[2rem] flex items-center justify-center mb-8 relative z-10 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500 shadow-sm">
+                  <Icon name="rate_review" className="text-slate-300 group-hover:text-primary transition-colors duration-500" size="xl" />
+                </div>
+
+                <h3 className="text-2xl font-black text-slate-900 mb-4 relative z-10 tracking-tight">Chưa có đánh giá nào</h3>
+                <p className="text-sm text-slate-500 font-medium max-w-md mx-auto relative z-10 leading-relaxed">
+                  Sự kiện này chưa nhận được phản hồi nào từ cộng đồng. Những chia sẻ của bạn sẽ giúp ích rất nhiều cho những người tham gia khác!
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
       </div>
 
       {/* Lightbox Portal */}
       {selectedImageUrl && createPortal(
-        <div 
+        <div
           className="fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out animate-in fade-in duration-300"
           onClick={() => setSelectedImageUrl(null)}
         >
-          <button 
+          <button
             className="absolute top-6 right-6 w-12 h-12 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-all"
             onClick={() => setSelectedImageUrl(null)}
           >
             <Icon name="close" size="md" />
           </button>
-          <img 
-            src={selectedImageUrl} 
-            alt="Full size review" 
+          <img
+            src={selectedImageUrl}
+            alt="Full size review"
             className="max-w-full max-h-[90vh] rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300"
             onClick={(e) => e.stopPropagation()}
           />

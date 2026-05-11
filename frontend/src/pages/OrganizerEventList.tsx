@@ -100,7 +100,7 @@ const OrganizerEventList = () => {
               </a>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-1.5 flex flex-wrap md:flex-nowrap gap-1.5 w-full md:w-fit overflow-x-auto custom-scrollbar order-1 xl:order-2">
+            <div className="bg-white rounded-[1rem] shadow-sm border border-slate-200 p-1 flex flex-wrap md:flex-nowrap gap-1 w-full md:w-fit overflow-x-auto custom-scrollbar order-1 xl:order-2">
               {STATUS_TABS.map((tab, idx) => (
                 <button
                   key={tab.key}
@@ -108,8 +108,8 @@ const OrganizerEventList = () => {
                     setSelectedStatus(tab.key)
                     setCurrentPage(0)
                   }}
-                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex-1 md:flex-none ${selectedStatus === tab.key
-                    ? `${tab.color} text-white shadow-lg scale-105 z-10`
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex-1 md:flex-none ${selectedStatus === tab.key
+                    ? `${tab.color} text-white shadow-md scale-105 z-10`
                     : 'text-slate-500 hover:bg-slate-50'
                     }`}
                 >

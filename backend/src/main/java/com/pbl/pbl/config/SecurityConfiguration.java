@@ -46,6 +46,8 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/api/locations/**").permitAll()
                         .requestMatchers("/api/events/**").permitAll()
+                        .requestMatchers("/api/comments/event/**").permitAll()
+                        .requestMatchers("/api/comments/organizer/**").permitAll()
                         .requestMatchers("/api/artists/**").permitAll()
                         .requestMatchers("/api/payment/**").permitAll()
 

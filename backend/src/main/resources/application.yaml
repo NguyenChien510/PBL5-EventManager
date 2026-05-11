@@ -12,9 +12,9 @@ spring:
       idle-timeout: 300000
       max-lifetime: 1200000
       connection-timeout: 30000
-      leak-detection-threshold: 2000
 
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: update
     show-sql: true
@@ -26,7 +26,7 @@ spring:
 
 jwt:
   secret: MyVerySecureJWTSecretKeyThatIsAtLeast32BytesLongForHMACSHA256Algorithm2024
-  access-token-expiration: 3600000 # 1 gio
+  access-token-expiration: 7200000 # 1 gio
   refresh-token-expiration: 604800000 # 7 ngay
 
 app:

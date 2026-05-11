@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useNavigate } from 'react-router-dom'
 import { Icon } from '../components/ui'
 import { EventService } from '../services/eventService'
 import { apiClient } from '../utils/axios'
@@ -13,6 +13,7 @@ const paymentMethods = [
 
 const SeatSelection = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [event, setEvent] = useState<any>(null);
   const [seats, setSeats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,8 +59,7 @@ const SeatSelection = () => {
 
   const selectedSeatObjects = seats.filter(s => selectedSeats.includes(s.seatNumber));
   const totalTicketPrice = selectedSeatObjects.reduce((sum, s) => sum + s.price, 0);
-  const systemFee = selectedSeats.length > 0 ? 25000 : 0
-  const totalPrice = totalTicketPrice > 0 ? totalTicketPrice + systemFee : 0;
+  const totalPrice = totalTicketPrice;
 
   const handlePayment = async () => {
     if (selectedSeatObjects.length === 0) return;
@@ -110,12 +110,6 @@ const SeatSelection = () => {
               <span className="text-sm font-bold text-primary">Chọn chỗ ngồi & Thanh toán</span>
             </nav>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="h-8 w-px bg-slate-200 mx-2"></div>
-            <button className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200">
-              <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuB2lolVoWnTMF_tJzHB0HICDxEffLk1IEbhad3WFx7IrGcwgMsZ1yjAwl5jAJTmED_lhI8GWcaOuYr1Q9lJYSTQb7uXe2S7aoqaZ7SxZxci4hQGumQrLHo1lzg-kvjUWO0sbbp-JaHsx9xZOedgTu4_crsKxXxz2_sq3uGBkPai-jxAZcDC4SG1iJsIB9uQYDamqJgqWa2ceI0XUnbQst2XT9JHKkVeI994PVmXE4pNAHMgMyHlXsVYezy9806RHYy9QN5yMIKF0Gg" alt="Avatar" className="w-full h-full object-cover" />
-            </button>
-          </div>
         </div>
       </header>
 
@@ -124,12 +118,12 @@ const SeatSelection = () => {
           {/* Main Seat Map Area */}
           <div className="lg:col-span-8 space-y-6">
             <div className="glass-card rounded-3xl p-8 overflow-hidden relative">
-              <Link to={id ? `/event/${id}` : "/explore"} className="inline-flex items-center gap-2 text-slate-400 hover:text-primary transition-all font-bold mb-6 group/back">
+              <button onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-slate-400 hover:text-primary transition-all font-bold mb-6 group/back cursor-pointer bg-transparent border-none p-0">
                 <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover/back:bg-primary group-hover/back:text-white transition-all">
                   <Icon name="arrow_back" size="sm" />
                 </div>
                 <span className="text-xs uppercase tracking-widest">Quay lại sự kiện</span>
-              </Link>
+              </button>
 
               <div className="flex items-center justify-between mb-12">
                 <div>
@@ -214,41 +208,13 @@ const SeatSelection = () => {
               </div>
             </div>
 
-            {/* Payment Selection Card */}
-            <div className="glass-card rounded-3xl p-8">
-              <h3 className="text-lg font-black mb-6">Phương thức thanh toán</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {paymentMethods.map((pm) => (
-                  <div
-                    key={pm.id}
-                    onClick={() => setActivePayment(pm.id)}
-                    className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all cursor-pointer ${
-                      activePayment === pm.id 
-                        ? 'border-primary bg-primary/5 shadow-md shadow-primary/10' 
-                        : 'border-slate-100 hover:border-slate-200 bg-white'
-                    }`}
-                  >
-                    <div className={`w-10 h-10 ${pm.color} rounded-lg flex items-center justify-center overflow-hidden shadow-sm flex-shrink-0`}>
-                      <img src={pm.logo} alt={pm.label} className="w-full h-full object-cover" />
-                    </div>
-                    <div className="flex-grow">
-                      <p className="text-sm font-bold text-slate-700">{pm.label}</p>
-                    </div>
-                    {activePayment === pm.id ? (
-                      <Icon name="check_circle" className="text-primary" filled />
-                    ) : (
-                      <div className="w-5 h-5 rounded-full border-2 border-slate-200 flex-shrink-0"></div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+
           </div>
 
           {/* Sidebar Summary Area */}
           <aside className="lg:col-span-4">
             <div className="sticky top-28 space-y-6">
-              <div className="glass-card rounded-3xl p-8 overflow-hidden relative">
+              <div className="glass-card rounded-3xl p-6 overflow-hidden relative">
                 <div className="flex items-start gap-4 mb-8">
                   <div className="w-20 h-24 flex-shrink-0 rounded-xl overflow-hidden shadow-lg shadow-slate-200/50">
                     <img
@@ -270,9 +236,15 @@ const SeatSelection = () => {
                     <span className="text-sm font-bold text-slate-500">Vị trí ghế</span>
                     <div className="flex flex-wrap gap-2 justify-end">
                       {selectedSeats.length > 0 ? (
-                        selectedSeats.map(seat => (
-                          <span key={seat} className="px-2 py-1 bg-primary text-white text-xs font-black rounded-lg">{seat}</span>
-                        ))
+                        selectedSeats.map(seatId => {
+                          const seatObj = seats.find(s => s.seatNumber === seatId);
+                          const isVip = seatObj && seatObj.ticketTypeName.toLowerCase().includes('vip');
+                          return (
+                            <span key={seatId} className={`px-2 py-1 text-white text-xs font-black rounded-lg ${isVip ? 'bg-yellow-500' : 'bg-primary'}`}>
+                              {seatId}
+                            </span>
+                          );
+                        })
                       ) : (
                         <span className="text-xs font-bold text-slate-300">Chưa chọn ghế</span>
                       )}
@@ -282,13 +254,6 @@ const SeatSelection = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-slate-500">Giá vé ({selectedSeats.length} vé)</span>
                     <span className="text-sm font-black">{new Intl.NumberFormat('vi-VN').format(totalTicketPrice)}đ</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1 group">
-                      <span className="text-sm font-medium text-slate-500">Phí hệ thống</span>
-                      <Icon name="info" className="text-[14px] text-slate-300 cursor-help" />
-                    </div>
-                    <span className="text-sm font-black">{new Intl.NumberFormat('vi-VN').format(systemFee)}đ</span>
                   </div>
                 </div>
 
@@ -302,24 +267,40 @@ const SeatSelection = () => {
 
                 <button
                   onClick={handlePayment}
-                  className="w-full bg-primary text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-primary/25 hover:shadow-primary/40 transition-all active:scale-[0.98] mb-4 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-primary text-white py-4 rounded-2xl font-black text-base shadow-xl shadow-primary/25 hover:shadow-primary/40 transition-all active:scale-[0.98] mb-4 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={selectedSeats.length === 0 || isProcessing}
                 >
-                  {isProcessing ? 'Đang tạo giao dịch...' : 'Xác nhận Thanh toán'}
-                  {!isProcessing && <Icon name="arrow_forward" />}
+                  {isProcessing ? 'Đang xử lý...' : 'Thanh toán ngay'}
+                  {!isProcessing && <Icon name="arrow_forward" size="sm" />}
                 </button>
-                <p className="text-[11px] text-center text-slate-400 font-medium px-4 leading-relaxed">
-                  Bằng việc nhấn "Xác nhận", bạn đồng ý với <a href="#" className="text-primary hover:underline font-bold">Điều khoản & Điều kiện</a> của EventPlatform.
-                </p>
               </div>
 
-              <div className="glass-card rounded-3xl p-6 border-dashed border-slate-200 flex items-center gap-4">
-                <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-500">
-                  <Icon name="headset_mic" />
-                </div>
-                <div>
-                  <p className="text-sm font-black">Cần hỗ trợ?</p>
-                  <p className="text-xs text-slate-500 font-medium">Hotline 1900 1234 (8:00 - 22:00)</p>
+              {/* Payment Selection Card */}
+              <div className="glass-card rounded-3xl p-6">
+                <h3 className="text-sm font-black mb-4 text-slate-800">Phương thức thanh toán</h3>
+                <div className="space-y-3">
+                  {paymentMethods.map((pm) => (
+                    <div
+                      key={pm.id}
+                      onClick={() => setActivePayment(pm.id)}
+                      className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${activePayment === pm.id
+                        ? 'border-primary bg-primary/5 shadow-md shadow-primary/10'
+                        : 'border-slate-100 hover:border-slate-200 bg-white'
+                        }`}
+                    >
+                      <div className={`w-8 h-8 ${pm.color} rounded-lg flex items-center justify-center overflow-hidden shadow-sm flex-shrink-0`}>
+                        <img src={pm.logo} alt={pm.label} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-grow">
+                        <p className="text-sm font-bold text-slate-700">{pm.label}</p>
+                      </div>
+                      {activePayment === pm.id ? (
+                        <Icon name="check_circle" className="text-primary" filled size="sm" />
+                      ) : (
+                        <div className="w-4 h-4 rounded-full border-2 border-slate-200 flex-shrink-0"></div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
