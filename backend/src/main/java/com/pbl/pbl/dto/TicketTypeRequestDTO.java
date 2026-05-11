@@ -8,4 +8,5 @@ public class TicketTypeRequestDTO {
     private String name;
     private BigDecimal price;
     private Integer totalQuantity;
+    private String color;
 }

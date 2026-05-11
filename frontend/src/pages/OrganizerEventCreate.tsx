@@ -6,6 +6,9 @@ import { ArtistService } from '../services/artistService';
 import { EventService } from '../services/eventService';
 
 import { DashboardLayout, PageHeader } from '../components/layout';
+import { Stage, Layer, Circle, Text, Group, Rect } from 'react-konva';
+import { ChromePicker } from 'react-color';
+import { v4 as uuidv4 } from 'uuid';
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -69,18 +72,17 @@ const OrganizerEventCreate = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isWardOpen, setIsWardOpen] = useState(false);
   const [selectedWard, setSelectedWard] = useState<any>(null);
-  const [activeRowDropdown, setActiveRowDropdown] = useState<number | null>(null);
+
 
   // Ticket & Seat Map State
+  const [hasSeatMap, setHasSeatMap] = useState<boolean>(false);
   const [ticketTypes, setTicketTypes] = useState([
-    { id: 1, name: 'Vé Thường', price: 500000, color: 'bg-blue-500', totalQuantity: 100 },
-    { id: 2, name: 'Vé VIP', price: 1200000, color: 'bg-amber-500', totalQuantity: 50 },
+    { id: 1, name: 'Vé Thường', price: 500000, color: '#3b82f6', totalQuantity: 100 },
+    { id: 2, name: 'Vé VIP', price: 1200000, color: '#f59e0b', totalQuantity: 50 },
   ]);
-  const [rowCount, setRowCount] = useState(5);
-  const [seatsPerRow, setSeatsPerRow] = useState(10);
-  const [rowAssignments, setRowAssignments] = useState<Record<number, number>>({
-    1: 2, 2: 1, 3: 1, 4: 1, 5: 1
-  });
+  const [seats, setSeats] = useState<{ id: string; x: number; y: number; ticketTypeId: number; label: string }[]>([]);
+  const [activePaintTicketId, setActivePaintTicketId] = useState<number | null>(null);
+  const [activeColorPicker, setActiveColorPicker] = useState<number | null>(null);
 
   // Basic Info State
   const [title, setTitle] = useState('');
@@ -151,32 +153,7 @@ const OrganizerEventCreate = () => {
     }
   }, [categories, selectedCategory])
 
-  // Keep row assignments valid when row count / ticket types change
-  useEffect(() => {
-    if (ticketTypes.length === 0) {
-      setRowAssignments({});
-      return;
-    }
 
-    const defaultTicketTypeId = ticketTypes[0].id;
-    const validTicketTypeIds = new Set(ticketTypes.map(t => t.id));
-    const nextAssignments: Record<number, number> = {};
-
-    for (let i = 1; i <= rowCount; i++) {
-      const current = rowAssignments[i];
-      nextAssignments[i] = current && validTicketTypeIds.has(current)
-        ? current
-        : defaultTicketTypeId;
-    }
-
-    const hasChanged =
-      Object.keys(nextAssignments).length !== Object.keys(rowAssignments).length ||
-      Object.entries(nextAssignments).some(([k, v]) => rowAssignments[Number(k)] !== v);
-
-    if (hasChanged) {
-      setRowAssignments(nextAssignments);
-    }
-  }, [rowCount, ticketTypes, rowAssignments]);
 
   useEffect(() => {
     if (selectedProvince) {
@@ -239,9 +216,7 @@ const OrganizerEventCreate = () => {
         setIsArtistDropdownOpen(false);
       }
 
-      if (!target.closest('[data-row-assignment-dropdown="true"]')) {
-        setActiveRowDropdown(null);
-      }
+
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -322,6 +297,13 @@ const OrganizerEventCreate = () => {
     }
   };
 
+  const getNextSeatLabel = (ticketTypeId: number) => {
+    const count = seats.filter(s => s.ticketTypeId === ticketTypeId).length + 1;
+    const tt = ticketTypes.find(t => t.id === ticketTypeId);
+    const prefix = tt ? tt.name.substring(0,1).toUpperCase() : 'S';
+    return `${prefix}${count}`;
+  };
+
   const getRowLetter = (index: number) => {
     let row = "";
     let i = index - 1;
@@ -393,16 +375,18 @@ const OrganizerEventCreate = () => {
         ticketTypes: ticketTypes.map(t => ({
           name: t.name,
           price: t.price,
-          totalQuantity: Object.values(rowAssignments).filter(ttId => ttId === t.id).length * seatsPerRow
+          totalQuantity: hasSeatMap ? seats.filter(s => s.ticketTypeId === t.id).length : t.totalQuantity,
+          color: t.color
         })),
-        seatMapConfig: {
-          rows: rowCount,
-          seatsPerRow,
-          rowAssignments: Array.from({ length: rowCount }, (_, i) => i + 1).map(rowIdx => ({
-            rowIndex: rowIdx,
-            ticketTypeName: ticketTypes.find(t => t.id === rowAssignments[rowIdx])?.name || ticketTypes[0].name
+        hasSeatMap,
+        seatMapConfig: hasSeatMap ? {
+          seats: seats.map(s => ({
+            x: s.x,
+            y: s.y,
+            ticketTypeName: ticketTypes.find(t => t.id === s.ticketTypeId)?.name || ticketTypes[0].name,
+            seatNumber: s.label
           }))
-        }
+        } : null
       };
 
       setIsSubmitting(true);
@@ -824,124 +808,305 @@ const OrganizerEventCreate = () => {
 
               {currentStep === 4 && (
                 <div className="space-y-10 animate-in fade-in slide-in-from-right-8 duration-500 ease-out fill-mode-both">
-                  <div className="flex items-center justify-between">
-                    <div><h2 className={`text-2xl font-extrabold ${stepColor.text}`}>1. Các loại vé</h2><p className="text-sm text-slate-500 font-medium">Định nghĩa các hạng vé và mức giá của bạn</p></div>
-                    <button onClick={() => { const newId = Math.max(...ticketTypes.map(t => t.id), 0) + 1; setTicketTypes([...ticketTypes, { id: newId, name: 'Loại vé mới', price: 0, color: 'bg-slate-500', totalQuantity: 0 }]); }} className={`px-5 py-2.5 ${stepColor.gradient} text-white font-bold rounded-xl hover:brightness-110 transition-all flex items-center gap-2 text-sm shadow-md shadow-blue-200/50`}><Icon name="add" size="sm" /> Thêm hạng vé</button>
+                  
+                  {/* EVENT TYPE SELECTION */}
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 shadow-inner shadow-blue-200/50">
+                        <Icon name="settings" />
+                      </div>
+                      <div>
+                        <h3 className={`text-xl font-extrabold ${stepColor.text}`}>Loại Hình Sự Kiện</h3>
+                        <p className="text-sm font-medium text-slate-500">Lựa chọn hình thức bán vé cho sự kiện của bạn</p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <button
+                        type="button"
+                        onClick={() => { setHasSeatMap(false); setActivePaintTicketId(null); }}
+                        className={`relative overflow-hidden p-6 rounded-2xl border-2 text-left transition-all duration-300 group ${!hasSeatMap ? 'border-blue-600 bg-blue-50/30 shadow-lg shadow-blue-500/10 ring-4 ring-blue-500/10' : 'border-slate-200 bg-white hover:border-blue-300 hover:shadow-md'}`}
+                      >
+                        {!hasSeatMap && <div className="absolute top-3 right-3 text-blue-600"><Icon name="check_circle" /></div>}
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-all duration-300 ${!hasSeatMap ? 'bg-blue-600 text-white rotate-6' : 'bg-slate-100 text-slate-500 group-hover:scale-110'}`}>
+                          <Icon name="confirmation_number" size="md" />
+                        </div>
+                        <h4 className={`font-bold text-lg mb-2 ${!hasSeatMap ? 'text-slate-900' : 'text-slate-700'}`}>Vào cửa tự do (General Admission)</h4>
+                        <p className="text-sm font-medium text-slate-500 leading-relaxed">Phù hợp cho Workshop, Đêm nhạc, Triển lãm... Khách mua vé theo số lượng, không cần chọn ghế trước.</p>
+                      </button>
 
+                      <button
+                        type="button"
+                        onClick={() => { setHasSeatMap(true); if (ticketTypes.length > 0) setActivePaintTicketId(ticketTypes[0].id); }}
+                        className={`relative overflow-hidden p-6 rounded-2xl border-2 text-left transition-all duration-300 group ${hasSeatMap ? 'border-blue-600 bg-blue-50/30 shadow-lg shadow-blue-500/10 ring-4 ring-blue-500/10' : 'border-slate-200 bg-white hover:border-blue-300 hover:shadow-md'}`}
+                      >
+                        {hasSeatMap && <div className="absolute top-3 right-3 text-blue-600"><Icon name="check_circle" /></div>}
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-all duration-300 ${hasSeatMap ? 'bg-blue-600 text-white rotate-6' : 'bg-slate-100 text-slate-500 group-hover:scale-110'}`}>
+                          <Icon name="event_seat" size="md" />
+                        </div>
+                        <h4 className={`font-bold text-lg mb-2 ${hasSeatMap ? 'text-slate-900' : 'text-slate-700'}`}>Sắp xếp chỗ ngồi (Seat Map)</h4>
+                        <p className="text-sm font-medium text-slate-500 leading-relaxed">Phù hợp cho Nhà hát, Liveshow, Hội trường lớn... Tự tay thiết kế sơ đồ để khách chọn chính xác ghế ngồi.</p>
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4">
-                    {ticketTypes.map((ticket, index) => (
-                      <div key={ticket.id} className="flex flex-col md:flex-row items-center gap-4 p-5 bg-slate-50 border border-slate-200 rounded-2xl group hover:border-primary/30 transition-shadow hover:shadow-md">
-                        <div className={`w-12 h-12 rounded-xl ${ticket.color} shadow-sm flex items-center justify-center shrink-0`}><Icon name="local_activity" className="text-white" /></div>
-                        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
-                          <div>
-                            <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">Tên hạng vé</label>
-                            <input
-                              value={ticket.name}
-                              onChange={(e) => { const newTypes = [...ticketTypes]; newTypes[index].name = e.target.value; setTicketTypes(newTypes); }}
-                              className={`w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 outline-none transition-all ${stepColor.border} focus:ring-2 ${stepColor.ring}`}
-                            />
+                  <div className="h-px bg-slate-100 w-full" />
 
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">Giá vé (VNĐ)</label>
-                            <input
-                              type="number"
-                              value={ticket.price}
-                              onChange={(e) => { const newTypes = [...ticketTypes]; newTypes[index].price = parseInt(e.target.value) || 0; setTicketTypes(newTypes); }}
-                              className={`w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 outline-none transition-all ${stepColor.border} focus:ring-2 ${stepColor.ring}`}
-                            />
+                  {/* TICKET TYPES */}
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className={`text-2xl font-extrabold ${stepColor.text}`}>1. Các hạng vé</h2>
+                        <p className="text-sm text-slate-500 font-medium">Thiết lập tên, giá tiền và màu sắc nhận diện cho từng hạng vé</p>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => { 
+                          const newId = Math.max(...ticketTypes.map(t => t.id), 0) + 1; 
+                          setTicketTypes([...ticketTypes, { id: newId, name: 'Loại vé mới', price: 0, color: '#94a3b8', totalQuantity: 0 }]); 
+                        }} 
+                        className={`px-5 py-2.5 ${stepColor.gradient} text-white font-bold rounded-xl hover:brightness-110 transition-all flex items-center gap-2 text-sm shadow-md shadow-blue-200/50`}
+                      >
+                        <Icon name="add" size="sm" /> Thêm hạng vé
+                      </button>
+                    </div>
 
+                    <div className="grid grid-cols-1 gap-4">
+                      {ticketTypes.map((ticket, index) => (
+                        <div key={ticket.id} className="flex flex-col md:flex-row items-center gap-4 p-5 bg-white border border-slate-200 rounded-2xl shadow-sm relative group hover:border-blue-200 transition-colors">
+                          
+                          {/* Color Picker */}
+                          <div className="relative shrink-0">
+                            <button 
+                              type="button"
+                              onClick={() => setActiveColorPicker(activeColorPicker === ticket.id ? null : ticket.id)}
+                              className="w-14 h-14 rounded-2xl shadow-md flex items-center justify-center cursor-pointer hover:scale-105 transition-transform group"
+                              style={{ backgroundColor: ticket.color }}
+                            >
+                              <Icon name="palette" className="text-white/80 mix-blend-difference opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </button>
+                            {activeColorPicker === ticket.id && (
+                              <div className="absolute z-50 top-full mt-2 left-0">
+                                <div className="fixed inset-0 z-10" onClick={() => setActiveColorPicker(null)} />
+                                <div className="relative z-20 bg-white rounded-xl shadow-2xl p-2 border border-slate-100">
+                                  <ChromePicker 
+                                    color={ticket.color} 
+                                    onChange={(color) => {
+                                      const newTypes = [...ticketTypes];
+                                      newTypes[index].color = color.hex;
+                                      setTicketTypes(newTypes);
+                                    }} 
+                                    disableAlpha={true}
+                                  />
+                                </div>
+                              </div>
+                            )}
                           </div>
-                          <div>
-                            <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">Số lượng (Từ sơ đồ)</label>
-                            <div className="py-1 font-bold text-cyan-600">
-                              {Object.values(rowAssignments).filter(ttId => ttId === ticket.id).length * seatsPerRow}
+
+                          <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+                            <div>
+                              <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">Tên hạng vé</label>
+                              <input
+                                value={ticket.name}
+                                onChange={(e) => { const newTypes = [...ticketTypes]; newTypes[index].name = e.target.value; setTicketTypes(newTypes); }}
+                                className={`w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:bg-white transition-all ${stepColor.border} focus:ring-4 ${stepColor.ring}`}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">Giá vé (VNĐ)</label>
+                              <input
+                                type="number"
+                                value={ticket.price}
+                                onChange={(e) => { const newTypes = [...ticketTypes]; newTypes[index].price = parseInt(e.target.value) || 0; setTicketTypes(newTypes); }}
+                                className={`w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:bg-white transition-all ${stepColor.border} focus:ring-4 ${stepColor.ring}`}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">
+                                {hasSeatMap ? 'Số lượng (Đã đặt trên sơ đồ)' : 'Tổng số lượng bán'}
+                              </label>
+                              {hasSeatMap ? (
+                                <div className="py-2 px-4 bg-blue-50 text-blue-600 font-black text-lg rounded-xl border border-blue-100 flex items-center gap-2">
+                                  <Icon name="event_seat" size="xs" />
+                                  {seats.filter(s => s.ticketTypeId === ticket.id).length}
+                                </div>
+                              ) : (
+                                <input
+                                  type="number"
+                                  value={ticket.totalQuantity}
+                                  onChange={(e) => { const newTypes = [...ticketTypes]; newTypes[index].totalQuantity = parseInt(e.target.value) || 0; setTicketTypes(newTypes); }}
+                                  className={`w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:bg-white transition-all ${stepColor.border} focus:ring-4 ${stepColor.ring}`}
+                                />
+                              )}
+                            </div>
+                          </div>
+                          <button type="button" disabled={ticketTypes.length <= 1} onClick={() => {
+                            setTicketTypes(ticketTypes.filter(t => t.id !== ticket.id));
+                            setSeats(seats.filter(s => s.ticketTypeId !== ticket.id));
+                          }} className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0 disabled:opacity-30"><Icon name="delete" /></button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* SEAT MAP EDITOR - SHOW ONLY IF hasSeatMap IS TRUE */}
+                  {hasSeatMap && (
+                    <>
+                      <div className="h-px bg-slate-100 w-full" />
+                      <div className="space-y-6">
+                        <div>
+                          <h2 className={`text-2xl font-extrabold mb-1 ${stepColor.text}`}>2. Thiết kế sơ đồ chỗ ngồi</h2>
+                          <p className="text-sm text-slate-500 font-medium">Click chuột vào bảng vẽ để đặt ghế, hoặc bấm để xóa ghế.</p>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                          {/* Sidebar Tools */}
+                          <div className="space-y-6">
+                            <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm">
+                              <h4 className="text-sm font-black text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                <Icon name="brush" size="xs" /> Bút vẽ ghế
+                              </h4>
+                              <div className="space-y-2">
+                                {ticketTypes.map(tt => (
+                                  <button
+                                    key={tt.id}
+                                    type="button"
+                                    onClick={() => setActivePaintTicketId(tt.id)}
+                                    className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${activePaintTicketId === tt.id ? 'border-blue-600 bg-blue-50/30 shadow-md ring-2 ring-blue-100' : 'border-slate-100 bg-slate-50 hover:border-slate-200'}`}
+                                  >
+                                    <div className="w-5 h-5 rounded-full shadow-sm shrink-0" style={{ backgroundColor: tt.color }} />
+                                    <div className="flex-1 min-w-0">
+                                      <p className={`text-sm font-bold truncate ${activePaintTicketId === tt.id ? 'text-blue-900' : 'text-slate-700'}`}>{tt.name}</p>
+                                      <p className="text-[10px] text-slate-400 font-medium">Đã đặt: {seats.filter(s => s.ticketTypeId === tt.id).length}</p>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="font-bold text-slate-600">Tổng số ghế:</span>
+                                <span className="font-black text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">{seats.length}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => { if(window.confirm("Xóa toàn bộ ghế?")) setSeats([]) }}
+                                className="w-full py-2.5 bg-red-50 text-red-500 hover:bg-red-100 font-bold rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
+                              >
+                                <Icon name="delete_forever" size="sm" /> Xóa toàn bộ
+                              </button>
+                            </div>
+
+                            <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl text-xs text-amber-700 flex gap-2 font-medium">
+                              <Icon name="info" size="xs" className="shrink-0" />
+                              <div>
+                                <strong className="block mb-0.5">Tips:</strong>
+                                - Click lên khung canvas để đặt ghế mới.<br/>
+                                - Click vào ghế đã có để xóa ghế đó.<br/>
+                                - Ghế có thể di chuyển bằng cách kéo thả.
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Konva Canvas Area */}
+                          <div className="lg:col-span-3 relative bg-slate-900 rounded-[2.5rem] overflow-hidden flex flex-col items-center shadow-2xl border-8 border-slate-800 group">
+                            {/* STAGE INDICATOR */}
+                            <div className="w-full py-3 bg-slate-800/50 backdrop-blur-sm flex justify-center relative z-10 border-b border-slate-700/50">
+                              <div className="bg-slate-700 text-slate-300 px-12 py-1.5 rounded-full text-xs font-black uppercase tracking-[0.3em] border border-slate-600/50 shadow-inner">
+                                Sân Khấu / Stage
+                              </div>
+                            </div>
+                            
+                            <div className="relative w-full bg-slate-900 aspect-[4/3] lg:aspect-video max-h-[600px] overflow-hidden cursor-crosshair">
+                              <Stage 
+                                width={800} 
+                                height={500} 
+                                className="bg-[#0f172a]"
+                                onMouseDown={(e) => {
+                                  // Check if click on empty area of Stage
+                                  const clickedOnEmpty = e.target === e.target.getStage();
+                                  if (clickedOnEmpty && activePaintTicketId) {
+                                    const stage = e.target.getStage();
+                                    const pos = stage?.getRelativePointerPosition();
+                                    if(pos) {
+                                      const label = getNextSeatLabel(activePaintTicketId);
+                                      setSeats([...seats, { 
+                                        id: uuidv4(), 
+                                        x: pos.x, 
+                                        y: pos.y, 
+                                        ticketTypeId: activePaintTicketId,
+                                        label: label
+                                      }]);
+                                    }
+                                  }
+                                }}
+                              >
+                                <Layer>
+                                  {/* Grid helpers (optional but looks nice) */}
+                                  {Array.from({length: 20}).map((_, i) => (
+                                    <Rect key={'v'+i} x={i * 40} y={0} width={1} height={500} fill="#1e293b" opacity={0.3} />
+                                  ))}
+                                  {Array.from({length: 15}).map((_, i) => (
+                                    <Rect key={'h'+i} x={0} y={i * 40} width={800} height={1} fill="#1e293b" opacity={0.3} />
+                                  ))}
+
+                                  {/* Render Seats */}
+                                  {seats.map((seat) => {
+                                    const tt = ticketTypes.find(t => t.id === seat.ticketTypeId);
+                                    const color = tt ? tt.color : '#ccc';
+                                    
+                                    return (
+                                      <Group 
+                                        key={seat.id} 
+                                        x={seat.x} 
+                                        y={seat.y} 
+                                        draggable
+                                        onDragEnd={(e) => {
+                                          const newSeats = seats.map(s => 
+                                            s.id === seat.id ? { ...s, x: e.target.x(), y: e.target.y() } : s
+                                          );
+                                          setSeats(newSeats);
+                                        }}
+                                        onClick={(e) => {
+                                          // Prevent Stage mousedown event triggering add
+                                          e.cancelBubble = true;
+                                          // Click removes the seat
+                                          setSeats(seats.filter(s => s.id !== seat.id));
+                                        }}
+                                      >
+                                        <Circle
+                                          radius={14}
+                                          fill={color}
+                                          shadowBlur={5}
+                                          shadowColor="#000"
+                                          shadowOpacity={0.3}
+                                          stroke="#fff"
+                                          strokeWidth={1.5}
+                                        />
+                                        <Text 
+                                          text={seat.label} 
+                                          fontSize={10} 
+                                          fontStyle="bold"
+                                          fill="#fff" 
+                                          align="center" 
+                                          verticalAlign="middle" 
+                                          offsetX={seat.label.length > 2 ? 7 : 5}
+                                          offsetY={5}
+                                        />
+                                      </Group>
+                                    );
+                                  })}
+                                </Layer>
+                              </Stage>
                             </div>
                           </div>
                         </div>
-                        <button disabled={ticketTypes.length <= 1} onClick={() => setTicketTypes(ticketTypes.filter(t => t.id !== ticket.id))} className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0 disabled:opacity-30"><Icon name="delete" /></button>
                       </div>
-                    ))}
-                  </div>
-                  <div className="h-px bg-slate-100 w-full" />
-                  <div className="space-y-8">
-                    <div><h2 className={`text-2xl font-extrabold mb-1 ${stepColor.text}`}>2. Cấu hình sơ đồ ghế</h2><p className="text-sm text-slate-500 font-medium">Thiết lập số hàng, số ghế và gán hạng vé cho từng khu vực</p></div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                      <div className="lg:col-span-4 space-y-6">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div><label className={`text-sm font-bold mb-2 block ${stepColor.text}`}>Số hàng</label><input type="number" min="1" max="26" value={rowCount} onChange={(e) => setRowCount(parseInt(e.target.value) || 1)} className={smoothFieldClass} /></div>
-                          <div><label className={`text-sm font-bold mb-2 block ${stepColor.text}`}>Ghế mỗi hàng</label><input type="number" min="1" max="50" value={seatsPerRow} onChange={(e) => setSeatsPerRow(parseInt(e.target.value) || 1)} className={smoothFieldClass} /></div>
-                        </div>
-                        <div className="space-y-3">
-                          <label className={`text-sm font-bold mb-2 block ${stepColor.text}`}>Gán hạng vé theo hàng</label>
-
-                          <div className="max-h-[300px] pr-2 space-y-2 custom-scrollbar overflow-y-auto pb-4">
-                            {Array.from({ length: rowCount }, (_, i) => i + 1).map(rowIdx => {
-                              const shouldFlipUp = rowCount > 3 && rowIdx >= rowCount - 2;
-                              return (
-                                <div key={rowIdx} className={`flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 relative ${activeRowDropdown === rowIdx ? 'z-50' : 'z-10'}`}>
-                                  <span className={`w-8 h-8 flex items-center justify-center bg-white rounded-lg text-xs font-black shadow-sm border ${activeRowDropdown === rowIdx ? 'border-primary text-primary' : 'border-slate-100 text-slate-700'}`}>{getRowLetter(rowIdx)}</span>
-                                  <div className="relative flex-1" data-row-assignment-dropdown="true">
-                                    <button
-                                      type="button"
-                                      onClick={() => setActiveRowDropdown(activeRowDropdown === rowIdx ? null : rowIdx)}
-                                      className={`w-full flex items-center justify-between px-4 py-3 border rounded-xl text-sm font-bold outline-none transition-all shadow-sm ${activeRowDropdown === rowIdx ? `bg-white ${stepColor.border.replace('focus:', '')} ring-4 ${stepColor.ring} text-slate-800` : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'}`}
-                                    >
-                                      <span>
-                                        {ticketTypes.find(t => t.id === (rowAssignments[rowIdx] || ticketTypes[0].id))?.name || 'Chọn hạng vé'}
-                                      </span>
-                                      <Icon name={activeRowDropdown === rowIdx ? "expand_less" : "expand_more"} className={activeRowDropdown === rowIdx ? `${stepColor.text}` : 'text-slate-400'} />
-                                    </button>
-
-                                    {activeRowDropdown === rowIdx && (
-                                      <div className={`absolute z-[100] left-0 w-full bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in duration-200 ${shouldFlipUp ? 'bottom-[calc(100%+8px)] slide-in-from-bottom-2' : 'top-[calc(100%+8px)] slide-in-from-top-2'}`}>
-                                        {ticketTypes.map(t => (
-                                          <button
-                                            key={t.id}
-                                            type="button"
-                                            onClick={() => {
-                                              setRowAssignments({ ...rowAssignments, [rowIdx]: t.id });
-                                              setActiveRowDropdown(null);
-                                            }}
-                                            className={`w-full flex justify-between items-center px-4 py-2.5 text-sm transition-colors ${(rowAssignments[rowIdx] || ticketTypes[0].id) === t.id
-                                              ? 'bg-slate-50 text-slate-900 font-bold'
-                                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
-                                              }`}
-                                          >
-                                            <span>{t.name}</span>
-                                            {(rowAssignments[rowIdx] || ticketTypes[0].id) === t.id && (
-                                              <Icon name="check" size="sm" className={stepColor.text} />
-                                            )}
-
-                                          </button>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="lg:col-span-8 bg-slate-900 rounded-[2rem] p-8 shadow-2xl shadow-slate-200/50 overflow-hidden flex flex-col items-center">
-                        <div className="w-full h-2 bg-slate-700 rounded-full mb-12 relative"><div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-black text-slate-500 uppercase tracking-widest">Sân Khấu / Stage</div></div>
-                        <div className="w-full overflow-auto max-h-[400px] p-4 flex flex-col items-center gap-2 custom-scrollbar">
-                          {Array.from({ length: rowCount }, (_, i) => i + 1).map(rowIdx => {
-                            const ttId = rowAssignments[rowIdx] || ticketTypes[0].id;
-                            const tt = ticketTypes.find(t => t.id === ttId);
-                            return (<div key={rowIdx} className="flex gap-1.5 items-center"> <span className="text-[10px] font-bold text-slate-600 w-4 text-center">{getRowLetter(rowIdx)}</span> <div className="flex gap-1"> {Array.from({ length: seatsPerRow }, (_, j) => j + 1).map(colIdx => (<div key={colIdx} className={`w-3.5 h-3.5 rounded-sm ${tt?.color || 'bg-slate-700'} opacity-80 hover:opacity-100 transition-opacity cursor-default`} title={`${getRowLetter(rowIdx)}${colIdx} - ${tt?.name}`} />))} </div> </div>);
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                    </>
+                  )}
                 </div>
               )}
-
               {currentStep === 5 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500 ease-out fill-mode-both max-w-2xl mx-auto text-center py-8">
                   <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">

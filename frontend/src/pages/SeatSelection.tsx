@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { Icon } from '../components/ui'
 import { EventService } from '../services/eventService'
 import { apiClient } from '../utils/axios'
 import { useAuthStore } from '../stores/useAuthStore'
 import { toast } from 'react-hot-toast'
+import { Stage, Layer, Circle, Text, Group } from 'react-konva'
 
 const paymentMethods = [
   { id: 'momo', label: 'Ví MoMo', logo: 'https://developers.momo.vn/v3/assets/images/MOMO-Logo-App-6262c3743a290ef02396a24ea2b66c35.png', color: 'bg-accent-pink' },
@@ -20,8 +21,19 @@ const SeatSelection = () => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const { user } = useAuthStore();
-  const [selectedSeats, setSelectedSeats] = useState<string[]>([])
+  
+  // For mapped seats
+  const [selectedSeatIds, setSelectedSeatIds] = useState<number[]>([])
+  
+  // For GA/No map seats
+  const [quantities, setQuantities] = useState<{[typeName: string]: number}>({})
+
   const [activePayment, setActivePayment] = useState('momo')
+
+  // Canvas interaction states
+  const [stageScale, setStageScale] = useState(1);
+  const [stagePosition, setStagePosition] = useState({ x: 0, y: 0 });
+  const stageRef = useRef<any>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -45,24 +57,106 @@ const SeatSelection = () => {
     fetchData();
   }, [id]);
 
-  const seatRows = Array.from(new Set(seats.map(s => s.seatNumber.charAt(0)))).sort();
-  const seatsPerRow = seats.length > 0 ? Math.max(...seats.map(s => parseInt(s.seatNumber.substring(1)))) : 0;
+  // Group tickets for Non-map mode
+  const groupedTickets = useMemo(() => {
+    const group = new Map();
+    seats.forEach(seat => {
+      const name = seat.ticketTypeName;
+      if (!group.has(name)) {
+        group.set(name, {
+          name: name,
+          price: seat.price,
+          color: seat.color || '#6366f1',
+          availableSeats: [],
+          totalSeats: 0,
+        });
+      }
+      const info = group.get(name);
+      info.totalSeats++;
+      if (seat.status === 'AVAILABLE') {
+        info.availableSeats.push(seat);
+      }
+    });
+    return Array.from(group.values());
+  }, [seats]);
 
-  const toggleSeat = (seatId: string) => {
-    const seatObj = seats.find(s => s.seatNumber === seatId);
-    if (!seatObj || seatObj.status !== 'AVAILABLE') return;
+  // Unique colors and names for Legend
+  const legendItems = useMemo(() => {
+    const unique = new Map();
+    seats.forEach(s => {
+      if(!unique.has(s.ticketTypeName)) {
+         unique.set(s.ticketTypeName, { name: s.ticketTypeName, color: s.color || '#6366f1'});
+      }
+    });
+    return Array.from(unique.values());
+  }, [seats]);
 
-    setSelectedSeats((prev) =>
-      prev.includes(seatId) ? prev.filter((s) => s !== seatId) : [...prev, seatId]
+  const handleWheel = (e: any) => {
+    e.evt.preventDefault();
+    const scaleBy = 1.1;
+    const stage = e.target.getStage();
+    const oldScale = stage.scaleX();
+    const pointer = stage.getPointerPosition();
+
+    if (!pointer) return;
+
+    const mousePointTo = {
+      x: (pointer.x - stage.x()) / oldScale,
+      y: (pointer.y - stage.y()) / oldScale,
+    };
+
+    const newScale = e.evt.deltaY < 0 ? oldScale * scaleBy : oldScale / scaleBy;
+    
+    // Limit scaling
+    if (newScale < 0.5 || newScale > 3) return;
+
+    setStageScale(newScale);
+    setStagePosition({
+      x: pointer.x - mousePointTo.x * newScale,
+      y: pointer.y - mousePointTo.y * newScale,
+    });
+  };
+
+  const toggleSeat = (seat: any) => {
+    if (seat.status !== 'AVAILABLE') return;
+    
+    setSelectedSeatIds((prev) =>
+      prev.includes(seat.id) ? prev.filter((sid) => sid !== seat.id) : [...prev, seat.id]
     )
   }
 
-  const selectedSeatObjects = seats.filter(s => selectedSeats.includes(s.seatNumber));
-  const totalTicketPrice = selectedSeatObjects.reduce((sum, s) => sum + s.price, 0);
+  const updateQuantity = (typeName: string, change: number, maxAvailable: number) => {
+    setQuantities(prev => {
+      const current = prev[typeName] || 0;
+      const next = Math.max(0, Math.min(maxAvailable, current + change));
+      return { ...prev, [typeName]: next };
+    });
+  };
+
+  // Derived current total selection
+  const hasSeatMap = event?.hasSeatMap === true;
+  
+  let finalSelectedSeatIds: number[] = [];
+  let finalSeatObjects: any[] = [];
+
+  if (hasSeatMap) {
+    finalSeatObjects = seats.filter(s => selectedSeatIds.includes(s.id));
+    finalSelectedSeatIds = finalSeatObjects.map(s => s.id);
+  } else {
+    // Aggregate from quantities
+    groupedTickets.forEach(group => {
+      const qty = quantities[group.name] || 0;
+      const toPick = group.availableSeats.slice(0, qty);
+      finalSeatObjects = [...finalSeatObjects, ...toPick];
+      finalSelectedSeatIds = [...finalSelectedSeatIds, ...toPick.map((s: any) => s.id)];
+    });
+  }
+
+  const totalTicketPrice = finalSeatObjects.reduce((sum, s) => sum + s.price, 0);
   const totalPrice = totalTicketPrice;
 
   const handlePayment = async () => {
-    if (selectedSeatObjects.length === 0) return;
+    if (finalSelectedSeatIds.length === 0) return;
 
     setIsProcessing(true);
     try {
@@ -71,7 +165,7 @@ const SeatSelection = () => {
           amount: totalPrice,
           orderInfo: `Thanh toan ve ${event?.title?.substring(0, 50) || 'su kien'}`,
           userId: user?.id,
-          seatIds: selectedSeatObjects.map(s => s.id),
+          seatIds: finalSelectedSeatIds,
           paymentMethod: activePayment
         };
 
@@ -115,100 +209,216 @@ const SeatSelection = () => {
 
       <main className="pt-28 pb-20">
         <div className="max-w-[1440px] mx-auto px-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Main Seat Map Area */}
+          {/* Main Content Area */}
           <div className="lg:col-span-8 space-y-6">
-            <div className="glass-card rounded-3xl p-8 overflow-hidden relative">
-              <button onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-slate-400 hover:text-primary transition-all font-bold mb-6 group/back cursor-pointer bg-transparent border-none p-0">
+            <div className="glass-card rounded-3xl p-8 overflow-hidden relative flex flex-col min-h-[600px]">
+              <button onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-slate-400 hover:text-primary transition-all font-bold mb-6 group/back cursor-pointer bg-transparent border-none p-0 w-fit">
                 <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover/back:bg-primary group-hover/back:text-white transition-all">
                   <Icon name="arrow_back" size="sm" />
                 </div>
                 <span className="text-xs uppercase tracking-widest">Quay lại sự kiện</span>
               </button>
 
-              <div className="flex items-center justify-between mb-12">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
                 <div>
-                  <h2 className="text-2xl font-black mb-1">Sơ đồ vị trí</h2>
-                  <p className="text-sm text-slate-500 font-medium">Chọn ghế yêu thích của bạn cho biểu diễn biểu diễn tại {event?.location || 'địa điểm diễn ra'}</p>
+                  <h2 className="text-2xl font-black mb-1">
+                    {hasSeatMap ? 'Sơ đồ vị trí' : 'Chọn loại vé'}
+                  </h2>
+                  <p className="text-sm text-slate-500 font-medium">
+                    {hasSeatMap ? 'Vui lòng chọn ghế yêu thích của bạn trên bản đồ.' : 'Vui lòng nhập số lượng vé bạn muốn mua.'}
+                  </p>
                 </div>
-                <div className="flex gap-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded bg-slate-200"></div>
-                    <span className="text-[11px] font-bold uppercase text-slate-500 tracking-wider">Trống</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded bg-yellow-100 border border-yellow-300"></div>
-                    <span className="text-[11px] font-bold uppercase text-yellow-600 tracking-wider">VIP</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded bg-slate-100 flex items-center justify-center">
-                      <Icon name="close" className="text-[8px] text-slate-400" />
+                {/* Legend */}
+                <div className="flex flex-wrap gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  {legendItems.map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: item.color }}></div>
+                      <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">{item.name}</span>
                     </div>
-                    <span className="text-[11px] font-bold uppercase text-slate-500 tracking-wider">Đã đặt</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded bg-primary"></div>
-                    <span className="text-[11px] font-bold uppercase text-primary tracking-wider font-black">Đang chọn</span>
+                  ))}
+                  <div className="h-3 w-px bg-slate-200 mx-1"></div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-slate-200 flex items-center justify-center"></div>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Đã bán</span>
                   </div>
                 </div>
               </div>
 
-              {/* Stage */}
-              <div className="w-full h-4 bg-slate-200 rounded-full mb-20 relative shadow-inner overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/20 to-transparent"></div>
-                <p className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] font-black text-slate-400 uppercase tracking-[0.5em]">Sân Khấu / Stage</p>
-              </div>
+              {loading ? (
+                <div className="flex-grow flex flex-col items-center justify-center p-12 text-slate-500 italic">
+                  <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mb-4"></div>
+                  <p className="font-medium">Đang tải thông tin vé...</p>
+                </div>
+              ) : (
+                <div className="flex-grow flex flex-col">
+                  {hasSeatMap ? (
+                    /* --- RENDER SEAT MAP (KONVA) --- */
+                    <>
+                       <div className="mb-4 bg-slate-900/5 text-slate-600 p-2 px-4 rounded-lg text-xs font-bold flex items-center gap-2">
+                         <Icon name="info" size="xs" />
+                         <span>Dùng chuột lăn để phóng to/thu nhỏ, nhấp và kéo để di chuyển bản đồ.</span>
+                       </div>
+                       
+                       <div className="flex-grow relative bg-[#f8fafc] rounded-2xl border-2 border-dashed border-slate-200 overflow-hidden cursor-grab active:cursor-grabbing select-none" style={{ height: '500px' }}>
+                          
+                          {/* Simple Stage visual marker */}
+                          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center pointer-events-none">
+                            <div className="px-6 py-1 bg-slate-800 text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-lg border border-slate-700">
+                               Sân Khấu
+                            </div>
+                          </div>
 
-              {/* Seat Grid */}
-              <div className="seat-map-container">
-                {loading ? (
-                  <div className="flex items-center justify-center p-12 text-slate-500 italic">Đang tải sơ đồ...</div>
-                ) : (
-                  <div className="seat-grid-3d flex flex-col items-center gap-4 pb-12">
-                    {seatRows.map((row) => (
-                      <div key={row} className="flex gap-2">
-                        <div className="w-8 flex items-center justify-center text-xs font-bold text-slate-400">{row}</div>
-                        <div className="flex gap-2">
-                          {Array.from({ length: seatsPerRow }, (_, idx) => {
-                            const col = idx + 1
-                            const seatId = `${row}${col.toString().padStart(2, '0')}` // Ex: A01
+                          <Stage
+                            width={800}
+                            height={500}
+                            ref={stageRef}
+                            draggable
+                            scaleX={stageScale}
+                            scaleY={stageScale}
+                            x={stagePosition.x}
+                            y={stagePosition.y}
+                            onWheel={handleWheel}
+                            onDragEnd={(e) => {
+                              setStagePosition({ x: e.target.x(), y: e.target.y() });
+                            }}
+                            style={{ width: '100%', height: '100%' }}
+                          >
+                            <Layer>
+                              {seats.map((seat) => {
+                                const isSelected = selectedSeatIds.includes(seat.id);
+                                const isAvailable = seat.status === 'AVAILABLE';
+                                
+                                // Styling variables
+                                let fillColor = seat.color || '#6366f1';
+                                let strokeColor = 'transparent';
+                                let strokeWidth = 0;
+                                let opacity = 1;
+                                
+                                if (!isAvailable) {
+                                  fillColor = '#e2e8f0'; // gray
+                                  opacity = 0.6;
+                                } else if (isSelected) {
+                                  strokeColor = '#1e293b';
+                                  strokeWidth = 2.5;
+                                  // Keep vibrant fill but with intense stroke
+                                }
 
-                            const seatObj = seats.find(s => s.seatNumber === seatId);
-                            const isBooked = !seatObj || seatObj.status !== 'AVAILABLE';
-                            const isSelected = selectedSeats.includes(seatId);
-                            const isVip = seatObj && seatObj.ticketTypeName.toLowerCase().includes('vip');
-
-                            // Visual Gap after col 3 and depending on items, 3 and max-3. Let's make it fixed every 4 items or so for visual.
-                            // The original mock had gap after col=3 and col=9 (length=12).
-                            // Assuming similar pattern to keep visual nice, let's keep gaps dynamic or constant
-                            const showGap = (Math.floor(seatsPerRow / 4) !== 0) && (col % Math.floor(seatsPerRow / 4) === 0 && col !== seatsPerRow);
-
-                            return (
-                              <div key={seatId} className="flex gap-2">
-                                {seatObj ? (
-                                  <button
-                                    onClick={() => toggleSeat(seatId)}
-                                    disabled={isBooked}
-                                    title={`${seatId} - ${seatObj.ticketTypeName} - ${new Intl.NumberFormat('vi-VN').format(seatObj.price)}đ`}
-                                    className={`seat-item ${isBooked ? 'booked' : isSelected ? 'selected' : isVip ? 'vip-available' : 'available'}`}
+                                return (
+                                  <Group
+                                    key={seat.id}
+                                    x={seat.x || 100}
+                                    y={seat.y || 100}
+                                    onClick={() => toggleSeat(seat)}
+                                    onTap={() => toggleSeat(seat)}
+                                    style={{ cursor: isAvailable ? 'pointer' : 'not-allowed' }}
+                                    onMouseEnter={(e) => {
+                                      if(isAvailable) {
+                                        const container = e.target.getStage()?.container();
+                                        if(container) container.style.cursor = 'pointer';
+                                      }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      const container = e.target.getStage()?.container();
+                                      if(container) container.style.cursor = 'grab';
+                                    }}
                                   >
-                                    {isBooked ? <Icon name="close" className="text-[14px]" /> : col}
-                                  </button>
-                                ) : (
-                                  <div className="w-8 h-8 pointer-events-none" />
-                                )}
-                                {showGap && <div className="w-4 md:w-8 border-r border-slate-100/50"></div>}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                                    <Circle
+                                      radius={15}
+                                      fill={fillColor}
+                                      stroke={strokeColor}
+                                      strokeWidth={strokeWidth}
+                                      opacity={opacity}
+                                      shadowColor="black"
+                                      shadowBlur={isSelected ? 10 : 2}
+                                      shadowOpacity={isSelected ? 0.3 : 0.1}
+                                      shadowOffset={{ x: 0, y: 2 }}
+                                    />
+                                    {/* Checkmark icon overlay if selected */}
+                                    {isSelected && (
+                                      <Circle
+                                         radius={5}
+                                         fill="#ffffff"
+                                         x={0}
+                                         y={0}
+                                      />
+                                    )}
+                                    <Text
+                                      text={seat.seatNumber}
+                                      fontSize={8}
+                                      fontStyle="bold"
+                                      fill={isAvailable ? "#ffffff" : "#94a3b8"}
+                                      align="center"
+                                      verticalAlign="middle"
+                                      x={-15}
+                                      y={-4}
+                                      width={30}
+                                      listening={false}
+                                    />
+                                  </Group>
+                                );
+                              })}
+                            </Layer>
+                          </Stage>
+                       </div>
+                    </>
+                  ) : (
+                    /* --- RENDER QUANTITY LIST (NO MAP) --- */
+                    <div className="flex-grow flex flex-col gap-4">
+                       {groupedTickets.length === 0 ? (
+                         <div className="p-12 border-2 border-dashed border-slate-200 rounded-2xl text-center text-slate-500 font-bold">
+                            Chưa có thông tin vé cho sự kiện này.
+                         </div>
+                       ) : (
+                         groupedTickets.map((group, idx) => {
+                           const currentQty = quantities[group.name] || 0;
+                           const remaining = group.availableSeats.length;
+                           const isSoldOut = remaining === 0;
+
+                           return (
+                             <div key={idx} className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex items-center justify-between transition-all hover:border-primary/30 hover:shadow-md">
+                               <div className="flex items-center gap-4">
+                                 <div className="w-3 h-12 rounded-full" style={{ backgroundColor: group.color }}></div>
+                                 <div>
+                                   <h3 className="text-lg font-extrabold text-slate-800">{group.name}</h3>
+                                   <p className="text-primary font-black text-xl mt-1">
+                                     {new Intl.NumberFormat('vi-VN').format(group.price)} <span className="text-sm font-bold text-slate-400">VNĐ</span>
+                                   </p>
+                                   <div className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                                     {isSoldOut ? 'Hết vé' : `Còn trống ${remaining}/${group.totalSeats}`}
+                                   </div>
+                                 </div>
+                               </div>
+
+                               <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                 <button
+                                   onClick={() => updateQuantity(group.name, -1, remaining)}
+                                   disabled={currentQty <= 0}
+                                   className="w-10 h-10 rounded-lg bg-white shadow-sm border border-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-100 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                 >
+                                   <Icon name="remove" size="sm" />
+                                 </button>
+                                 
+                                 <span className="w-8 text-center font-black text-xl text-slate-800">
+                                   {currentQty}
+                                 </span>
+
+                                 <button
+                                   onClick={() => updateQuantity(group.name, 1, remaining)}
+                                   disabled={currentQty >= remaining}
+                                   className="w-10 h-10 rounded-lg bg-primary text-white shadow-md shadow-primary/30 flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                 >
+                                   <Icon name="add" size="sm" />
+                                 </button>
+                               </div>
+                             </div>
+                           );
+                         })
+                       )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-
-
           </div>
 
           {/* Sidebar Summary Area */}
@@ -233,26 +443,36 @@ const SeatSelection = () => {
 
                 <div className="space-y-4 mb-8">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-500">Vị trí ghế</span>
-                    <div className="flex flex-wrap gap-2 justify-end">
-                      {selectedSeats.length > 0 ? (
-                        selectedSeats.map(seatId => {
-                          const seatObj = seats.find(s => s.seatNumber === seatId);
-                          const isVip = seatObj && seatObj.ticketTypeName.toLowerCase().includes('vip');
-                          return (
-                            <span key={seatId} className={`px-2 py-1 text-white text-xs font-black rounded-lg ${isVip ? 'bg-yellow-500' : 'bg-primary'}`}>
-                              {seatId}
+                    <span className="text-sm font-bold text-slate-500">
+                      {hasSeatMap ? 'Vị trí ghế' : 'Số lượng vé'}
+                    </span>
+                    <div className="flex flex-wrap gap-2 justify-end max-w-[60%]">
+                      {finalSeatObjects.length > 0 ? (
+                        hasSeatMap ? (
+                          finalSeatObjects.map(s => (
+                            <span key={s.id} className="px-2 py-1 text-white text-xs font-black rounded-lg shadow-sm" style={{ backgroundColor: s.color || '#6366f1' }}>
+                              {s.seatNumber}
                             </span>
-                          );
-                        })
+                          ))
+                        ) : (
+                           Object.entries(quantities).map(([name, qty]) => {
+                             if (qty <= 0) return null;
+                             const color = groupedTickets.find(g => g.name === name)?.color || '#6366f1';
+                             return (
+                               <span key={name} className="px-2 py-1 text-white text-xs font-black rounded-lg shadow-sm" style={{ backgroundColor: color }}>
+                                 {name} x{qty}
+                               </span>
+                             );
+                           })
+                        )
                       ) : (
-                        <span className="text-xs font-bold text-slate-300">Chưa chọn ghế</span>
+                        <span className="text-xs font-bold text-slate-300">Chưa chọn vé</span>
                       )}
                     </div>
                   </div>
                   <div className="h-px bg-slate-100"></div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-500">Giá vé ({selectedSeats.length} vé)</span>
+                    <span className="text-sm font-medium text-slate-500">Giá vé ({finalSeatObjects.length} vé)</span>
                     <span className="text-sm font-black">{new Intl.NumberFormat('vi-VN').format(totalTicketPrice)}đ</span>
                   </div>
                 </div>
@@ -268,7 +488,7 @@ const SeatSelection = () => {
                 <button
                   onClick={handlePayment}
                   className="w-full bg-primary text-white py-4 rounded-2xl font-black text-base shadow-xl shadow-primary/25 hover:shadow-primary/40 transition-all active:scale-[0.98] mb-4 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={selectedSeats.length === 0 || isProcessing}
+                  disabled={finalSeatObjects.length === 0 || isProcessing}
                 >
                   {isProcessing ? 'Đang xử lý...' : 'Thanh toán ngay'}
                   {!isProcessing && <Icon name="arrow_forward" size="sm" />}

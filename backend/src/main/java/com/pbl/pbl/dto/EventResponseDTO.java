@@ -29,6 +29,7 @@ public class EventResponseDTO {
     private List<ArtistDTO> artists;
     private Integer totalTickets;
     private Integer ticketsLeft;
+    private Boolean hasSeatMap;
 
     
     private CategoryDTO category;

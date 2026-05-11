@@ -212,6 +212,7 @@ public class EventService {
                         .name(tt.getName())
                         .price(tt.getPrice())
                         .totalQuantity(tt.getTotalQuantity())
+                        .color(tt.getColor())
                         .build())
                 .collect(Collectors.toList());
     }
@@ -226,6 +227,9 @@ public class EventService {
                         .status(s.getStatus().name())
                         .ticketTypeName(s.getTicketType() != null ? s.getTicketType().getName() : "")
                         .price(s.getTicketType() != null ? s.getTicketType().getPrice() : BigDecimal.ZERO)
+                        .x(s.getX())
+                        .y(s.getY())
+                        .color(s.getTicketType() != null ? s.getTicketType().getColor() : "")
                         .build())
                 .collect(Collectors.toList());
     }
@@ -240,6 +244,9 @@ public class EventService {
                         .status(s.getStatus().name())
                         .ticketTypeName(s.getTicketType() != null ? s.getTicketType().getName() : "")
                         .price(s.getTicketType() != null ? s.getTicketType().getPrice() : BigDecimal.ZERO)
+                        .x(s.getX())
+                        .y(s.getY())
+                        .color(s.getTicketType() != null ? s.getTicketType().getColor() : "")
                         .build())
                 .collect(Collectors.toList());
     }
@@ -385,6 +392,7 @@ public class EventService {
                 .posterUrl(request.getPosterUrl())
                 .organizer(organizer)
                 .status(EventStatus.pending)
+                .hasSeatMap(request.getHasSeatMap() == null ? true : request.getHasSeatMap())
                 .build();
 
         event = eventRepository.save(event);
@@ -420,38 +428,39 @@ public class EventService {
                         .name(ttReq.getName())
                         .price(ttReq.getPrice())
                         .totalQuantity(ttReq.getTotalQuantity())
+                        .color(ttReq.getColor())
                         .build();
                 tt = ticketTypeRepository.save(tt);
                 ticketTypeMap.put(tt.getName(), tt);
             }
 
             // Generate Seats
-            if (request.getSeatMapConfig() != null) {
-                int rows = request.getSeatMapConfig().getRows();
-                int seatsPerRow = request.getSeatMapConfig().getSeatsPerRow();
-
-                for (int i = 0; i < rows; i++) {
-                    String rowLetter = getRowLetter(i);
-                    final int rowIndex = i + 1;
-
-                    // Match row to ticket type
-                    String ticketTypeName = request.getSeatMapConfig().getRowAssignments().stream()
-                            .filter(a -> a.getRowIndex() == rowIndex)
-                            .map(a -> a.getTicketTypeName())
-                            .findFirst()
-                            .orElse(request.getTicketTypes().get(0).getName());
-
-                    TicketType tt = ticketTypeMap.get(ticketTypeName);
-
-                    for (int j = 1; j <= seatsPerRow; j++) {
-                        String seatNumber = rowLetter + String.format("%02d", j);
-                        Seat seat = Seat.builder()
-                                .eventSession(session)
-                                .ticketType(tt)
-                                .seatNumber(seatNumber)
-                                .status(SeatStatus.AVAILABLE)
-                                .build();
-                        seatRepository.save(seat);
+            boolean hasSeatMap = request.getHasSeatMap() == null ? true : request.getHasSeatMap();
+            if (hasSeatMap && request.getSeatMapConfig() != null && request.getSeatMapConfig().getSeats() != null) {
+                for (com.pbl.pbl.dto.SeatRequestDTO seatReq : request.getSeatMapConfig().getSeats()) {
+                    TicketType tt = ticketTypeMap.get(seatReq.getTicketTypeName());
+                    Seat seat = Seat.builder()
+                            .eventSession(session)
+                            .ticketType(tt)
+                            .seatNumber(seatReq.getSeatNumber())
+                            .status(SeatStatus.AVAILABLE)
+                            .x(seatReq.getX())
+                            .y(seatReq.getY())
+                            .build();
+                    seatRepository.save(seat);
+                }
+            } else if (!hasSeatMap) {
+                for (TicketType tt : ticketTypeMap.values()) {
+                    if (tt.getTotalQuantity() != null) {
+                        for (int i = 1; i <= tt.getTotalQuantity(); i++) {
+                            Seat seat = Seat.builder()
+                                    .eventSession(session)
+                                    .ticketType(tt)
+                                    .seatNumber(tt.getName() + "-" + i)
+                                    .status(SeatStatus.AVAILABLE)
+                                    .build();
+                            seatRepository.save(seat);
+                        }
                     }
                 }
             }
@@ -503,6 +512,7 @@ public class EventService {
                 .createdAt(event.getCreatedAt())
                 .totalTickets(total)
                 .ticketsLeft(left)
+                .hasSeatMap(event.getHasSeatMap())
                 .artists(event.getArtists().stream()
                         .map(artistService::convertToDTO)
                         .collect(Collectors.toList()))

@@ -44,4 +44,8 @@ public class Seat {
     @Column(nullable = false)
     @Builder.Default
     private SeatStatus status = SeatStatus.AVAILABLE;
+
+    private Double x;
+
+    private Double y;
 }

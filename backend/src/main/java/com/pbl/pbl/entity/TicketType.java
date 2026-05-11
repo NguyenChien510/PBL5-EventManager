@@ -41,4 +41,7 @@ public class TicketType {
 
     @Column(nullable = false)
     private Integer totalQuantity;
+
+    @Column(length = 20)
+    private String color;
 }

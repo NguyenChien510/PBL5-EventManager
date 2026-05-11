@@ -105,4 +105,7 @@ public class Event {
     @Column(columnDefinition = "TEXT")
     private String rejectReason;
 
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean hasSeatMap = true;
 }

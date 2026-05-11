@@ -5,7 +5,5 @@ import lombok.Data;
 
 @Data
 public class SeatMapConfigRequestDTO {
-    private Integer rows;
-    private Integer seatsPerRow;
-    private List<RowAssignmentRequestDTO> rowAssignments;
+    private List<SeatRequestDTO> seats;
 }

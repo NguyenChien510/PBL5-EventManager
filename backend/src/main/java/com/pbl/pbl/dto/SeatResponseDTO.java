@@ -14,4 +14,7 @@ public class SeatResponseDTO {
     private String status;
     private String ticketTypeName;
     private BigDecimal price;
+    private Double x;
+    private Double y;
+    private String color;
 }
