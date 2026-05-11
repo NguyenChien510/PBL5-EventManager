@@ -25,6 +25,7 @@ const OrganizerEventList = () => {
   const [totalElements, setTotalElements] = useState(0)
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
 
   const STATUS_TABS = [
     { key: 'all', label: 'Tất cả', icon: 'list_alt', color: 'bg-slate-900' },
@@ -55,9 +56,18 @@ const OrganizerEventList = () => {
     }
   }
 
+  // Debounce search term
   useEffect(() => {
-    fetchDashboardData(currentPage, selectedStatus, searchTerm)
-  }, [currentPage, selectedStatus, searchTerm])
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 500)
+
+    return () => clearTimeout(handler)
+  }, [searchTerm])
+
+  useEffect(() => {
+    fetchDashboardData(currentPage, selectedStatus, debouncedSearchTerm)
+  }, [currentPage, selectedStatus, debouncedSearchTerm])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
@@ -121,7 +131,7 @@ const OrganizerEventList = () => {
           </div>
 
           {/* Events Grid */}
-          <div className="grid grid-cols-1 gap-4 animate-fade-in min-h-[500px] items-start" style={{ animationDelay: '400ms' }}>
+          <div className="flex flex-col gap-4 animate-fade-in min-h-[500px]" style={{ animationDelay: '400ms' }}>
             {loading ? (
               <div className="flex flex-col items-center justify-center py-20">
                 <Loader className="w-12 h-12 text-primary" />

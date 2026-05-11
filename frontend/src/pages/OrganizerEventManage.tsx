@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import { EditEventModal, ImagePreviewModal, SeatAttendeeModal } from './OrganizerEventModals';
 import { Html5Qrcode } from 'html5-qrcode';
 import { API_BASE_URL } from '../constants';
+import { Stage, Layer, Circle, Text, Group, Rect } from 'react-konva';
 
 interface ManageStats {
     totalSeats: number;
@@ -76,6 +77,16 @@ const OrganizerEventManage = () => {
     const [manualCode, setManualCode] = useState('');
     const [guestPage, setGuestPage] = useState(1);
     const itemsPerPage = 3;
+
+    const uniqueTicketTypes = React.useMemo(() => {
+        const map = new Map();
+        seats.forEach((s: any) => {
+            if (s.ticketTypeName && !map.has(s.ticketTypeName)) {
+                map.set(s.ticketTypeName, { name: s.ticketTypeName, color: s.color });
+            }
+        });
+        return Array.from(map.values());
+    }, [seats]);
 
 
     const handleReply = async (commentId: number) => {
@@ -1133,74 +1144,123 @@ const OrganizerEventManage = () => {
                                             </div>
                                         ) : (
                                             <div className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
-                                                <div className="flex flex-wrap justify-center gap-6 md:gap-10 mb-12 text-[11px] font-black uppercase tracking-[0.15em]">
-                                                    <div className="flex items-center gap-2.5 group">
-                                                        <div className="w-5 h-5 rounded-lg bg-emerald-500 shadow-lg shadow-emerald-100 group-hover:scale-110 transition-transform" />
+                                                {/* Dynamic Premium Legend */}
+                                                <div className="flex flex-wrap justify-center gap-x-8 gap-y-5 mb-12 text-[11px] font-black uppercase tracking-[0.15em] border-b border-slate-100 pb-10">
+                                                    <div className="flex items-center gap-3 group bg-emerald-50/50 px-4 py-2 rounded-full border border-emerald-100/50 transition-all hover:bg-emerald-50">
+                                                        <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-transform group-hover:scale-110" />
                                                         <span className="text-emerald-700">Đã Check-in</span>
                                                     </div>
-                                                    <div className="flex items-center gap-2.5 group">
-                                                        <div className="w-5 h-5 rounded-lg bg-amber-500 shadow-lg shadow-amber-100 group-hover:scale-110 transition-transform" />
-                                                        <span className="text-amber-700">VIP (Đã bán)</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2.5 group">
-                                                        <div className="w-5 h-5 rounded-lg bg-blue-600 shadow-lg shadow-blue-100 group-hover:scale-110 transition-transform" />
-                                                        <span className="text-blue-700">Thường (Đã bán)</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2.5 group">
-                                                        <div className="w-5 h-5 rounded-lg bg-amber-50 border-2 border-amber-200 group-hover:scale-110 transition-transform" />
-                                                        <span className="text-amber-500/70">Trống (VIP)</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2.5 group">
-                                                        <div className="w-5 h-5 rounded-lg bg-blue-50 border-2 border-blue-100 group-hover:scale-110 transition-transform" />
-                                                        <span className="text-blue-500/70">Trống (Thường)</span>
-                                                    </div>
-                                                </div>
-
-                                                <div className="w-full h-4 bg-slate-200 rounded-full relative shadow-inner overflow-hidden mb-20">
-                                                    <div className="absolute inset-x-0 h-full bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
-                                                    <p className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] font-black text-slate-400 uppercase tracking-[0.5em]">Sân Khấu / Stage</p>
-                                                </div>
-
-                                                <div className="flex flex-col items-center gap-4 overflow-x-auto pb-8">
-                                                    {Array.from(new Set(seats.map((s: any) => s.seatNumber.charAt(0)))).sort().map(row => (
-                                                        <div key={row} className="flex gap-4">
-                                                            <div className="w-8 flex items-center justify-center text-xs font-black text-slate-300">{row}</div>
-                                                            <div className="flex gap-2">
-                                                                {seats.filter((s: any) => s.seatNumber.startsWith(row))
-                                                                    .map((seat: any) => {
-                                                                        const isOccupied = seat.status !== 'AVAILABLE';
-                                                                        const attendee = isOccupied ? attendees.find(a => a.seatNumber === seat.seatNumber) : null;
-                                                                        const isCheckedIn = isOccupied && attendee?.status === 'CHECKED_IN';
-                                                                        const isVIP = seat.ticketTypeName?.toUpperCase().includes('VIP');
-
-                                                                        let seatStyle = "";
-                                                                        if (isCheckedIn) {
-                                                                            seatStyle = "bg-emerald-500 text-white shadow-lg shadow-emerald-100 hover:bg-emerald-600";
-                                                                        } else if (isOccupied) {
-                                                                            seatStyle = isVIP
-                                                                                ? "bg-amber-500 text-white shadow-lg shadow-amber-100 hover:bg-amber-600"
-                                                                                : "bg-blue-600 text-white shadow-lg shadow-blue-100 hover:bg-blue-700";
-                                                                        } else {
-                                                                            seatStyle = isVIP
-                                                                                ? "bg-amber-50 border-2 border-amber-200 text-amber-600 hover:bg-amber-100"
-                                                                                : "bg-blue-50 border-2 border-blue-100 text-blue-600 hover:bg-blue-100";
-                                                                        }
-
-                                                                        return (
-                                                                            <div
-                                                                                key={seat.id}
-                                                                                onClick={() => attendee && setSelectedSeatInfo(attendee)}
-                                                                                title={`${seat.seatNumber} - ${seat.ticketTypeName} - ${isCheckedIn ? 'Đã Check-in' : isOccupied ? 'Đã bán' : 'Trống'}`}
-                                                                                className={`w-9 h-9 rounded-xl flex items-center justify-center text-[10px] font-black transition-all cursor-pointer hover:scale-110 ${seatStyle}`}
-                                                                            >
-                                                                                {isOccupied ? <Icon name="person" size="xs" /> : seat.seatNumber.substring(1)}
-                                                                            </div>
-                                                                        );
-                                                                    })}
+                                                    
+                                                    {uniqueTicketTypes.map((tt: any) => (
+                                                        <React.Fragment key={tt.name}>
+                                                            <div className="flex items-center gap-3 group px-4 py-2 rounded-full transition-all hover:bg-slate-50" title={`${tt.name} - Đã thanh toán`}>
+                                                                <div className="w-3.5 h-3.5 rounded-full shadow-sm transition-transform group-hover:scale-110" style={{ backgroundColor: tt.color || '#3b82f6', boxShadow: `0 0 10px ${(tt.color || '#3b82f6')}50` }} />
+                                                                <span className="text-slate-600">{tt.name} <span className="opacity-50 ml-1">(Đã bán)</span></span>
                                                             </div>
-                                                        </div>
+                                                            <div className="flex items-center gap-3 group px-4 py-2 rounded-full transition-all hover:bg-slate-50" title={`${tt.name} - Còn trống`}>
+                                                                <div className="w-3.5 h-3.5 rounded-full border-2 transition-transform group-hover:scale-110" style={{ borderColor: tt.color || '#3b82f6', backgroundColor: 'transparent' }} />
+                                                                <span className="text-slate-400">Trống <span className="opacity-50 ml-1">({tt.name})</span></span>
+                                                            </div>
+                                                        </React.Fragment>
                                                     ))}
                                                 </div>
+
+                                                {/* The Premium Seat Map Canvas Stage */}
+                                                <div className="relative w-full bg-slate-900 rounded-[3rem] overflow-hidden flex flex-col items-center shadow-2xl border-8 border-slate-800 animate-in zoom-in-95 duration-500">
+                                                    {/* STAGE OVERLAY */}
+                                                    <div className="w-full py-4 bg-slate-800/60 backdrop-blur-md flex justify-center relative z-10 border-b border-slate-700/50 shadow-lg">
+                                                        <div className="relative bg-slate-700 text-slate-300 px-16 py-2 rounded-full text-xs font-black uppercase tracking-[0.4em] border border-slate-600/50 shadow-inner overflow-hidden">
+                                                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-30" />
+                                                            Sân Khấu / Stage
+                                                        </div>
+                                                    </div>
+
+                                                    {/* CANVAS VIEWPORT CONTAINER */}
+                                                    <div className="relative w-full bg-[#0f172a] overflow-auto py-8 custom-scrollbar">
+                                                        <div className="w-fit mx-auto min-w-[800px] flex justify-center">
+                                                            <Stage width={800} height={500}>
+                                                                <Layer>
+                                                                    {/* Sophisticated Grid System */}
+                                                                    {Array.from({ length: 21 }).map((_, i) => (
+                                                                        <Rect key={'v' + i} x={i * 40} y={0} width={1} height={500} fill="#1e293b" opacity={0.3} />
+                                                                    ))}
+                                                                    {Array.from({ length: 13 }).map((_, i) => (
+                                                                        <Rect key={'h' + i} x={0} y={i * 40} width={800} height={1} fill="#1e293b" opacity={0.3} />
+                                                                    ))}
+
+                                                                    {/* Render Interactive Seats */}
+                                                                    {seats.map((seat: any) => {
+                                                                        const isOccupied = seat.status !== 'AVAILABLE';
+                                                                        const attendee = isOccupied ? attendees.find((a: any) => a.seatNumber === seat.seatNumber) : null;
+                                                                        const isCheckedIn = isOccupied && attendee?.status === 'CHECKED_IN';
+                                                                        
+                                                                        const baseColor = seat.color || '#3b82f6';
+                                                                        const circleFill = isCheckedIn ? '#10b981' : (isOccupied ? baseColor : 'rgba(15, 23, 42, 0.8)');
+                                                                        const circleStroke = isCheckedIn ? '#fff' : baseColor;
+                                                                        const shadowColor = isCheckedIn ? '#10b981' : baseColor;
+                                                                        const textColor = isOccupied ? '#fff' : baseColor;
+
+                                                                        return (
+                                                                            <Group
+                                                                                key={seat.id}
+                                                                                x={Number(seat.x) || 0}
+                                                                                y={Number(seat.y) || 0}
+                                                                                onClick={() => {
+                                                                                    if (attendee) {
+                                                                                        setSelectedSeatInfo(attendee);
+                                                                                    } else {
+                                                                                        toast.dismiss();
+                                                                                        toast(`${seat.seatNumber} - ${seat.ticketTypeName} (Đang trống)`, { icon: '🎫' });
+                                                                                    }
+                                                                                }}
+                                                                                onMouseEnter={(e) => {
+                                                                                    const container = e.target.getStage()?.container();
+                                                                                    if (container) container.style.cursor = attendee ? 'pointer' : 'help';
+                                                                                }}
+                                                                                onMouseLeave={(e) => {
+                                                                                    const container = e.target.getStage()?.container();
+                                                                                    if (container) container.style.cursor = 'default';
+                                                                                }}
+                                                                            >
+                                                                                <Circle
+                                                                                    radius={14}
+                                                                                    fill={circleFill}
+                                                                                    shadowBlur={isOccupied ? 12 : 4}
+                                                                                    shadowColor={shadowColor}
+                                                                                    shadowOpacity={isOccupied ? 0.5 : 0.2}
+                                                                                    stroke={circleStroke}
+                                                                                    strokeWidth={isOccupied ? 1.5 : 2}
+                                                                                />
+                                                                                <Text
+                                                                                    text={seat.seatNumber}
+                                                                                    fontSize={seat.seatNumber.length > 2 ? 8 : 10}
+                                                                                    fontStyle="bold"
+                                                                                    fill={textColor}
+                                                                                    align="center"
+                                                                                    verticalAlign="middle"
+                                                                                    offsetX={seat.seatNumber.length > 2 ? 7 : 5}
+                                                                                    offsetY={5}
+                                                                                />
+                                                                            </Group>
+                                                                        );
+                                                                    })}
+                                                                </Layer>
+                                                            </Stage>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {/* HINT FOOTER */}
+                                                    <div className="w-full py-3 bg-slate-800/30 border-t border-slate-800/50 px-6 flex justify-between items-center text-[10px] text-slate-500 font-medium uppercase tracking-wider">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                            Live Seating View
+                                                        </div>
+                                                        <div>
+                                                            Click on occupied seats to view details
+                                                        </div>
+                                                    </div>
+                                                </div>
+
 
                                                 <SeatAttendeeModal
                                                     attendee={selectedSeatInfo}

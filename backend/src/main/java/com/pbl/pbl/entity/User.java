@@ -1,4 +1,5 @@
 package com.pbl.pbl.entity;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.time.Instant;
 import java.util.HashSet;
@@ -40,6 +41,7 @@ public class User {
     @Column(nullable = false, unique = true, length = 120)
     private String email;
 
+    @JsonIgnore
     @Column(nullable = false, length = 120)
     private String password;
 
@@ -59,6 +61,7 @@ public class User {
     @Column(length = 255)
     private String avatar;
 
+    @JsonIgnore
     @Builder.Default
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<RefreshToken> refreshTokens = new HashSet<>();

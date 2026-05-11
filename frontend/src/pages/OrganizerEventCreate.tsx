@@ -543,29 +543,31 @@ const OrganizerEventCreate = () => {
 
 
         {isSubmitted ? (
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-16 text-center animate-in fade-in zoom-in-95 duration-700 ease-out fill-mode-both">
-            <div className="flex justify-center mb-8">
-              <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center border border-green-100 animate-bounce">
-                <Icon name="check" className="text-green-500 text-[50px]" />
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl shadow-slate-200/50 p-10 text-center animate-in fade-in zoom-in-95 duration-500 ease-out fill-mode-both max-w-md mx-auto mt-8 mb-12">
+            <div className="relative w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+              <div className="absolute inset-0 bg-green-100 rounded-full animate-ping opacity-60" style={{ animationDuration: '2s' }}></div>
+              <div className="absolute inset-2 bg-green-50 rounded-full"></div>
+              <div className="relative w-16 h-16 bg-gradient-to-br from-emerald-400 to-green-500 rounded-full flex items-center justify-center shadow-lg shadow-green-500/30 z-10">
+                <Icon name="check" className="text-white text-3xl font-bold" />
               </div>
             </div>
-            <h2 className="text-3xl font-extrabold text-slate-900 mb-4">Chúc mừng! Sự kiện đã được đăng</h2>
-            <p className="text-slate-500 max-w-xl mx-auto mb-12 text-lg font-medium leading-relaxed">
-              Sự kiện của bạn đã được gửi thành công và đang được chuyển tới ban quản trị để phê duyệt.
-              Bạn có thể theo dõi trạng thái tại bảng điều khiển.
+            <h2 className="text-2xl font-extrabold text-slate-900 mb-3">Đăng sự kiện thành công!</h2>
+            <p className="text-slate-500 mb-8 text-sm font-semibold leading-relaxed px-2">
+              Sự kiện đã được gửi tới ban quản trị để phê duyệt. 
+              Bạn có thể theo dõi tiến trình tại Bảng điều khiển.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="space-y-3">
               <button
                 onClick={() => window.location.reload()}
-                className="w-full sm:w-auto px-10 py-4 bg-primary text-white rounded-2xl font-bold hover:bg-blue-600 transition-all shadow-lg shadow-primary/25"
+                className="w-full px-6 py-3.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-2xl font-bold hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 text-sm"
               >
-                Tạo thêm sự kiện mới
+                <Icon name="add" size="sm" /> Tạo sự kiện mới
               </button>
               <button
                 onClick={() => window.location.href = '/organizer/dashboard'}
-                className="w-full sm:w-auto px-10 py-4 bg-slate-50 text-slate-700 rounded-2xl font-bold hover:bg-slate-100 transition-all border border-slate-200"
+                className="w-full px-6 py-3.5 bg-slate-50 text-slate-600 rounded-2xl font-bold hover:bg-slate-100 hover:text-slate-900 active:scale-[0.98] transition-all border border-slate-200 flex items-center justify-center gap-2 text-sm"
               >
-                Về bảng điều khiển
+                <Icon name="dashboard" size="sm" /> Về bảng điều khiển
               </button>
             </div>
           </div>
