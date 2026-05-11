@@ -58,36 +58,36 @@ const Pagination: React.FC<PaginationProps> = ({ current, total, label, onPageCh
   }
 
   return (
-    <div className="flex items-center justify-between py-4">
+    <div className="flex items-center justify-between py-3">
       {label && (
         <div className="hidden sm:block">
-          <p className="text-sm text-slate-500 font-bold uppercase tracking-widest opacity-60">
+          <p className="text-xs text-slate-500 font-bold uppercase tracking-widest opacity-60">
             {label}
           </p>
         </div>
       )}
       
-      <div className="flex items-center gap-1.5 bg-white p-1.5 rounded-[1.25rem] border border-slate-200 shadow-sm mx-auto sm:mx-0">
+      <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm mx-auto sm:mx-0">
         <button
           onClick={() => onPageChange?.(Math.max(1, current - 1))}
-          className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-100 bg-slate-50/50 text-slate-400 hover:text-primary hover:bg-white hover:border-primary hover:shadow-md transition-all disabled:opacity-30 disabled:hover:border-slate-100 disabled:hover:text-slate-400 disabled:hover:shadow-none"
+          className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-100 bg-slate-50/50 text-slate-400 hover:text-primary hover:bg-white hover:border-primary hover:shadow-md transition-all disabled:opacity-30 disabled:hover:border-slate-100 disabled:hover:text-slate-400 disabled:hover:shadow-none"
           disabled={current <= 1}
         >
           <Icon name="chevron_left" size="sm" />
         </button>
 
-        <div className="flex items-center gap-1 px-1">
+        <div className="flex items-center gap-0.5 px-0.5">
           {getPages().map((page, idx) => {
             if (page === '...') {
               return isInputVisible ? (
-                <form key={`input-${idx}`} onSubmit={handleInputSubmit} className="relative mx-1">
+                <form key={`input-${idx}`} onSubmit={handleInputSubmit} className="relative mx-0.5">
                   <input
                     autoFocus
                     type="text"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onBlur={() => setIsInputVisible(false)}
-                    className="w-10 h-10 rounded-xl border-2 border-primary bg-white text-xs font-black text-center outline-none shadow-lg animate-in fade-in zoom-in duration-200 text-primary"
+                    className="w-8 h-8 rounded-lg border-2 border-primary bg-white text-[10px] font-black text-center outline-none shadow-lg animate-in fade-in zoom-in duration-200 text-primary"
                     placeholder="#"
                   />
                 </form>
@@ -95,7 +95,7 @@ const Pagination: React.FC<PaginationProps> = ({ current, total, label, onPageCh
                 <button
                   key={`ellipsis-${idx}`}
                   onClick={() => setIsInputVisible(true)}
-                  className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-primary hover:bg-slate-50 rounded-xl transition-all font-black group"
+                  className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-primary hover:bg-slate-50 rounded-lg transition-all font-black group text-xs"
                 >
                   <span className="group-hover:hidden">...</span>
                   <Icon name="edit" size="xs" className="hidden group-hover:block" />
@@ -110,9 +110,9 @@ const Pagination: React.FC<PaginationProps> = ({ current, total, label, onPageCh
               <button
                 key={pageNum}
                 onClick={() => onPageChange?.(pageNum)}
-                className={`w-10 h-10 flex items-center justify-center rounded-xl text-sm font-black transition-all duration-300 ${
+                className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-black transition-all duration-300 ${
                   isActive
-                    ? 'bg-primary text-white shadow-[0_8px_20px_-6px_rgba(59,130,246,0.5)] scale-110 z-10'
+                    ? 'bg-primary text-white shadow-[0_4px_12px_-4px_rgba(59,130,246,0.5)] scale-105 z-10'
                     : 'text-slate-400 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
@@ -124,7 +124,7 @@ const Pagination: React.FC<PaginationProps> = ({ current, total, label, onPageCh
 
         <button
           onClick={() => onPageChange?.(Math.min(total, current + 1))}
-          className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-100 bg-slate-50/50 text-slate-400 hover:text-primary hover:bg-white hover:border-primary hover:shadow-md transition-all disabled:opacity-30 disabled:hover:border-slate-100 disabled:hover:text-slate-400 disabled:hover:shadow-none"
+          className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-100 bg-slate-50/50 text-slate-400 hover:text-primary hover:bg-white hover:border-primary hover:shadow-md transition-all disabled:opacity-30 disabled:hover:border-slate-100 disabled:hover:text-slate-400 disabled:hover:shadow-none"
           disabled={current >= total}
         >
           <Icon name="chevron_right" size="sm" />

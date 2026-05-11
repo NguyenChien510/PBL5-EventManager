@@ -12,6 +12,7 @@ const AdminUserManagement = () => {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('Tất cả')
   const [selectedUser, setSelectedUser] = useState<any>(null)
+  const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
     if (selectedUser) {
@@ -47,9 +48,21 @@ const AdminUserManagement = () => {
   }, [activeTab])
 
   const filteredUsers = users.filter(user => {
-    if (activeTab === 'Tất cả') return true
-    const role = (user.role?.name || '').replace('ROLE_', '').toLowerCase()
-    return role === activeTab.toLowerCase()
+    // Tab Filter
+    if (activeTab !== 'Tất cả') {
+      const role = (user.role?.name || '').replace('ROLE_', '').toLowerCase()
+      if (role !== activeTab.toLowerCase()) return false;
+    }
+    
+    // Search Filter
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      const email = (user.email || '').toLowerCase();
+      const name = (user.fullName || '').toLowerCase();
+      return email.includes(term) || name.includes(term);
+    }
+
+    return true;
   })
 
   const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE)
@@ -66,7 +79,15 @@ const AdminUserManagement = () => {
   }
   return (
     <DashboardLayout sidebarProps={sidebarConfig}>
-      <PageHeader title="Quản lý Người dùng" searchPlaceholder="Tìm người dùng..." />
+      <PageHeader 
+        title="Quản lý Người dùng" 
+        searchPlaceholder="Tìm người dùng..." 
+        searchValue={searchTerm}
+        onSearch={(v) => {
+            setSearchTerm(v);
+            setCurrentPage(1);
+        }}
+      />
       <div className="p-6 space-y-6 animate-slide-up">
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -154,7 +175,7 @@ const AdminUserManagement = () => {
             </tbody>
           </table>
           </div>
-          <div className="p-4 bg-slate-50/30 border-t border-slate-200">
+          <div className="px-4 py-2.5 bg-slate-50/30 border-t border-slate-200">
             <Pagination 
                 current={currentPage} 
                 total={totalPages} 

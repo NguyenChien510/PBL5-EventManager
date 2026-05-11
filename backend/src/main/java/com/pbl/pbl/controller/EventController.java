@@ -104,9 +104,10 @@ public class EventController {
     public ResponseEntity<com.pbl.pbl.dto.AdminEventListResponseDTO> getAllEventsForAdmin(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) java.util.List<com.pbl.pbl.entity.EventStatus> statuses) {
+            @RequestParam(required = false) java.util.List<com.pbl.pbl.entity.EventStatus> statuses,
+            @RequestParam(required = false) String keyword) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("startTime").descending());
-        return ResponseEntity.ok(eventService.getAllEventsForAdminPaginated(pageable, statuses));
+        return ResponseEntity.ok(eventService.getAllEventsForAdminPaginated(pageable, statuses, keyword));
     }
 
     @GetMapping("/organizer/dashboard")

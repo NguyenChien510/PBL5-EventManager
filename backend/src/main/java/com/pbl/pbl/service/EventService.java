@@ -83,12 +83,24 @@ public class EventService {
     }
 
     @Transactional(readOnly = true)
-    public AdminEventListResponseDTO getAllEventsForAdminPaginated(Pageable pageable, List<EventStatus> statuses) {
+    public AdminEventListResponseDTO getAllEventsForAdminPaginated(Pageable pageable, List<EventStatus> statuses, String keyword) {
         Page<Event> eventsPage;
-        if (statuses != null && !statuses.isEmpty()) {
-            eventsPage = eventRepository.findByStatusIn(statuses, pageable);
+        boolean hasKeyword = keyword != null && !keyword.trim().isEmpty();
+        boolean hasStatuses = statuses != null && !statuses.isEmpty();
+
+        if (hasKeyword) {
+            String key = keyword.trim();
+            if (hasStatuses) {
+                eventsPage = eventRepository.findByStatusInAndKeyword(statuses, key, pageable);
+            } else {
+                eventsPage = eventRepository.findAllByKeyword(key, pageable);
+            }
         } else {
-            eventsPage = eventRepository.findAll(pageable);
+            if (hasStatuses) {
+                eventsPage = eventRepository.findByStatusIn(statuses, pageable);
+            } else {
+                eventsPage = eventRepository.findAll(pageable);
+            }
         }
 
         List<Long> eventIds = eventsPage.getContent().stream().map(Event::getId).collect(Collectors.toList());

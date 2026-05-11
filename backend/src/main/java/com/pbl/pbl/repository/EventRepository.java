@@ -45,6 +45,24 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     long countByStatusIn(java.util.List<EventStatus> statuses);
 
     long countByOrganizer_IdAndStatus(java.util.UUID organizerId, EventStatus status);
+    
+    @EntityGraph(attributePaths = { "category", "province", "organizer" })
+    @org.springframework.data.jpa.repository.Query("SELECT e FROM Event e WHERE " +
+           "e.status IN :statuses AND " +
+           "(LOWER(e.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(e.organizer.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+    org.springframework.data.domain.Page<Event> findByStatusInAndKeyword(
+            @org.springframework.data.repository.query.Param("statuses") java.util.List<EventStatus> statuses, 
+            @org.springframework.data.repository.query.Param("keyword") String keyword, 
+            org.springframework.data.domain.Pageable pageable);
+
+    @EntityGraph(attributePaths = { "category", "province", "organizer" })
+    @org.springframework.data.jpa.repository.Query("SELECT e FROM Event e WHERE " +
+           "LOWER(e.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(e.organizer.fullName) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    org.springframework.data.domain.Page<Event> findAllByKeyword(
+            @org.springframework.data.repository.query.Param("keyword") String keyword, 
+            org.springframework.data.domain.Pageable pageable);
 }
 
 

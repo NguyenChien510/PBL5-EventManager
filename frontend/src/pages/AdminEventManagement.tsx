@@ -15,6 +15,8 @@ const AdminEventManagement = () => {
   const [stats, setStats] = useState({ upcoming: 0, ended: 0, rejected: 0 })
   const [currentPage, setCurrentPage] = useState(0)
   const [activeTab, setActiveTab] = useState('Tất cả')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const navigate = useNavigate()
 
   const getStatusesByTab = (tab: string) => {
@@ -24,11 +26,11 @@ const AdminEventManagement = () => {
     return ['upcoming', 'rejected', 'sold_out', 'ended'] // Default: All processed
   }
 
-  const fetchEvents = useCallback(async (page = 0, tab = activeTab) => {
+  const fetchEvents = useCallback(async (page = 0, tab = activeTab, keyword = debouncedSearchTerm) => {
     try {
       setLoading(true)
       const statuses = getStatusesByTab(tab)
-      const data = await EventService.getAllAdminEvents(page, 5, statuses)
+      const data = await EventService.getAllAdminEvents(page, 5, statuses, keyword)
       setEvents(data.events.content)
       setPagination({
         totalPages: data.events.totalPages,
@@ -43,15 +45,28 @@ const AdminEventManagement = () => {
     } finally {
       setLoading(false)
     }
-  }, [activeTab])
+  }, [activeTab, debouncedSearchTerm])
 
   useEffect(() => {
-    fetchEvents(currentPage)
-  }, [currentPage, fetchEvents])
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(0);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    fetchEvents(currentPage, activeTab, debouncedSearchTerm)
+  }, [currentPage, activeTab, debouncedSearchTerm, fetchEvents])
 
   return (
     <DashboardLayout sidebarProps={sidebarConfig}>
-      <PageHeader title="Quản lý Sự kiện" searchPlaceholder="Tìm tên sự kiện, nhà tổ chức..." />
+      <PageHeader 
+        title="Quản lý Sự kiện" 
+        searchPlaceholder="Tìm tên sự kiện, nhà tổ chức..." 
+        searchValue={searchTerm}
+        onSearch={setSearchTerm}
+      />
 
       <div className="p-6 space-y-6 animate-slide-up">
         {/* Simple Tabs for status filtering */}
@@ -182,7 +197,7 @@ const AdminEventManagement = () => {
             </table>
           </div>
           
-          <div className="p-4 bg-slate-50/30 border-t border-slate-200">
+          <div className="px-4 py-2.5 bg-slate-50/30 border-t border-slate-200">
             <Pagination
               current={currentPage + 1}
               total={pagination?.totalPages || 1}

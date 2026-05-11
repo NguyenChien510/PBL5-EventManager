@@ -19,12 +19,14 @@ const AdminEventModeration = () => {
   const [pagination, setPagination] = useState<any>(null)
   const [stats, setStats] = useState({ pending: 0, processed: 0 })
   const [currentPage, setCurrentPage] = useState(0)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const navigate = useNavigate()
   const filteredEvents = events
-  const fetchEvents = useCallback(async (page = 0) => {
+  const fetchEvents = useCallback(async (page = 0, keyword = '') => {
     try {
       setLoading(true)
-      const data = await EventService.getAllAdminEvents(page, 5, ['pending'])
+      const data = await EventService.getAllAdminEvents(page, 5, ['pending'], keyword)
       setEvents(data.events.content)
       setPagination({
         totalPages: data.events.totalPages,
@@ -45,13 +47,28 @@ const AdminEventModeration = () => {
   }, [])
 
   useEffect(() => {
-    fetchEvents(currentPage)
-  }, [currentPage, fetchEvents])
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 500)
+    return () => clearTimeout(handler)
+  }, [searchTerm])
+
+  useEffect(() => {
+    fetchEvents(currentPage, debouncedSearchTerm)
+  }, [currentPage, debouncedSearchTerm, fetchEvents])
 
 
   return (
     <DashboardLayout sidebarProps={sidebarConfig}>
-      <PageHeader title="Kiểm duyệt Sự kiện" searchPlaceholder="Tìm tên sự kiện, nhà tổ chức..." />
+      <PageHeader 
+        title="Kiểm duyệt Sự kiện" 
+        searchPlaceholder="Tìm tên sự kiện, nhà tổ chức..." 
+        searchValue={searchTerm}
+        onSearch={(val) => {
+          setSearchTerm(val)
+          setCurrentPage(0)
+        }}
+      />
 
       <div className="p-6 space-y-6 animate-slide-up">
 
@@ -139,7 +156,7 @@ const AdminEventModeration = () => {
                 )}
               </tbody>
             </table>
-            <div className="p-4 bg-slate-50/30 border-t border-slate-200">
+            <div className="px-4 py-2.5 bg-slate-50/30 border-t border-slate-200">
               <Pagination
                 current={currentPage + 1}
                 total={pagination?.totalPages || 1}

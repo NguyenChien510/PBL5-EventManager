@@ -44,6 +44,8 @@ const AdminPaymentHistory = () => {
     const [currentPage, setCurrentPage] = useState(0);
     const [pagination, setPagination] = useState<any>(null);
     const [stats, setStats] = useState({ totalOrders: 0, totalRevenue: 0, totalPlatformFee: 0 });
+    const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
 
     useEffect(() => {
         if (selectedOrder) {
@@ -66,10 +68,24 @@ const AdminPaymentHistory = () => {
             }
         };
 
-        const fetchOrders = async (page: number) => {
+        if (currentPage === 0 && orders.length === 0) {
+            fetchStats();
+        }
+    }, []);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm);
+            setCurrentPage(0);
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [searchTerm]);
+
+    useEffect(() => {
+        const fetchOrders = async (page: number, keyword: string = '') => {
             try {
                 setIsTableLoading(true);
-                const response = await apiClient.get(`/admin/orders?page=${page}&size=5`);
+                const response = await apiClient.get(`/admin/orders?page=${page}&size=5&keyword=${encodeURIComponent(keyword)}`);
                 setOrders(response.data.content);
                 setPagination({
                     totalPages: response.data.totalPages,
@@ -85,11 +101,8 @@ const AdminPaymentHistory = () => {
             }
         };
 
-        if (currentPage === 0 && orders.length === 0) {
-            fetchStats();
-        }
-        fetchOrders(currentPage);
-    }, [currentPage]);
+        fetchOrders(currentPage, debouncedSearchTerm);
+    }, [currentPage, debouncedSearchTerm]);
 
     useEffect(() => {
         if (selectedOrder?.eventSessionId) {
@@ -125,7 +138,12 @@ const AdminPaymentHistory = () => {
 
     return (
         <DashboardLayout sidebarProps={adminSidebarConfig}>
-            <PageHeader title="Lịch sử Giao dịch" searchPlaceholder="Tìm mã đơn, email..." />
+            <PageHeader 
+                title="Lịch sử Giao dịch" 
+                searchPlaceholder="Tìm mã đơn, email..." 
+                searchValue={searchTerm}
+                onSearch={setSearchTerm}
+            />
 
             {isInitialLoading ? (
                 <div className="flex justify-center items-center h-[60vh]">
@@ -276,7 +294,7 @@ const AdminPaymentHistory = () => {
                             
                             {/* Pagination */}
                             {pagination && pagination.totalPages > 1 && (
-                                <div className="p-6 bg-slate-50 border-t border-slate-100">
+                                <div className="px-6 py-2.5 bg-slate-50 border-t border-slate-100">
                                     <Pagination
                                         current={currentPage + 1}
                                         total={pagination.totalPages}

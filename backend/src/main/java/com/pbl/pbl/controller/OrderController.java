@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/api/admin/orders")
@@ -21,10 +22,17 @@ public class OrderController {
     private final OrderRepository orderRepository;
 
     @GetMapping
+    @Transactional(readOnly = true)
     public ResponseEntity<org.springframework.data.domain.Page<OrderDTO>> getAllOrders(
-            @org.springframework.data.web.PageableDefault(size = 5, sort = "purchaseDate", direction = org.springframework.data.domain.Sort.Direction.DESC) org.springframework.data.domain.Pageable pageable) {
+            @org.springframework.data.web.PageableDefault(size = 5, sort = "purchaseDate", direction = org.springframework.data.domain.Sort.Direction.DESC) org.springframework.data.domain.Pageable pageable,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String keyword) {
         
-        org.springframework.data.domain.Page<Order> orderPage = orderRepository.findAll(pageable);
+        org.springframework.data.domain.Page<Order> orderPage;
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            orderPage = orderRepository.searchOrders(keyword.trim(), pageable);
+        } else {
+            orderPage = orderRepository.findAll(pageable);
+        }
         
         org.springframework.data.domain.Page<OrderDTO> dtoPage = orderPage.map(order -> {
             var firstTicket = order.getTickets().isEmpty() ? null : order.getTickets().get(0);
