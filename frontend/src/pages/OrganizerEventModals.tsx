@@ -340,13 +340,15 @@ interface ZoneAttendeesModalProps {
   zone: any | null;
   attendees: any[];
   onClose: () => void;
+  onCheckIn?: (ticketId: number, status: string) => void;
 }
 
-export const ZoneAttendeesModal = React.memo(({ zone, attendees, onClose }: ZoneAttendeesModalProps) => {
+export const ZoneAttendeesModal = React.memo(({ zone, attendees, onClose, onCheckIn }: ZoneAttendeesModalProps) => {
   if (!zone) return null;
 
   const zoneAttendees = attendees.filter((a: any) => a.ticketTypeName === zone.name);
   const hasAttendees = zoneAttendees.length > 0;
+  const checkedInCount = zoneAttendees.filter((a: any) => a.status === 'CHECKED_IN').length;
 
   return createPortal(
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
@@ -366,8 +368,12 @@ export const ZoneAttendeesModal = React.memo(({ zone, attendees, onClose }: Zone
                   {zone.type === 'SEATED' ? 'Có Ghế' : 'Thường'}
                 </span>
               </div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                Đã bán {zone.sold} / {zone.total} • Doanh thu {new Intl.NumberFormat('vi-VN').format(zone.price * zone.sold)}đ
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span>Đã bán {zoneAttendees.length} / {zone.total}</span>
+                <span className="text-slate-200">•</span>
+                <span className="text-emerald-600 font-black flex items-center gap-0.5"><Icon name="check_circle" size="xxs" />{checkedInCount} / {zoneAttendees.length}</span>
+                <span className="text-slate-200">•</span>
+                <span>{new Intl.NumberFormat('vi-VN').format(zone.price * zoneAttendees.length)}đ</span>
               </p>
             </div>
           </div>
@@ -430,14 +436,24 @@ export const ZoneAttendeesModal = React.memo(({ zone, attendees, onClose }: Zone
                       </div>
 
                       {/* Check-in status tag */}
-                      <div className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider shrink-0 border ${
-                        isChecked 
-                          ? 'bg-emerald-50 text-emerald-600 border-emerald-100/80' 
-                          : 'bg-amber-50 text-amber-600 border-amber-100/80'
-                      }`}>
-                        <Icon name={isChecked ? "check_circle" : "schedule"} size="xxs" filled={isChecked} />
-                        {isChecked ? 'Đã đến' : 'Chờ'}
-                      </div>
+                      {isChecked ? (
+                        <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider shrink-0 border bg-emerald-50 text-emerald-600 border-emerald-100/80 shadow-xs">
+                          <Icon name="check_circle" size="xxs" filled={true} />
+                          Đã đến
+                        </div>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onCheckIn?.(att.ticketId, att.status);
+                          }}
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider shrink-0 border bg-amber-50 text-amber-600 border-amber-100/80 hover:bg-amber-100 hover:text-amber-700 hover:border-amber-200 active:scale-95 hover:shadow-sm transition-all cursor-pointer group/btn"
+                          title="Nhấn để xác nhận Check-in"
+                        >
+                          <Icon name="schedule" size="xxs" className="group-hover/btn:animate-spin-slow" />
+                          Chờ
+                        </button>
+                      )}
                     </div>
                   );
                 })}

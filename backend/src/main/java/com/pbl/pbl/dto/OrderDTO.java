@@ -36,6 +36,7 @@ public class OrderDTO {
         private String sessionName;
         private Long seatId;
         private String ticketTypeName;
+        private String ticketTypeColor;
         private String status;
     }
 }

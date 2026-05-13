@@ -20,4 +20,5 @@ public class EventAttendeeDTO {
     private java.time.LocalDateTime purchaseDate;
     private java.time.LocalDateTime checkInDate;
     private String userAvatar;
+    private String ticketTypeColor;
 }

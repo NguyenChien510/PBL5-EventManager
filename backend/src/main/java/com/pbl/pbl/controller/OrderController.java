@@ -69,6 +69,7 @@ public class OrderController {
                                     .sessionName(session != null ? session.getName() : "N/A")
                                     .seatId(seat != null ? seat.getId() : null)
                                     .ticketTypeName(type != null ? type.getName() : "N/A")
+                                    .ticketTypeColor(type != null ? type.getColor() : null)
                                     .build();
                         })
                         .collect(Collectors.toList()))

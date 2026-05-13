@@ -29,6 +29,7 @@ interface Attendee {
     orderId: number;
     seatNumber: string;
     ticketTypeName: string;
+    ticketTypeColor?: string;
     status: string;
     purchaseDate: string;
     checkInDate?: string;
@@ -162,7 +163,16 @@ const OrganizerEventManage = () => {
                     {shapes.map((shape: any) => {
                         if (shape.type === 'rect') {
                             const isInteractive = !!shape.ticketTypeId;
-                            const targetTt = ticketTypes?.find((t: any) => t.id === shape.ticketTypeId);
+                            // Handle ID mismatch: template uses 1,2,3 but DB uses 53,54,55
+                            let targetTt = ticketTypes?.find((t: any) => String(t.id) === String(shape.ticketTypeId));
+                            if (!targetTt && ticketTypes && ticketTypes.length > 0 && !isNaN(Number(shape.ticketTypeId)) && Number(shape.ticketTypeId) <= 50) {
+                                const sortedTypes = [...ticketTypes].sort((a: any, b: any) => a.id - b.id);
+                                const ttIdx = Number(shape.ticketTypeId) - 1;
+                                if (ttIdx >= 0 && ttIdx < sortedTypes.length) {
+                                    targetTt = sortedTypes[ttIdx];
+                                }
+                            }
+                            const zoneColor = targetTt?.color || shape.fill || '#cbd5e1';
                             const displayText = isInteractive && targetTt ? (shape.labelText || targetTt.name) : shape.labelText;
                             return (
                                 <Group
@@ -176,8 +186,8 @@ const OrganizerEventManage = () => {
                                         y={0}
                                         width={shape.width}
                                         height={shape.height}
-                                        fill={shape.fill || '#cbd5e1'}
-                                        stroke={isInteractive ? '#6366f1' : 'transparent'}
+                                        fill={zoneColor}
+                                        stroke={isInteractive ? zoneColor : 'transparent'}
                                         strokeWidth={isInteractive ? 1.5 : 0}
                                         dash={isInteractive ? [5, 3] : undefined}
                                         opacity={shape.opacity !== undefined ? shape.opacity : (isInteractive ? 0.5 : 0.7)}
@@ -644,6 +654,16 @@ const OrganizerEventManage = () => {
         }
     };
 
+    const handleCheckInOrder = async (orderId: number) => {
+        try {
+            await EventService.checkInOrder(orderId);
+            toast.success('Đã check-in toàn bộ vé trong đơn hàng này');
+            fetchData();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Thao tác thất bại');
+        }
+    };
+
     const groupedAttendees = React.useMemo(() => {
         const groups: Record<number, any> = {};
         attendees.forEach(a => {
@@ -653,26 +673,29 @@ const OrganizerEventManage = () => {
                     fullName: a.userName,
                     email: a.userEmail,
                     ticketTypeName: a.ticketTypeName,
-                    seatNumbers: [a.seatNumber],
-                    checkInStatus: a.status === 'CHECKED_IN',
+                    seats: [{ seatNumber: a.seatNumber, color: a.ticketTypeColor, typeName: a.ticketTypeName }],
+                    ticketStatuses: [a.status],
                     checkInDate: a.checkInDate,
-                    ticketId: a.ticketId,
-                    status: a.status,
                     avatarUrl: a.userAvatar ? (a.userAvatar.startsWith('http') ? a.userAvatar : `${API_BASE_URL.replace('/api', '')}${a.userAvatar.startsWith('/') ? '' : '/'}${a.userAvatar}`) : null
                 };
             } else {
-                groups[a.orderId].seatNumbers.push(a.seatNumber);
-                if (a.status === 'CHECKED_IN') groups[a.orderId].checkInStatus = true;
+                groups[a.orderId].seats.push({ seatNumber: a.seatNumber, color: a.ticketTypeColor, typeName: a.ticketTypeName });
+                groups[a.orderId].ticketStatuses.push(a.status);
                 if (a.checkInDate && (!groups[a.orderId].checkInDate || new Date(a.checkInDate) > new Date(groups[a.orderId].checkInDate))) {
                     groups[a.orderId].checkInDate = a.checkInDate;
                 }
             }
         });
 
+        // Determine completion based on ALL tickets in this order being checked in
+        Object.values(groups).forEach((g: any) => {
+            g.checkInStatus = g.ticketStatuses.every((status: string) => status === 'CHECKED_IN');
+        });
+
         return Object.values(groups).filter((a: any) => {
             const matchesSearch = a.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 a.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                a.seatNumbers.some((s: string) => s.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                a.seats.some((s: any) => s.seatNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
                 String(a.id).includes(searchTerm);
 
             if (statusFilter === 'ALL') return matchesSearch;
@@ -1241,15 +1264,14 @@ const OrganizerEventManage = () => {
                                                                         <td className="px-8 py-6">
                                                                             <div className="space-y-1">
                                                                                 <div className="flex flex-wrap gap-1.5">
-                                                                                    {attendee.seatNumbers.map((seat: string) => (
+                                                                                    {attendee.seats.map((seat: any, seatIdx: number) => (
                                                                                         <span
-                                                                                            key={seat}
-                                                                                            className={`px-2.5 py-1 rounded-lg text-[10px] font-black shadow-sm text-white ${attendee.ticketTypeName.toUpperCase().includes('VIP')
-                                                                                                ? 'bg-amber-500'
-                                                                                                : 'bg-blue-600'
-                                                                                                }`}
+                                                                                            key={`${seat.seatNumber}-${seatIdx}`}
+                                                                                            className="px-2.5 py-1 rounded-lg text-[10px] font-black shadow-sm text-white"
+                                                                                            style={{ backgroundColor: seat.color || '#3b82f6' }}
+                                                                                            title={seat.typeName}
                                                                                         >
-                                                                                            {seat}
+                                                                                            {seat.seatNumber}
                                                                                         </span>
                                                                                     ))}
                                                                                 </div>
@@ -1278,7 +1300,7 @@ const OrganizerEventManage = () => {
                                                                                 </div>
                                                                             ) : (
                                                                                 <button
-                                                                                    onClick={() => handleCheckIn(attendee.ticketId, attendee.status)}
+                                                                                    onClick={() => handleCheckInOrder(attendee.id)}
                                                                                     className="px-6 py-2.5 bg-slate-100 hover:bg-primary hover:text-white text-slate-900 rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-95 border border-slate-200 hover:border-primary"
                                                                                 >
                                                                                     Check-in
@@ -1436,12 +1458,19 @@ const OrganizerEventManage = () => {
                                                                         <div 
                                                                             key={tt.id || tt.name} 
                                                                             onClick={() => setSelectedZoneForModal(tt)}
-                                                                            className="bg-white border border-slate-100 rounded-[1.5rem] p-4 shadow-[0_4px_20px_rgba(0,0,0,0.01)] flex flex-col gap-3 transition-all hover:shadow-md hover:border-slate-200/70 hover:-translate-y-0.5 group cursor-pointer relative overflow-hidden shrink-0"
+                                                                            className="rounded-[1.5rem] p-4 shadow-[0_4px_20px_rgba(0,0,0,0.01)] flex flex-col gap-3 transition-all hover:shadow-md hover:-translate-y-0.5 group cursor-pointer relative overflow-hidden shrink-0 border-l-4"
+                                                                            style={{ 
+                                                                                borderLeftColor: tt.color || '#3b82f6',
+                                                                                backgroundColor: `${tt.color || '#3b82f6'}08`,
+                                                                                borderTop: '1px solid #e2e8f020',
+                                                                                borderRight: '1px solid #e2e8f020',
+                                                                                borderBottom: '1px solid #e2e8f020',
+                                                                            }}
                                                                         >
                                                                             <div className="flex items-center justify-between">
                                                                                 <div className="flex items-center gap-3 min-w-0">
-                                                                                    {/* Vertical color stripe like in image */}
-                                                                                    <div className="w-1.5 h-8 rounded-full shrink-0 transition-transform group-hover:scale-y-110" style={{ backgroundColor: tt.color || '#3b82f6' }} />
+                                                                                    {/* Color dot indicator */}
+                                                                                    <div className="w-3 h-3 rounded-full shrink-0 shadow-sm" style={{ backgroundColor: tt.color || '#3b82f6', boxShadow: `0 0 8px ${tt.color || '#3b82f6'}40` }} />
                                                                                     <div className="min-w-0">
                                                                                         <h4 className="font-black text-slate-800 text-xs truncate leading-tight group-hover:text-primary transition-colors">{tt.name}</h4>
                                                                                         <p className="text-[9px] text-slate-400 font-bold tracking-wide mt-0.5 truncate">{new Intl.NumberFormat('vi-VN').format(tt.price)} đ • Vé {tt.type === 'SEATED' ? 'Đầu' : 'Thường'}</p>
@@ -1452,11 +1481,11 @@ const OrganizerEventManage = () => {
 
                                                                             {/* Two columns stats */}
                                                                             <div className="grid grid-cols-2 gap-2.5 mt-1">
-                                                                                <div className="bg-slate-50/50 p-2.5 rounded-xl border border-slate-100/50 flex flex-col justify-center">
+                                                                                <div className="bg-white/60 p-2.5 rounded-xl border border-slate-100/50 flex flex-col justify-center">
                                                                                     <span className="text-[8.5px] text-slate-400 font-bold uppercase tracking-wider leading-none mb-1.5">Đã bán</span>
                                                                                     <span className="text-[11px] font-black text-slate-700 tracking-tight leading-none">{tt.sold} / {tt.total}</span>
                                                                                 </div>
-                                                                                <div className="bg-slate-50/50 p-2.5 rounded-xl border border-slate-100/50 flex flex-col justify-center">
+                                                                                <div className="bg-white/60 p-2.5 rounded-xl border border-slate-100/50 flex flex-col justify-center">
                                                                                     <span className="text-[8.5px] text-slate-400 font-bold uppercase tracking-wider leading-none mb-1.5">Tỷ lệ</span>
                                                                                     <span className={`text-[11px] font-black tracking-tight leading-none ${percentColor.split(' ')[0]}`}>{tt.percentage}%</span>
                                                                                 </div>
@@ -1478,6 +1507,7 @@ const OrganizerEventManage = () => {
                                                     zone={selectedZoneForModal}
                                                     attendees={attendees}
                                                     onClose={() => setSelectedZoneForModal(null)}
+                                                    onCheckIn={handleCheckIn}
                                                 />
                                             </div>
                                         )}
@@ -1720,8 +1750,18 @@ const OrganizerEventManage = () => {
                                                                 <div className="flex flex-wrap gap-1 max-w-[200px]">
                                                                     {(order.tickets || []).map((ticket: any) => {
                                                                         const isVip = ticket.ticketTypeName?.toLowerCase().includes('vip');
+                                                                        const baseColor = ticket.ticketTypeColor || '#475569';
                                                                         return (
-                                                                            <span key={ticket.id} className={`px-2 py-0.5 rounded text-xs font-bold border ${isVip ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                                                                            <span 
+                                                                                key={ticket.id} 
+                                                                                className="px-2 py-0.5 rounded text-xs font-bold border transition-all hover:brightness-95"
+                                                                                style={{
+                                                                                    backgroundColor: ticket.ticketTypeColor ? `${ticket.ticketTypeColor}1A` : '#f1f5f9',
+                                                                                    color: baseColor,
+                                                                                    borderColor: ticket.ticketTypeColor ? `${ticket.ticketTypeColor}4D` : '#e2e8f0'
+                                                                                }}
+                                                                                title={ticket.ticketTypeName}
+                                                                            >
                                                                                 {isVip && <span className="mr-0.5">⭐</span>}{ticket.seatNumber}
                                                                             </span>
                                                                         );

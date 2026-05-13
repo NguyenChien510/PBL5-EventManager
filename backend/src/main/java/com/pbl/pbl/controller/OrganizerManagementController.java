@@ -56,6 +56,12 @@ public class OrganizerManagementController {
         return ResponseEntity.ok().build();
     }
 
+    @PatchMapping("/orders/{orderId}/check-in")
+    public ResponseEntity<?> checkInOrder(@PathVariable Long orderId) {
+        eventService.checkInOrderByOrderId(orderId);
+        return ResponseEntity.ok().build();
+    }
+
     @PatchMapping("/orders/check-in-by-qr")
     public ResponseEntity<?> checkInOrderByQR(@RequestParam String qrCode) {
         eventService.checkInByOrderQR(qrCode);

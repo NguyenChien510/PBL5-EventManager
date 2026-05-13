@@ -697,6 +697,33 @@ public class EventService {
         orderRepository.save(order);
     }
 
+    @Transactional
+    public void checkInOrderByOrderId(Long orderId) {
+        com.pbl.pbl.entity.Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
+        
+        if (order.getTickets().isEmpty()) {
+            throw new RuntimeException("Đơn hàng không có vé nào");
+        }
+
+        boolean allAlreadyCheckedIn = true;
+        LocalDateTime now = LocalDateTime.now();
+        for (com.pbl.pbl.entity.Ticket ticket : order.getTickets()) {
+            if (ticket.getStatus() != com.pbl.pbl.entity.TicketStatus.CHECKED_IN) {
+                ticket.setStatus(com.pbl.pbl.entity.TicketStatus.CHECKED_IN);
+                ticketRepository.save(ticket);
+                allAlreadyCheckedIn = false;
+            }
+        }
+
+        if (allAlreadyCheckedIn) {
+            throw new com.pbl.pbl.exception.BadRequestException("Tất cả vé trong đơn hàng này đã được check-in từ trước");
+        }
+
+        order.setCheckInDate(now);
+        orderRepository.save(order);
+    }
+
     @Transactional(readOnly = true)
     public com.pbl.pbl.dto.OrderDTO getOrderByQR(String qrCode) {
         com.pbl.pbl.entity.Order order = orderRepository.findWithDetailsByQrCode(qrCode)
@@ -740,6 +767,7 @@ public class EventService {
                                 .sessionName(session != null ? session.getName() : "N/A")
                                 .seatId(seat != null ? seat.getId() : null)
                                 .ticketTypeName(type != null ? type.getName() : "N/A")
+                                .ticketTypeColor(type != null ? type.getColor() : null)
                                 .status(ticket.getStatus() != null ? ticket.getStatus().name() : "PAID")
                                 .build();
                     })
@@ -756,6 +784,7 @@ public class EventService {
                 .userEmail(ticket.getUser().getEmail())
                 .seatNumber(ticket.getSeat().getSeatNumber())
                 .ticketTypeName(ticket.getSeat().getTicketType().getName())
+                .ticketTypeColor(ticket.getSeat().getTicketType().getColor())
                 .status(ticket.getStatus().name())
                 .purchaseDate(ticket.getPurchaseDate())
                 .checkInDate(ticket.getOrder() != null ? ticket.getOrder().getCheckInDate() : null)
