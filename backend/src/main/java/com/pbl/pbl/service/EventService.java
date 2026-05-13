@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.pbl.pbl.dto.AdminEventListResponseDTO;
 import com.pbl.pbl.dto.EventAdminSummaryDTO;
 import com.pbl.pbl.dto.EventRequestDTO;
+import com.pbl.pbl.dto.EventResponseDTO;
 
 import com.pbl.pbl.dto.EventSessionRequestDTO;
 import com.pbl.pbl.dto.TicketTypeRequestDTO;
@@ -64,8 +65,11 @@ public class EventService {
     private final com.pbl.pbl.repository.OrderRepository orderRepository;
 
     @Transactional(readOnly = true)
-    public List<Event> getUpcomingEvents() {
-        return eventRepository.findByStatusOrderByStartTimeAsc(EventStatus.upcoming);
+    public List<EventResponseDTO> getUpcomingEvents() {
+        return eventRepository.findByStatusOrderByStartTimeAsc(EventStatus.upcoming)
+                .stream()
+                .map(this::convertToResponseDTO)
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -184,7 +188,7 @@ public class EventService {
     }
 
     @Transactional
-    public Event updateEventStatus(Long id, EventStatus status, String rejectReason) {
+    public EventResponseDTO updateEventStatus(Long id, EventStatus status, String rejectReason) {
         Event event = getEventById(id);
 
         if (status == EventStatus.rejected) {
@@ -197,11 +201,12 @@ public class EventService {
         }
 
         event.setStatus(status);
-        return eventRepository.save(event);
+        Event saved = eventRepository.save(event);
+        return convertToResponseDTO(saved);
     }
 
     @Transactional
-    public Event resubmitEvent(Long id, UUID organizerId) {
+    public EventResponseDTO resubmitEvent(Long id, UUID organizerId) {
         Event event = getEventById(id);
         if (!event.getOrganizer().getId().equals(organizerId)) {
             throw new RuntimeException("Unauthorized: Only the organizer can resubmit this event");
@@ -211,7 +216,8 @@ public class EventService {
         }
         event.setStatus(EventStatus.pending);
         event.setRejectReason(null);
-        return eventRepository.save(event);
+        Event saved = eventRepository.save(event);
+        return convertToResponseDTO(saved);
     }
 
     @Transactional(readOnly = true)
@@ -364,7 +370,7 @@ public class EventService {
     }
 
     @Transactional
-    public Event createEvent(EventRequestDTO request, com.pbl.pbl.entity.User organizer) {
+    public EventResponseDTO createEvent(EventRequestDTO request, com.pbl.pbl.entity.User organizer) {
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new RuntimeException("Category not found"));
 
@@ -485,9 +491,9 @@ public class EventService {
 
         event.setTotalTickets(totalTicketsCount);
         event.setTicketsLeft(totalTicketsCount);
-        eventRepository.save(event);
+        Event saved = eventRepository.save(event);
 
-        return event;
+        return convertToResponseDTO(saved);
     }
 
     private String getRowLetter(int index) {

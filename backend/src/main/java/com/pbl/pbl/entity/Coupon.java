@@ -25,6 +25,7 @@ public class Coupon {
     @Column(nullable = false)
     private Long pointCost;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;

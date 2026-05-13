@@ -5,6 +5,7 @@ import { adminSidebarConfig } from '../config/adminSidebarConfig';
 import { Icon, Loader } from '../components/ui';
 import { EventService } from '../services/eventService';
 import toast from 'react-hot-toast';
+import { Stage, Layer, Circle, Text, Group, Rect } from 'react-konva';
 
 interface ManageStats {
   totalSeats: number;
@@ -51,6 +52,15 @@ const AdminEventManage = () => {
   const [stats, setStats] = useState<ManageStats | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [seats, setSeats] = useState<any[]>([]);
+  const uniqueTicketTypes = React.useMemo(() => {
+    const map = new Map();
+    seats.forEach((s: any) => {
+      if (s.ticketTypeName && !map.has(s.ticketTypeName)) {
+        map.set(s.ticketTypeName, { name: s.ticketTypeName, color: s.color });
+      }
+    });
+    return Array.from(map.values());
+  }, [seats]);
   const [comments, setComments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -705,142 +715,196 @@ const AdminEventManage = () => {
                       </div>
                     </div>
                 ) : (
-                  <div className="bg-white p-10 rounded-3xl border border-slate-200 shadow-sm" >
-                    <div className="max-w-4xl mx-auto space-y-12" >
-                      <div className="text-center space-y-3" >
-                        <h4 className="text-xl font-black text-slate-900 tracking-tight" >Sơ đồ khán đài thực tế</h4>
-                        <div className="flex flex-wrap justify-center gap-6 text-[10px] font-black uppercase tracking-widest text-slate-400" >
-                          <div className="flex items-center gap-2" >
-                            <div className="w-3 h-3 rounded-sm bg-slate-900" /> <span>Đã bán (Thường)</span>
-                          </div>
-                          <div className="flex items-center gap-2" >
-                            <div className="w-3 h-3 rounded-sm bg-amber-500" /> <span>Đã bán (VIP)</span>
-                          </div>
-                          <div className="flex items-center gap-2" >
-                            <div className="w-3 h-3 rounded-sm bg-primary/20 border border-primary/30" /> <span>Trống (Thường)</span>
-                          </div>
-                          <div className="flex items-center gap-2" >
-                            <div className="w-3 h-3 rounded-sm bg-amber-50 border border-amber-200" /> <span>Trống (VIP)</span>
-                          </div>
-                        </div>
+                  <div className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
+                    {/* Dynamic Premium Legend */}
+                    <div className="flex flex-wrap justify-center gap-x-8 gap-y-5 mb-12 text-[11px] font-black uppercase tracking-[0.15em] border-b border-slate-100 pb-10">
+                      <div className="flex items-center gap-3 group bg-emerald-50/50 px-4 py-2 rounded-full border border-emerald-100/50 transition-all hover:bg-emerald-50">
+                        <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-transform group-hover:scale-110" />
+                        <span className="text-emerald-700">Đã Check-in</span>
                       </div>
 
-                      {/* Stage */}
-                      <div className="w-full h-3 bg-slate-200 rounded-full relative shadow-inner overflow-hidden mb-16" >
-                        <div className="absolute inset-x-0 h-full bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
-                        <p className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] font-black text-slate-400 uppercase tracking-[0.5em]" >Sân Khấu / Stage</p>
-                      </div>
-
-                      <div className="flex flex-col items-center gap-3 overflow-x-auto pb-8" >
-                        {Array.from(new Set(seats.map((s: any) => s.seatNumber.charAt(0)))).sort().map(row => (
-                          <div key={row} className="flex gap-2" >
-                            <div className="w-8 flex items-center justify-center text-[10px] font-black text-slate-300" >{row}</div>
-                            <div className="flex gap-1.5 md:gap-2" >
-                              {seats.filter((s: any) => s.seatNumber.startsWith(row))
-                                .sort((a, b) => {
-                                  const numA = parseInt(a.seatNumber.substring(1));
-                                  const numB = parseInt(b.seatNumber.substring(1));
-                                  return numA - numB;
-                                })
-                                .map((seat: any) => {
-                                  const isOccupied = seat.status !== 'AVAILABLE';
-                                  const attendee = isOccupied ? attendees.find(a => a.seatNumber === seat.seatNumber) : null;
-                                  const isVIP = seat.ticketTypeName?.toUpperCase().includes('VIP');
-
-                                  return (
-                                    <div
-                                      key={seat.id}
-                                      onClick={() => {
-                                        if (attendee) setSelectedSeatInfo(attendee);
-                                      }}
-                                      title={`${seat.seatNumber} - ${seat.ticketTypeName} - ${isOccupied ? 'Đã bán' : 'Trống'}`}
-                                      className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-[10px] font-bold transition-all ${isOccupied
-                                        ? `${isVIP ? 'bg-amber-500 hover:bg-amber-600' : 'bg-slate-900 hover:bg-primary'} text-white cursor-pointer hover:scale-110 shadow-lg shadow-slate-200`
-                                        : `${isVIP ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-primary/5 text-primary border border-primary/20'} hover:scale-110 cursor-help`
-                                        }`}
-                                    >
-                                      {isOccupied ? <Icon name="person" size="xs" /> : seat.seatNumber.substring(1)}
-                                    </div>
-                                  );
-                                })}
-                            </div>
+                      {uniqueTicketTypes.map((tt: any) => (
+                        <React.Fragment key={tt.name}>
+                          <div className="flex items-center gap-3 group px-4 py-2 rounded-full transition-all hover:bg-slate-50" title={`${tt.name} - Đã thanh toán`}>
+                            <div className="w-3.5 h-3.5 rounded-full shadow-sm transition-transform group-hover:scale-110" style={{ backgroundColor: tt.color || '#3b82f6', boxShadow: `0 0 10px ${(tt.color || '#3b82f6')}50` }} />
+                            <span className="text-slate-600">{tt.name} <span className="opacity-50 ml-1">(Đã bán)</span></span>
                           </div>
-                        ))}
-                      </div>
-
-                      {/* Attendee Detail Modal for Seat Map */}
-                      {selectedSeatInfo && (
-                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-                          <div className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 border border-slate-100">
-                            <div className="p-8 space-y-6">
-                              <div className="flex justify-between items-start">
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-black uppercase rounded-lg">Ghế {selectedSeatInfo.seatNumber}</span>
-                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-black uppercase rounded-lg">{selectedSeatInfo.ticketTypeName}</span>
-                                  </div>
-                                  <h3 className="text-2xl font-black text-slate-900">{selectedSeatInfo.userName}</h3>
-                                </div>
-                                <button
-                                  onClick={() => setSelectedSeatInfo(null)}
-                                  className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400"
-                                >
-                                  <Icon name="close" size="sm" />
-                                </button>
-                              </div>
-
-                              <div className="space-y-4 bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                                <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 border border-slate-100">
-                                    <Icon name="mail" size="xs" />
-                                  </div>
-                                  <div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email</p>
-                                    <p className="text-sm font-bold text-slate-700">{selectedSeatInfo.userEmail}</p>
-                                  </div>
-                                </div>
-
-                                <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 border border-slate-100">
-                                    <Icon name="calendar_today" size="xs" />
-                                  </div>
-                                  <div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ngày mua</p>
-                                    <p className="text-sm font-bold text-slate-700">
-                                      {new Date(selectedSeatInfo.purchaseDate).toLocaleDateString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric' })}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                <div className="flex items-center gap-4">
-                                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${selectedSeatInfo.status === 'CHECKED_IN' ? 'bg-emerald-50 text-emerald-500 border-emerald-100' : 'bg-white text-slate-400 border-slate-100'}`}>
-                                    <Icon name={selectedSeatInfo.status === 'CHECKED_IN' ? 'check_circle' : 'pending'} size="xs" />
-                                  </div>
-                                  <div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Trạng thái</p>
-                                    <p className={`text-sm font-black uppercase ${selectedSeatInfo.status === 'CHECKED_IN' ? 'text-emerald-600' : 'text-slate-500'}`}>
-                                      {selectedSeatInfo.status === 'CHECKED_IN' ? 'Đã check-in' : 'Chưa đến'}
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex gap-3 pt-2">
-                                <button
-                                  onClick={() => {
-                                    handleCheckIn(selectedSeatInfo.ticketId, selectedSeatInfo.status);
-                                    setSelectedSeatInfo(null);
-                                  }}
-                                  className={`flex-1 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${selectedSeatInfo.status === 'CHECKED_IN' ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-primary text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:scale-[1.02]'}`}
-                                >
-                                  {selectedSeatInfo.status === 'CHECKED_IN' ? 'Hủy Check-in' : 'Check-in ngay'}
-                                </button>
-                              </div>
-                            </div>
+                          <div className="flex items-center gap-3 group px-4 py-2 rounded-full transition-all hover:bg-slate-50" title={`${tt.name} - Còn trống`}>
+                            <div className="w-3.5 h-3.5 rounded-full border-2 transition-transform group-hover:scale-110" style={{ borderColor: tt.color || '#3b82f6', backgroundColor: 'transparent' }} />
+                            <span className="text-slate-400">Trống <span className="opacity-50 ml-1">({tt.name})</span></span>
                           </div>
-                        </div>
-                      )}
+                        </React.Fragment>
+                      ))}
                     </div>
+
+                    {/* The Premium Seat Map Canvas Stage */}
+                    <div className="relative w-full bg-slate-900 rounded-[3rem] overflow-hidden flex flex-col items-center shadow-2xl border-8 border-slate-800 animate-in zoom-in-95 duration-500">
+                      {/* STAGE OVERLAY */}
+                      <div className="w-full py-4 bg-slate-800/60 backdrop-blur-md flex justify-center relative z-10 border-b border-slate-700/50 shadow-lg">
+                        <div className="relative bg-slate-700 text-slate-300 px-16 py-2 rounded-full text-xs font-black uppercase tracking-[0.4em] border border-slate-600/50 shadow-inner overflow-hidden">
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-30" />
+                          Sân Khấu / Stage
+                        </div>
+                      </div>
+
+                      {/* CANVAS VIEWPORT CONTAINER */}
+                      <div className="relative w-full bg-[#0f172a] overflow-auto py-8 custom-scrollbar">
+                        <div className="w-fit mx-auto min-w-[800px] flex justify-center">
+                          <Stage width={800} height={500}>
+                            <Layer>
+                              {/* Sophisticated Grid System */}
+                              {Array.from({ length: 21 }).map((_, i) => (
+                                <Rect key={'v' + i} x={i * 40} y={0} width={1} height={500} fill="#1e293b" opacity={0.3} />
+                              ))}
+                              {Array.from({ length: 13 }).map((_, i) => (
+                                <Rect key={'h' + i} x={0} y={i * 40} width={800} height={1} fill="#1e293b" opacity={0.3} />
+                              ))}
+
+                              {/* Render Interactive Seats */}
+                              {seats.map((seat: any) => {
+                                const isOccupied = seat.status !== 'AVAILABLE';
+                                const attendee = isOccupied ? attendees.find(a => a.seatNumber === seat.seatNumber) : null;
+                                const isCheckedIn = isOccupied && attendee?.status === 'CHECKED_IN';
+
+                                const baseColor = seat.color || '#3b82f6';
+                                const circleFill = isCheckedIn ? '#10b981' : (isOccupied ? baseColor : 'rgba(15, 23, 42, 0.8)');
+                                const circleStroke = isCheckedIn ? '#fff' : baseColor;
+                                const shadowColor = isCheckedIn ? '#10b981' : baseColor;
+                                const textColor = isOccupied ? '#fff' : baseColor;
+
+                                return (
+                                  <Group
+                                    key={seat.id}
+                                    x={Number(seat.x) || 0}
+                                    y={Number(seat.y) || 0}
+                                    onClick={() => {
+                                      if (attendee) {
+                                        setSelectedSeatInfo(attendee);
+                                      } else {
+                                        toast.dismiss();
+                                        toast(`${seat.seatNumber} - ${seat.ticketTypeName} (Đang trống)`, { icon: '🎫' });
+                                      }
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      const container = e.target.getStage()?.container();
+                                      if (container) container.style.cursor = attendee ? 'pointer' : 'help';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      const container = e.target.getStage()?.container();
+                                      if (container) container.style.cursor = 'default';
+                                    }}
+                                  >
+                                    <Circle
+                                      radius={14}
+                                      fill={circleFill}
+                                      shadowBlur={isOccupied ? 12 : 4}
+                                      shadowColor={shadowColor}
+                                      shadowOpacity={isOccupied ? 0.5 : 0.2}
+                                      stroke={circleStroke}
+                                      strokeWidth={isOccupied ? 1.5 : 2}
+                                    />
+                                    <Text
+                                      text={seat.seatNumber}
+                                      fontSize={seat.seatNumber.length > 2 ? 8 : 10}
+                                      fontStyle="bold"
+                                      fill={textColor}
+                                      align="center"
+                                      verticalAlign="middle"
+                                      offsetX={seat.seatNumber.length > 2 ? 7 : 5}
+                                      offsetY={5}
+                                    />
+                                  </Group>
+                                );
+                              })}
+                            </Layer>
+                          </Stage>
+                        </div>
+                      </div>
+
+                      {/* HINT FOOTER */}
+                      <div className="w-full py-3 bg-slate-800/30 border-t border-slate-800/50 px-6 flex justify-between items-center text-[10px] text-slate-500 font-medium uppercase tracking-wider">
+                        <div className="flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Live Seating View
+                        </div>
+                        <div>
+                          Click on occupied seats to view details
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Attendee Detail Modal for Seat Map */}
+                    {selectedSeatInfo && (
+                      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+                        <div className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 border border-slate-100">
+                          <div className="p-8 space-y-6">
+                            <div className="flex justify-between items-start">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-black uppercase rounded-lg">Ghế {selectedSeatInfo.seatNumber}</span>
+                                  <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-black uppercase rounded-lg">{selectedSeatInfo.ticketTypeName}</span>
+                                </div>
+                                <h3 className="text-2xl font-black text-slate-900">{selectedSeatInfo.userName}</h3>
+                              </div>
+                              <button
+                                onClick={() => setSelectedSeatInfo(null)}
+                                className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400"
+                              >
+                                <Icon name="close" size="sm" />
+                              </button>
+                            </div>
+
+                            <div className="space-y-4 bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 border border-slate-100">
+                                  <Icon name="mail" size="xs" />
+                                </div>
+                                <div>
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email</p>
+                                  <p className="text-sm font-bold text-slate-700">{selectedSeatInfo.userEmail}</p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 border border-slate-100">
+                                  <Icon name="calendar_today" size="xs" />
+                                </div>
+                                <div>
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ngày mua</p>
+                                  <p className="text-sm font-bold text-slate-700">
+                                    {new Date(selectedSeatInfo.purchaseDate).toLocaleDateString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-4">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${selectedSeatInfo.status === 'CHECKED_IN' ? 'bg-emerald-50 text-emerald-500 border-emerald-100' : 'bg-white text-slate-400 border-slate-100'}`}>
+                                  <Icon name={selectedSeatInfo.status === 'CHECKED_IN' ? 'check_circle' : 'pending'} size="xs" />
+                                </div>
+                                <div>
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Trạng thái</p>
+                                  <p className={`text-sm font-black uppercase ${selectedSeatInfo.status === 'CHECKED_IN' ? 'text-emerald-600' : 'text-slate-500'}`}>
+                                    {selectedSeatInfo.status === 'CHECKED_IN' ? 'Đã check-in' : 'Chưa đến'}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                              <button
+                                onClick={() => {
+                                  handleCheckIn(selectedSeatInfo.ticketId, selectedSeatInfo.status);
+                                  setSelectedSeatInfo(null);
+                                }}
+                                className={`flex-1 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${selectedSeatInfo.status === 'CHECKED_IN' ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-primary text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:scale-[1.02]'}`}
+                              >
+                                {selectedSeatInfo.status === 'CHECKED_IN' ? 'Hủy Check-in' : 'Check-in ngay'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

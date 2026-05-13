@@ -17,6 +17,7 @@ import org.springframework.data.domain.Sort;
 
 
 import com.pbl.pbl.dto.EventRequestDTO;
+import com.pbl.pbl.dto.EventResponseDTO;
 import com.pbl.pbl.dto.UpcomingEventCardDTO;
 import com.pbl.pbl.entity.Event;
 import com.pbl.pbl.entity.User;
@@ -43,7 +44,7 @@ public class EventController {
     }
 
     @GetMapping("/upcoming")
-    public ResponseEntity<java.util.List<Event>> getUpcomingEvents() {
+    public ResponseEntity<java.util.List<EventResponseDTO>> getUpcomingEvents() {
         return ResponseEntity.ok(eventService.getUpcomingEvents());
     }
 
@@ -143,7 +144,7 @@ public class EventController {
 
 
     @PatchMapping("/admin/{id}/status")
-    public ResponseEntity<Event> updateEventStatus(@PathVariable Long id, @RequestParam com.pbl.pbl.entity.EventStatus status, @RequestParam(required = false) String rejectReason) {
+    public ResponseEntity<EventResponseDTO> updateEventStatus(@PathVariable Long id, @RequestParam com.pbl.pbl.entity.EventStatus status, @RequestParam(required = false) String rejectReason) {
         return ResponseEntity.ok(eventService.updateEventStatus(id, status, rejectReason));
     }
 
