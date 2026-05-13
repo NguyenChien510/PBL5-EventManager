@@ -29,10 +29,9 @@ const OrganizerEventList = () => {
 
   const STATUS_TABS = [
     { key: 'all', label: 'Tất cả', icon: 'list_alt', color: 'bg-slate-900' },
+    { key: 'upcoming', label: 'Sắp tới', icon: 'schedule', color: 'bg-blue-500' },
     { key: 'pending', label: 'Chờ duyệt', icon: 'hourglass_empty', color: 'bg-amber-500' },
-    { key: 'upcoming', label: 'Sắp diễn ra', icon: 'schedule', color: 'bg-blue-500' },
-    { key: 'sold_out', label: 'Hết vé', icon: 'error_outline', color: 'bg-orange-500' },
-    { key: 'ended', label: 'Đã kết thúc', icon: 'done_all', color: 'bg-emerald-500' },
+    { key: 'ended', label: 'Đã qua', icon: 'done_all', color: 'bg-emerald-500' },
     { key: 'rejected', label: 'Bị từ chối', icon: 'cancel', color: 'bg-red-500' }
   ]
 

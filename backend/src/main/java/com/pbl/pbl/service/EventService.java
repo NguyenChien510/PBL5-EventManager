@@ -143,11 +143,17 @@ public class EventService {
         boolean hasKeyword = keyword != null && !keyword.trim().isEmpty();
 
         if (status != null) {
+            java.util.List<EventStatus> statuses = new java.util.ArrayList<>();
+            statuses.add(status);
+            if (status == EventStatus.upcoming) {
+                statuses.add(EventStatus.sold_out); // Logically upcoming also includes sold out for managing
+            }
+
             if (hasKeyword) {
-                eventsPage = eventRepository.findByOrganizer_IdAndStatusAndTitleContainingIgnoreCase(organizerId, status,
+                eventsPage = eventRepository.findByOrganizer_IdAndStatusInAndTitleContainingIgnoreCase(organizerId, statuses,
                         keyword.trim(), pageable);
             } else {
-                eventsPage = eventRepository.findByOrganizer_IdAndStatus(organizerId, status, pageable);
+                eventsPage = eventRepository.findByOrganizer_IdAndStatusIn(organizerId, statuses, pageable);
             }
         } else {
             if (hasKeyword) {
