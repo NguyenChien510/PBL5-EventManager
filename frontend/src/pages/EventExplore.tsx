@@ -14,7 +14,7 @@ const EventExplore = () => {
   const [loading, setLoading] = useState(true);
 
   const [minPrice, setMinPrice] = useState<number>(0);
-  const [maxPrice, setMaxPrice] = useState<number>(3000000);
+  const [maxPrice, setMaxPrice] = useState<number>(10000000);
 
   const { categories, fetchCategories } = useCategoryStore()
   const { provinces, fetchProvinces } = useLocationStore()
@@ -45,7 +45,7 @@ const EventExplore = () => {
         categoryId: selectedCategoryId,
         province: selectedProvince,
         minPrice,
-        maxPrice,
+        maxPrice: maxPrice >= 10000000 ? undefined : maxPrice,
         dateFilter: selectedDate,
         sortBy: selectedSort
       });
@@ -135,22 +135,22 @@ const EventExplore = () => {
               <div className="flex items-center justify-between text-xs font-bold text-primary bg-primary/5 px-3 py-2 rounded-lg">
                 <span>{new Intl.NumberFormat('vi-VN').format(minPrice)}đ</span>
                 <span className="text-slate-400">-</span>
-                <span>{new Intl.NumberFormat('vi-VN', { notation: 'standard' }).format(maxPrice)}đ{maxPrice >= 3000000 ? '+' : ''}</span>
+                <span>{new Intl.NumberFormat('vi-VN', { notation: 'standard' }).format(maxPrice)}đ{maxPrice >= 10000000 ? '+' : ''}</span>
               </div>
 
               <div className="relative h-1.5 bg-slate-200 rounded-full flex items-center touch-none">
                 <div
                   className="absolute h-full bg-primary rounded-full pointer-events-none"
                   style={{
-                    left: `${(minPrice / 3000000) * 100}%`,
-                    right: `${100 - (maxPrice / 3000000) * 100}%`
+                    left: `${Math.min(100, (minPrice / 10000000) * 100)}%`,
+                    right: `${100 - Math.min(100, (maxPrice / 10000000) * 100)}%`
                   }}
                 />
 
                 <input
                   type="range"
                   min="0"
-                  max="3000000"
+                  max="10000000"
                   step="100000"
                   value={minPrice}
                   onChange={(e) => {
@@ -163,7 +163,7 @@ const EventExplore = () => {
                 <input
                   type="range"
                   min="0"
-                  max="3000000"
+                  max="10000000"
                   step="100000"
                   value={maxPrice}
                   onChange={(e) => {
@@ -175,12 +175,12 @@ const EventExplore = () => {
 
                 <div
                   className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-[3px] border-primary rounded-full shadow-md z-10 pointer-events-none"
-                  style={{ left: `calc(${(minPrice / 3000000) * 100}% - 8px)` }}
+                  style={{ left: `calc(${Math.min(100, (minPrice / 10000000) * 100)}% - 8px)` }}
                 />
 
                 <div
                   className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-[3px] border-primary rounded-full shadow-md z-10 pointer-events-none"
-                  style={{ left: `calc(${(maxPrice / 3000000) * 100}% - 8px)` }}
+                  style={{ left: `calc(${Math.min(100, (maxPrice / 10000000) * 100)}% - 8px)` }}
                 />
               </div>
 

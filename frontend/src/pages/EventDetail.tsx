@@ -405,20 +405,31 @@ const EventDetail = () => {
                       ticketTypes
                         .filter(tt => tt.sessionId === selectedSessionId)
                         .map((tt, idx) => {
-                          const lowerName = tt.name.toLowerCase();
-                          let colorTheme = { dot: 'bg-primary', bg: 'bg-primary/5', border: 'border-primary/20', text: 'text-primary' };
-
-                          if (lowerName.includes('vip')) {
-                            colorTheme = { dot: 'bg-yellow-500', bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700' };
-                          } else if (lowerName.includes('diamond') || lowerName.includes('vvip')) {
-                            colorTheme = { dot: 'bg-pink-500', bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-700' };
+                          let ticketColor = tt.color || '#3b82f6';
+                          if (ticketColor.startsWith('#') && ticketColor.length === 9) {
+                            ticketColor = ticketColor.substring(0, 7);
                           }
 
                           return (
-                            <div key={tt.id} className={`flex items-center justify-between p-3 rounded-xl border ${colorTheme.bg} ${colorTheme.border} hover:brightness-95 transition-all`}>
+                            <div 
+                              key={tt.id} 
+                              className="flex items-center justify-between p-3 rounded-xl border hover:brightness-95 transition-all"
+                              style={{
+                                backgroundColor: `${ticketColor}12`,
+                                borderColor: `${ticketColor}40`
+                              }}
+                            >
                               <div className="flex items-center gap-3">
-                                <div className={`w-3 h-3 rounded-md ${colorTheme.dot} shadow-sm`} />
-                                <span className={`text-sm font-bold ${colorTheme.text}`}>{tt.name}</span>
+                                <div 
+                                  className="w-3 h-3 rounded-md shadow-sm" 
+                                  style={{ backgroundColor: ticketColor }}
+                                />
+                                <span 
+                                  className="text-sm font-black"
+                                  style={{ color: ticketColor }}
+                                >
+                                  {tt.name}
+                                </span>
                               </div>
                               <div className="text-right">
                                 <p className="text-sm font-black text-slate-800">{new Intl.NumberFormat('vi-VN').format(tt.price)}đ</p>

@@ -23,6 +23,18 @@ const OrganizerGuests = () => {
   const [manualCode, setManualCode] = useState('')
   const [guestPage, setGuestPage] = useState(1)
   const [highlightedOrderId, setHighlightedOrderId] = useState<number | null>(null)
+  const [isEventDropdownOpen, setIsEventDropdownOpen] = useState(false)
+  const eventDropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (eventDropdownRef.current && !eventDropdownRef.current.contains(event.target as Node)) {
+        setIsEventDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   // Fetch events on mount
   useEffect(() => {
@@ -169,7 +181,7 @@ const OrganizerGuests = () => {
           fullName: a.userName || 'Khách ẩn danh',
           email: a.userEmail || '',
           ticketTypeName: a.ticketTypeName,
-          seatNumbers: [a.seatNumber],
+          seats: [{ seatNumber: a.seatNumber, color: a.ticketTypeColor }],
           checkInStatus: a.status === 'CHECKED_IN',
           checkInDate: a.checkInDate,
           ticketId: a.ticketId,
@@ -178,7 +190,7 @@ const OrganizerGuests = () => {
             (a.userAvatar.startsWith('http') ? a.userAvatar : `${API_BASE_URL.replace('/api', '')}${a.userAvatar.startsWith('/') ? '' : '/'}${a.userAvatar}`) : null
         };
       } else {
-        groups[a.orderId].seatNumbers.push(a.seatNumber);
+        groups[a.orderId].seats.push({ seatNumber: a.seatNumber, color: a.ticketTypeColor });
         if (a.status === 'CHECKED_IN') {
           groups[a.orderId].checkInStatus = true;
           groups[a.orderId].checkInDate = a.checkInDate;
@@ -326,16 +338,76 @@ const OrganizerGuests = () => {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
-                  <div className="w-full sm:w-56">
-                    <select
-                      value={selectedEventId || ''}
-                      onChange={(e) => setSelectedEventId(e.target.value)}
-                      className="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:16px_16px] bg-[right_12px_center] bg-no-repeat"
+                  <div className="relative w-full sm:w-72 z-20" ref={eventDropdownRef}>
+                    <button
+                      onClick={() => setIsEventDropdownOpen(!isEventDropdownOpen)}
+                      className="w-full pl-3 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all flex items-center justify-between group hover:border-primary/30 hover:bg-white"
                     >
-                      {events.map(evt => (
-                        <option key={evt.id} value={evt.id}>{evt.title}</option>
-                      ))}
-                    </select>
+                      <span className="truncate flex items-center gap-2.5">
+                        {(() => {
+                          const activeEvent = events.find(e => e.id === selectedEventId);
+                          if (activeEvent) {
+                            const thumb = activeEvent.posterUrl;
+                            const thumbUrl = thumb ? (thumb.startsWith('http') ? thumb : `${API_BASE_URL.replace('/api', '')}${thumb.startsWith('/') ? '' : '/'}${thumb}`) : null;
+                            return (
+                              <>
+                                <div className="w-6 h-6 rounded-lg overflow-hidden shrink-0 bg-slate-100 border border-slate-200/30 flex items-center justify-center shadow-sm">
+                                  {thumbUrl ? (
+                                    <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <Icon name="event" size="xs" className="text-slate-400" />
+                                  )}
+                                </div>
+                                <span className="truncate leading-none">{activeEvent.title}</span>
+                              </>
+                            );
+                          }
+                          return 'Chọn sự kiện';
+                        })()}
+                      </span>
+                      <Icon 
+                        name="expand_more" 
+                        size="xs" 
+                        className={`text-slate-400 transition-transform duration-300 group-hover:text-primary ${isEventDropdownOpen ? 'rotate-180' : ''}`} 
+                      />
+                    </button>
+                    {isEventDropdownOpen && (
+                      <div className="absolute left-0 mt-2 w-80 bg-white border border-slate-100 rounded-2xl shadow-2xl max-h-72 overflow-y-auto p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200 custom-scrollbar z-50 shadow-slate-200/50">
+                        {events.map(evt => {
+                          const thumb = evt.posterUrl;
+                          const thumbUrl = thumb ? (thumb.startsWith('http') ? thumb : `${API_BASE_URL.replace('/api', '')}${thumb.startsWith('/') ? '' : '/'}${thumb}`) : null;
+                          const isSelected = selectedEventId === evt.id;
+                          return (
+                            <button
+                              key={evt.id}
+                              onClick={() => {
+                                setSelectedEventId(evt.id)
+                                setIsEventDropdownOpen(false)
+                              }}
+                              className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-3 ${
+                                isSelected 
+                                  ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                              }`}
+                            >
+                              <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 bg-slate-100 border border-slate-200/20 flex items-center justify-center shadow-sm">
+                                {thumbUrl ? (
+                                  <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  <Icon name="image" size="xs" className={isSelected ? 'text-white/50' : 'text-slate-400'} />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className={`truncate ${isSelected ? 'text-white font-black' : 'text-slate-800 font-bold'}`}>{evt.title}</p>
+                                <p className={`text-[9px] ${isSelected ? 'text-white/80' : 'text-slate-400'} truncate font-medium mt-0.5`}>
+                                  {evt.location || 'Chưa cập nhật'}
+                                </p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                   <div className="w-full sm:w-64">
                     <SearchInput
@@ -411,17 +483,18 @@ const OrganizerGuests = () => {
                               </td>
                               <td className="px-8 py-6">
                                 <div className="flex flex-wrap gap-1.5 max-w-[200px]">
-                                  {attendee.seatNumbers.map((seat: string) => (
-                                    <span
-                                      key={seat}
-                                      className={`px-2.5 py-1 rounded-lg text-[9px] font-black shadow-sm text-white ${attendee.ticketTypeName?.toUpperCase().includes('VIP')
-                                        ? 'bg-amber-500'
-                                        : 'bg-blue-600'
-                                        }`}
-                                    >
-                                      {seat}
-                                    </span>
-                                  ))}
+                                  {attendee.seats?.map((seat: any, index: number) => {
+                                    const ticketColor = seat.color || '#3b82f6';
+                                    return (
+                                      <span
+                                        key={`${seat.seatNumber}-${index}`}
+                                        className="px-2.5 py-1 rounded-lg text-[9px] font-black shadow-sm text-white"
+                                        style={{ backgroundColor: ticketColor }}
+                                      >
+                                        {seat.seatNumber}
+                                      </span>
+                                    );
+                                  })}
                                 </div>
                               </td>
                               <td className="px-8 py-6">
@@ -599,7 +672,13 @@ const OrganizerGuests = () => {
                   {scanResult.tickets?.map((ticket: any) => (
                     <div key={ticket.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl shadow-sm group hover:border-primary/30 transition-all">
                       <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white ${ticket.ticketTypeName?.toUpperCase().includes('VIP') ? 'bg-amber-500 shadow-amber-100' : 'bg-blue-600 shadow-blue-100'} shadow-lg`}>
+                        <div 
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-lg"
+                          style={{ 
+                            backgroundColor: ticket.ticketTypeColor || '#3b82f6', 
+                            boxShadow: `0 4px 12px ${(ticket.ticketTypeColor || '#3b82f6')}40` 
+                          }}
+                        >
                           <Icon name="confirmation_number" size="xs" />
                         </div>
                         <div>

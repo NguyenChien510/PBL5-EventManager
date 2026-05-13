@@ -56,9 +56,20 @@ const RosterCard = ({ shift }: any) => (
 const OrganizerEventManage = () => {
     const { id } = useParams<{ id: string }>();
     const location = useLocation();
-    const [activeTab, setActiveTab] = useState<'overview' | 'guests' | 'finance' | 'feedback' | 'edit'>(
-        (location.state as any)?.tab || 'overview'
-    );
+    
+    // Lấy tab khởi tạo thông minh từ react-router state HOẶC URL query parameter (e.g., ?tab=guests)
+    const getInitialTab = () => {
+        const stateTab = (location.state as any)?.tab;
+        const queryTab = new URLSearchParams(location.search).get('tab');
+        const target = stateTab || queryTab;
+        
+        if (target && ['overview', 'guests', 'finance', 'feedback', 'edit'].includes(target)) {
+            return target as any;
+        }
+        return 'overview';
+    };
+    
+    const [activeTab, setActiveTab] = useState<'overview' | 'guests' | 'finance' | 'feedback' | 'edit'>(getInitialTab);
     const [event, setEvent] = useState<any>(null);
     const [stats, setStats] = useState<ManageStats | null>(null);
     const [attendees, setAttendees] = useState<Attendee[]>([]);

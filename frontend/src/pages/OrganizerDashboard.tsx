@@ -23,7 +23,7 @@ const OrganizerDashboard = () => {
         if (user) {
           setUserName(user.fullName || user.email.split('@')[0]);
           const [dashRes, commRes] = await Promise.all([
-            EventService.getOrganizerDashboard(0, 10, 'upcoming'),
+            EventService.getOrganizerDashboard(0, 100), // Fetch top 100 events to accurately rank filling rates
             EventService.getOrganizerComments(user.id)
           ]);
           setDashboardData(dashRes);
@@ -120,27 +120,33 @@ const OrganizerDashboard = () => {
                   <div className="flex items-center justify-between mb-8">
                     <div>
                       <h3 className="text-lg font-black text-slate-900">Tỷ lệ lấp đầy sự kiện</h3>
-                      <p className="text-xs text-slate-500 font-medium">Dựa trên 5 sự kiện gần nhất</p>
+                      <p className="text-xs text-slate-500 font-medium">Top 5 sự kiện cao nhất</p>
                     </div>
                   </div>
                   {chartEvents.length > 0 ? (
                     <div className="flex items-end gap-6 h-56 mt-4">
                       {chartEvents.map((evt: any) => {
                         return (
-                          <div key={evt.id} className="flex-1 h-full flex flex-col items-center justify-end gap-3 group relative cursor-pointer" title={`${evt.ticketsSold} / ${evt.totalTickets} vé đã bán`}>
+                          <Link 
+                            key={evt.id} 
+                            to={`/organizer/events/${evt.id}/manage?tab=guests`} 
+                            state={{ tab: 'guests' }} 
+                            className="flex-1 h-full flex flex-col items-center justify-end gap-3 group relative cursor-pointer select-none no-underline" 
+                            title={`${evt.ticketsSold} / ${evt.totalTickets} vé đã bán - Bấm để quản lý khách mời`}
+                          >
                             <span className="text-xs font-black text-indigo-600 transition-transform group-hover:-translate-y-1 duration-300">
                               {evt.fillRate}%
                             </span>
                             <div className="w-16 sm:w-20 flex-1 bg-slate-50/80 rounded-t-xl relative overflow-hidden ring-1 ring-inset ring-slate-100 border-b-2 border-slate-200">
                               <div
-                                className={`absolute bottom-0 w-full rounded-t-xl transition-all duration-1000 ease-out group-hover:brightness-110 ${evt.fillRate === 0 ? 'bg-slate-200' : 'bg-gradient-to-t from-indigo-600 to-blue-400 shadow-[0_0_15px_rgba(79,70,229,0.3)]'}`}
+                                className={`absolute bottom-0 w-full rounded-t-xl transition-all duration-1000 ease-out group-hover:brightness-110 group-hover:scale-x-[1.03] origin-bottom ${evt.fillRate === 0 ? 'bg-slate-200' : 'bg-gradient-to-t from-indigo-600 to-blue-400 shadow-[0_0_15px_rgba(79,70,229,0.3)]'}`}
                                 style={{ height: `${Math.max(evt.fillRate, 5)}%` }}
                               />
                             </div>
-                            <span className="text-[9px] sm:text-[10px] text-slate-600 font-bold text-center leading-tight px-1 w-full h-8 flex items-start justify-center">
+                            <span className="text-[9px] sm:text-[10px] text-slate-600 font-bold text-center leading-tight px-1 w-full h-8 flex items-start justify-center group-hover:text-indigo-600 transition-colors">
                               <span className="line-clamp-2">{evt.title}</span>
                             </span>
-                          </div>
+                          </Link>
                         );
                       })}
                     </div>
@@ -178,6 +184,7 @@ const OrganizerDashboard = () => {
                         </thead>
                         <tbody className="divide-y divide-slate-50">
                           {[...eventsList]
+                            .filter((evt: any) => evt.status?.toLowerCase() === 'upcoming' || !evt.status)
                             .sort((a: any, b: any) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
                             .slice(0, 3)
                             .map((evt: any) => {
