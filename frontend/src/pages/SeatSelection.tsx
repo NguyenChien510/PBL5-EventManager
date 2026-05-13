@@ -5,8 +5,7 @@ import { EventService } from '../services/eventService'
 import { apiClient } from '../utils/axios'
 import { useAuthStore } from '../stores/useAuthStore'
 import { toast } from 'react-hot-toast'
-import { Stage, Layer, Circle, Text, Group, Rect, Image as KonvaImage } from 'react-konva'
-import useImage from 'use-image'
+import { Stage, Layer, Circle, Text, Group, Rect } from 'react-konva'
 
 const paymentMethods = [
   { id: 'momo', label: 'Ví MoMo', logo: 'https://developers.momo.vn/v3/assets/images/MOMO-Logo-App-6262c3743a290ef02396a24ea2b66c35.png', color: 'bg-accent-pink' },
@@ -81,8 +80,7 @@ const SeatSelection = () => {
       resizeObserver.observe(containerRef.current);
       return () => resizeObserver.disconnect();
     }
-  }, [loading]); // Only start observing when the DOM might render it
-  const [bgImage] = useImage(event?.seatMapBgUrl || '');
+  }, [loading]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -290,15 +288,6 @@ const SeatSelection = () => {
   const memoizedLayerContent = useMemo(() => {
     return (
       <Layer>
-        {bgImage && (
-          <KonvaImage
-            image={bgImage}
-            width={800}
-            height={500}
-            listening={false}
-          />
-        )}
-
         {shapes.map((shape, shapeIdx) => {
           if (shape.type === 'rect') {
             const isInteractive = !!shape.ticketTypeId;
@@ -505,7 +494,7 @@ const SeatSelection = () => {
         })}
       </Layer>
     );
-  }, [bgImage, shapes, ticketTypes, groupedTickets, quantities, selectedSeatIds, seats]);
+  }, [shapes, ticketTypes, groupedTickets, quantities, selectedSeatIds, seats]);
 
   return (
     <div className="min-h-screen bg-background-light font-display">

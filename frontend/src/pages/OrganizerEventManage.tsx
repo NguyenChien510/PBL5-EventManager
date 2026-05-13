@@ -10,8 +10,7 @@ import toast from 'react-hot-toast';
 import { EditEventModal, ImagePreviewModal, SeatAttendeeModal, ZoneAttendeesModal } from './OrganizerEventModals';
 import { Html5Qrcode } from 'html5-qrcode';
 import { API_BASE_URL } from '../constants';
-import { Stage, Layer, Circle, Text, Group, Rect, Image as KonvaImage } from 'react-konva';
-import useImage from 'use-image';
+import { Stage, Layer, Circle, Text, Group, Rect } from 'react-konva';
 
 interface ManageStats {
     totalSeats: number;
@@ -93,9 +92,6 @@ const OrganizerEventManage = () => {
     const [manualCode, setManualCode] = useState('');
     const [guestPage, setGuestPage] = useState(1);
     const itemsPerPage = 3;
-
-    const [bgImage] = useImage(event?.seatMapBgUrl || '');
-
     const [zoneSearchQuery, setZoneSearchQuery] = useState('');
 
     const ticketSalesBreakdown = React.useMemo(() => {
@@ -124,7 +120,7 @@ const OrganizerEventManage = () => {
     }, [seats]);
 
     const memoizedSeatMap = React.useMemo(() => {
-        if (seats.length === 0 && shapes.length === 0 && !bgImage) {
+        if (seats.length === 0 && shapes.length === 0) {
             return <div className="text-slate-400 py-20 italic text-sm">Đang tải sơ đồ sự kiện...</div>;
         }
 
@@ -152,21 +148,11 @@ const OrganizerEventManage = () => {
                 }}
             >
                 <Layer>
-                    {/* Background Image if any */}
-                    {bgImage && (
-                        <KonvaImage
-                            image={bgImage}
-                            width={800}
-                            height={500}
-                            listening={false}
-                        />
-                    )}
-
                     {/* Sophisticated Grid System */}
-                    {!bgImage && Array.from({ length: 21 }).map((_, i) => (
+                    {Array.from({ length: 21 }).map((_, i) => (
                         <Rect key={'v' + i} x={i * 40} y={0} width={1} height={500} fill="#1e293b" opacity={0.3} />
                     ))}
-                    {!bgImage && Array.from({ length: 13 }).map((_, i) => (
+                    {Array.from({ length: 13 }).map((_, i) => (
                         <Rect key={'h' + i} x={0} y={i * 40} width={800} height={1} fill="#1e293b" opacity={0.3} />
                     ))}
 
@@ -300,7 +286,7 @@ const OrganizerEventManage = () => {
                 </Layer>
             </Stage>
         );
-    }, [bgImage, shapes, ticketTypes, seats, attendees, setSelectedSeatInfo]);
+    }, [shapes, ticketTypes, seats, attendees, setSelectedSeatInfo]);
 
 
 

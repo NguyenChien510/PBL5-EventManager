@@ -14,7 +14,6 @@ public class EventRequestDTO {
     private Long provinceId;
     private Long wardId;
     private String posterUrl;
-    private String seatMapBgUrl;
     private List<EventSessionRequestDTO> sessions;
     private SeatMapConfigRequestDTO seatMapConfig;
     private List<TicketTypeRequestDTO> ticketTypes;

@@ -109,8 +109,6 @@ public class Event {
     @Column(nullable = false)
     private Boolean hasSeatMap = true;
 
-    @Column(length = 500)
-    private String seatMapBgUrl;
 
     @Column(columnDefinition = "TEXT")
     private String seatMapLayout;

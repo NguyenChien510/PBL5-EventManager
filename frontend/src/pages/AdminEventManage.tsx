@@ -5,8 +5,7 @@ import { adminSidebarConfig } from '../config/adminSidebarConfig';
 import { Icon, Loader } from '../components/ui';
 import { EventService } from '../services/eventService';
 import toast from 'react-hot-toast';
-import { Stage, Layer, Circle, Text, Group, Rect, Image as KonvaImage } from 'react-konva';
-import useImage from 'use-image';
+import { Stage, Layer, Circle, Text, Group, Rect } from 'react-konva';
 
 interface ManageStats {
   totalSeats: number;
@@ -64,7 +63,6 @@ const AdminEventManage = () => {
   }, [seats]);
   const [comments, setComments] = useState<any[]>([]);
   const [shapes, setShapes] = useState<any[]>([]);
-  const [bgImage] = useImage(event?.seatMapBgUrl || '');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [guestViewMode, setGuestViewMode] = useState<'list' | 'seats'>('list');
@@ -762,15 +760,6 @@ const AdminEventManage = () => {
                         <div className="w-fit mx-auto min-w-[800px] flex justify-center">
                           <Stage width={800} height={500}>
                             <Layer>
-                              {bgImage && (
-                                <KonvaImage
-                                  image={bgImage}
-                                  width={800}
-                                  height={500}
-                                  opacity={0.9}
-                                  listening={false}
-                                />
-                              )}
                               {/* Sophisticated Grid System */}
                               {Array.from({ length: 21 }).map((_, i) => (
                                 <Rect key={'v' + i} x={i * 40} y={0} width={1} height={500} fill="#1e293b" opacity={0.3} />

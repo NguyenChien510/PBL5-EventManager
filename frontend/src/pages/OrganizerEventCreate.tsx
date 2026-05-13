@@ -7,8 +7,7 @@ import { EventService } from '../services/eventService';
 import { toast } from 'react-hot-toast';
 
 import { DashboardLayout, PageHeader } from '../components/layout';
-import { Stage, Layer, Circle, Text, Group, Rect, Image as KonvaImage, Transformer } from 'react-konva';
-import useImage from 'use-image';
+import { Stage, Layer, Circle, Text, Group, Rect, Transformer } from 'react-konva';
 import { ChromePicker } from 'react-color';
 import { v4 as uuidv4 } from 'uuid';
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig';
@@ -133,9 +132,6 @@ const OrganizerEventCreate = () => {
     { id: 2, name: 'Vé VIP', price: 1200000, color: '#f59e0b', totalQuantity: 50 },
   ]);
   const [seats, setSeats] = useState<{ id: string; x: number; y: number; ticketTypeId: number; label: string }[]>([]);
-  const [seatMapBgUrl, setSeatMapBgUrl] = useState<string>('');
-  const [bgImage] = useImage(seatMapBgUrl);
-  const [isUploadingBg, setIsUploadingBg] = useState(false);
   const [activePaintTicketId, setActivePaintTicketId] = useState<number | null>(null);
   const [activeColorPicker, setActiveColorPicker] = useState<number | null>(null);
 
@@ -195,30 +191,14 @@ const OrganizerEventCreate = () => {
     }
   };
 
-  const handleBgImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      setIsUploadingBg(true);
-      const data = await EventService.uploadImage(file);
-      setSeatMapBgUrl(data.url);
-    } catch (err) {
-      console.error("Upload failed", err);
-      alert("Tải ảnh nền thất bại. Vui lòng thử lại.");
-    } finally {
-      setIsUploadingBg(false);
-    }
-  };
-
   const saveLayoutToTemplateSlot = (templateIndex: number) => {
-    if (shapes.length === 0 && seats.length === 0 && !seatMapBgUrl) {
+    if (shapes.length === 0 && seats.length === 0) {
       toast.error("Sơ đồ hiện đang trống, không có gì để lưu.");
       return;
     }
-    const data = { shapes, seats, seatMapBgUrl };
+    const data = { shapes, seats };
     localStorage.setItem(`custom_floor_template_${templateIndex}`, JSON.stringify(data));
-    toast.success(`💾 Đã lưu đè sơ đồ & Ảnh nền hiện tại vào Mẫu ${templateIndex}! Mẫu này sẽ được tải ra khi bạn nhấn nút lần tới.`, { icon: '💾' });
+    toast.success(`💾 Đã lưu đè sơ đồ hiện tại vào Mẫu ${templateIndex}! Mẫu này sẽ được tải ra khi bạn nhấn nút lần tới.`, { icon: '💾' });
   };
 
   const applyLayoutTemplate = (templateIndex: number) => {
@@ -232,8 +212,7 @@ const OrganizerEventCreate = () => {
         if (parsed.shapes) {
           setShapes(parsed.shapes);
           if (parsed.seats) setSeats(parsed.seats);
-          if (parsed.seatMapBgUrl !== undefined) setSeatMapBgUrl(parsed.seatMapBgUrl || '');
-          toast.success(`✨ Đã áp dụng Mẫu sơ đồ ${templateIndex} (Bao gồm Ảnh nền & Khối hình)!`);
+          toast.success(`✨ Đã áp dụng Mẫu sơ đồ ${templateIndex} (Bao gồm Khối hình & Ghế)!`);
           return;
         }
       } catch (err) {
@@ -350,168 +329,6 @@ const OrganizerEventCreate = () => {
 
     setShapes(newShapes);
   }
-
-  // --- AUTO SEAT DETECTION ALGORITHMS (CLIENT-SIDE COMPUTER VISION) ---
-  const [isDetecting, setIsDetecting] = useState(false);
-
-  const hexToRgb = (hex: string) => {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16)
-    } : null;
-  };
-
-  const colorDistance = (c1: { r: number, g: number, b: number }, r2: number, g2: number, b2: number) => {
-    return Math.sqrt(Math.pow(c1.r - r2, 2) + Math.pow(c1.g - g2, 2) + Math.pow(c1.b - b2, 2));
-  };
-
-  const handleAutoDetectSeats = async () => {
-    if (!seatMapBgUrl) {
-      alert("Vui lòng tải ảnh sơ đồ nền lên trước khi thực hiện dò tự động!");
-      return;
-    }
-
-    try {
-      setIsDetecting(true);
-
-      // 1. Preload standard browser Image instance to draw on offscreen canvas
-      const img = new window.Image();
-      img.crossOrigin = "anonymous"; // Highly critical to prevent security exceptions on external hosting
-      img.src = seatMapBgUrl;
-
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = () => reject(new Error("Failed to load blueprint image."));
-      });
-
-      // 2. Create offscreen canvas matching our stage coordinate boundaries exactly
-      const canvas = document.createElement('canvas');
-      canvas.width = 800;
-      canvas.height = 500;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error("Unable to initialize HTML5 2D Context.");
-
-      // Render the uploaded blueprint to extract pixel matrices
-      ctx.drawImage(img, 0, 0, 800, 500);
-      const imgData = ctx.getImageData(0, 0, 800, 500);
-      const pixels = imgData.data;
-
-      // 3. Extract target ticket type colors
-      const colorMappings = ticketTypes.map(t => ({
-        id: t.id,
-        rgb: hexToRgb(t.color),
-        name: t.name
-      })).filter(t => t.rgb !== null) as { id: number, rgb: { r: number, g: number, b: number }, name: string }[];
-
-      if (colorMappings.length === 0) {
-        alert("Vui lòng cấu hình bảng màu hợp lệ cho ít nhất 1 Hạng Vé!");
-        return;
-      }
-
-      // 4. Scan pixel matrix using sparse grid step of 2 for performance & noise reduction
-      const matchedCoordinates: { x: number, y: number, ticketTypeId: number }[] = [];
-      const matchTolerance = 80; // Balance between noise reduction and color deviation
-
-      for (let y = 0; y < 500; y += 2) {
-        for (let x = 0; x < 800; x += 2) {
-          const offset = (y * 800 + x) * 4;
-          const r = pixels[offset];
-          const g = pixels[offset + 1];
-          const b = pixels[offset + 2];
-          const a = pixels[offset + 3];
-
-          // Ignore near-white (background), near-black (borders) or fully transparent
-          if (a < 50 || (r > 235 && g > 235 && b > 235) || (r < 20 && g < 20 && b < 20)) continue;
-
-          let bestTicketTypeId: number | null = null;
-          let smallestDist = matchTolerance;
-
-          for (const mapItem of colorMappings) {
-            const d = colorDistance(mapItem.rgb, r, g, b);
-            if (d < smallestDist) {
-              smallestDist = d;
-              bestTicketTypeId = mapItem.id;
-            }
-          }
-
-          if (bestTicketTypeId !== null) {
-            matchedCoordinates.push({ x, y, ticketTypeId: bestTicketTypeId });
-          }
-        }
-      }
-
-      // 5. K-Means style grouping/averaging to define distinct visual centroids
-      const clusterCentroids: { x: number, y: number, ticketTypeId: number, weight: number }[] = [];
-      const clusterRadius = 14; // Approximates typical minimum circular seat spacing
-
-      for (const pt of matchedCoordinates) {
-        let merged = false;
-
-        for (let i = 0; i < clusterCentroids.length; i++) {
-          const centroid = clusterCentroids[i];
-          if (centroid.ticketTypeId === pt.ticketTypeId) {
-            const radialDist = Math.sqrt(Math.pow(centroid.x - pt.x, 2) + Math.pow(centroid.y - pt.y, 2));
-            if (radialDist < clusterRadius) {
-              // Increment weight and recalculate centroid using cumulative moving average
-              const newWeight = centroid.weight + 1;
-              centroid.x = (centroid.x * centroid.weight + pt.x) / newWeight;
-              centroid.y = (centroid.y * centroid.weight + pt.y) / newWeight;
-              centroid.weight = newWeight;
-              merged = true;
-              break;
-            }
-          }
-        }
-
-        if (!merged) {
-          clusterCentroids.push({ x: pt.x, y: pt.y, ticketTypeId: pt.ticketTypeId, weight: 1 });
-        }
-      }
-
-      // Minimum weight threshold to discard single-pixel static/noise
-      const filteredCentroids = clusterCentroids.filter(c => c.weight > 2);
-
-      if (filteredCentroids.length === 0) {
-        alert("❌ Không tìm thấy cụm màu nào khớp!\nMẹo: Bạn cần chỉnh mã màu của 'Hạng Vé' trong bảng công cụ khớp với màu sắc thật của các chấm tròn trên ảnh sơ đồ nhé.");
-        return;
-      }
-
-      // 6. Process extracted centroids to reactive seat node payload
-      const dynamicCounts: Record<number, number> = {};
-      const generatedSeats = filteredCentroids.map(node => {
-        if (!dynamicCounts[node.ticketTypeId]) dynamicCounts[node.ticketTypeId] = 0;
-        dynamicCounts[node.ticketTypeId]++;
-
-        const matchedType = ticketTypes.find(t => t.id === node.ticketTypeId);
-        const labelPrefix = matchedType?.name.substring(0, 1).toUpperCase() || 'S';
-
-        return {
-          id: uuidv4(),
-          x: Math.round(node.x),
-          y: Math.round(node.y),
-          ticketTypeId: node.ticketTypeId,
-          label: `${labelPrefix}${dynamicCounts[node.ticketTypeId]}`
-        };
-      });
-
-      // 7. Present results and prompt confirmation before state overwrite
-      const confirmMsg = seats.length > 0
-        ? `Bạn đang có ${seats.length} ghế hiện tại. Bạn có muốn XÓA HẾT để thay bằng ${generatedSeats.length} ghế vừa tự động quét được không?`
-        : `Quét sơ đồ thành công! Tự động phát hiện được ${generatedSeats.length} ghế khớp với mã màu vé. Bạn có đồng ý lưu vào sơ đồ không?`;
-
-      if (window.confirm(confirmMsg)) {
-        setSeats(generatedSeats);
-      }
-
-    } catch (err) {
-      console.error("Auto-detection pipeline failed:", err);
-      alert("Quá trình phân tích ảnh gặp lỗi. Vui lòng sử dụng ảnh sơ đồ có định dạng JPEG/PNG tiêu chuẩn.");
-    } finally {
-      setIsDetecting(false);
-    }
-  };
 
 
   // Keep wizard UX consistent: each step starts from top
@@ -821,7 +638,6 @@ const OrganizerEventCreate = () => {
         provinceId: selectedProvince?.id,
         wardId: selectedWard?.id,
         posterUrl,
-        seatMapBgUrl,
         sessions: sessions.map(s => ({
           sessionDate: s.sessionDate,
           startTime: s.startTime,
@@ -1582,7 +1398,7 @@ const OrganizerEventCreate = () => {
                             <button
                               type="button"
                               onClick={() => {
-                                const layoutData = { shapes, seats, seatMapBgUrl };
+                                const layoutData = { shapes, seats };
                                 const dataStr = JSON.stringify(layoutData, null, 2);
 
                                 // Download json file
@@ -1988,15 +1804,6 @@ const OrganizerEventCreate = () => {
                                 }}
                               >
                                 <Layer>
-                                  {bgImage && (
-                                    <KonvaImage
-                                      image={bgImage}
-                                      width={800}
-                                      height={500}
-                                      opacity={0.95}
-                                      listening={false}
-                                    />
-                                  )}
                                   {Array.from({ length: 20 }).map((_, i) => (
                                     <Rect key={'v' + i} x={i * 40} y={0} width={1} height={500} fill="#1e293b" opacity={0.3} />
                                   ))}

@@ -30,7 +30,6 @@ public class EventResponseDTO {
     private Integer totalTickets;
     private Integer ticketsLeft;
     private Boolean hasSeatMap;
-    private String seatMapBgUrl;
     private String seatMapLayout;
 
     
