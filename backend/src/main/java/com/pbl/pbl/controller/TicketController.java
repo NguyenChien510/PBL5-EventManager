@@ -32,7 +32,7 @@ public class TicketController {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        List<Ticket> tickets = ticketRepository.findByUser_Id(user.getId());
+        List<Ticket> tickets = ticketRepository.findByUserIdWithDetails(user.getId());
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm, dd 'Th'MM");
 
         List<TicketResponseDTO> dtos = tickets.stream().map(ticket -> {

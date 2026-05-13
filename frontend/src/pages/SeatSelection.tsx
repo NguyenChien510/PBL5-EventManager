@@ -5,7 +5,8 @@ import { EventService } from '../services/eventService'
 import { apiClient } from '../utils/axios'
 import { useAuthStore } from '../stores/useAuthStore'
 import { toast } from 'react-hot-toast'
-import { Stage, Layer, Circle, Text, Group } from 'react-konva'
+import { Stage, Layer, Circle, Text, Group, Rect, Image as KonvaImage } from 'react-konva'
+import useImage from 'use-image'
 
 const paymentMethods = [
   { id: 'momo', label: 'Ví MoMo', logo: 'https://developers.momo.vn/v3/assets/images/MOMO-Logo-App-6262c3743a290ef02396a24ea2b66c35.png', color: 'bg-accent-pink' },
@@ -16,17 +17,20 @@ const SeatSelection = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [event, setEvent] = useState<any>(null);
+  const [ticketTypes, setTicketTypes] = useState<any[]>([]);
   const [seats, setSeats] = useState<any[]>([]);
+  const [shapes, setShapes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const { user } = useAuthStore();
-  
+
   // For mapped seats
   const [selectedSeatIds, setSelectedSeatIds] = useState<number[]>([])
-  
+
   // For GA/No map seats
-  const [quantities, setQuantities] = useState<{[typeName: string]: number}>({})
+  const [quantities, setQuantities] = useState<{ [typeName: string]: number }>({})
+  const [activeZonePick, setActiveZonePick] = useState<any>(null);
 
   const [activePayment, setActivePayment] = useState('momo')
 
@@ -34,6 +38,45 @@ const SeatSelection = () => {
   const [stageScale, setStageScale] = useState(1);
   const [stagePosition, setStagePosition] = useState({ x: 0, y: 0 });
   const stageRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 500 });
+  const [isCtrlPressed, setIsCtrlPressed] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Control' || e.metaKey) {
+        setIsCtrlPressed(true);
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Control' || (!e.metaKey && e.key === 'Meta')) {
+        setIsCtrlPressed(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      const resizeObserver = new ResizeObserver((entries) => {
+        for (let entry of entries) {
+          setDimensions({
+            width: entry.contentRect.width,
+            height: entry.contentRect.height,
+          });
+        }
+      });
+      resizeObserver.observe(containerRef.current);
+      return () => resizeObserver.disconnect();
+    }
+  }, [loading]); // Only start observing when the DOM might render it
+  const [bgImage] = useImage(event?.seatMapBgUrl || '');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -42,12 +85,21 @@ const SeatSelection = () => {
         return;
       }
       try {
-        const [eventData, seatsData] = await Promise.all([
+        const [eventData, seatsData, ticketsData] = await Promise.all([
           EventService.getEventById(id),
-          EventService.getEventSeats(id)
+          EventService.getEventSeats(id),
+          EventService.getEventTicketTypes(id)
         ]);
         setEvent(eventData);
         setSeats(seatsData || []);
+        setTicketTypes(ticketsData || []);
+        if (eventData.seatMapLayout) {
+          try {
+            setShapes(JSON.parse(eventData.seatMapLayout));
+          } catch (e) {
+            console.error("Failed parsing seatMapLayout", e);
+          }
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -84,8 +136,8 @@ const SeatSelection = () => {
   const legendItems = useMemo(() => {
     const unique = new Map();
     seats.forEach(s => {
-      if(!unique.has(s.ticketTypeName)) {
-         unique.set(s.ticketTypeName, { name: s.ticketTypeName, color: s.color || '#6366f1'});
+      if (!unique.has(s.ticketTypeName)) {
+        unique.set(s.ticketTypeName, { name: s.ticketTypeName, color: s.color || '#6366f1' });
       }
     });
     return Array.from(unique.values());
@@ -106,7 +158,7 @@ const SeatSelection = () => {
     };
 
     const newScale = e.evt.deltaY < 0 ? oldScale * scaleBy : oldScale / scaleBy;
-    
+
     // Limit scaling
     if (newScale < 0.5 || newScale > 3) return;
 
@@ -119,7 +171,7 @@ const SeatSelection = () => {
 
   const toggleSeat = (seat: any) => {
     if (seat.status !== 'AVAILABLE') return;
-    
+
     setSelectedSeatIds((prev) =>
       prev.includes(seat.id) ? prev.filter((sid) => sid !== seat.id) : [...prev, seat.id]
     )
@@ -135,15 +187,28 @@ const SeatSelection = () => {
 
   // Derived current total selection
   const hasSeatMap = event?.hasSeatMap === true;
-  
+
   let finalSelectedSeatIds: number[] = [];
   let finalSeatObjects: any[] = [];
 
   if (hasSeatMap) {
+    // 1. Physical mapped seats
     finalSeatObjects = seats.filter(s => selectedSeatIds.includes(s.id));
+
+    // 2. Area-based ticket quantities (Zone Boxes / GA)
+    groupedTickets.forEach(group => {
+      const qty = quantities[group.name] || 0;
+      if (qty > 0) {
+        // Filter available seats of this type that haven't been picked physically
+        const unpickedAvailable = group.availableSeats.filter((s: any) => !finalSeatObjects.some(so => so.id === s.id));
+        const toPick = unpickedAvailable.slice(0, qty);
+        finalSeatObjects = [...finalSeatObjects, ...toPick];
+      }
+    });
+
     finalSelectedSeatIds = finalSeatObjects.map(s => s.id);
   } else {
-    // Aggregate from quantities
+    // Aggregate from quantities only
     groupedTickets.forEach(group => {
       const qty = quantities[group.name] || 0;
       const toPick = group.availableSeats.slice(0, qty);
@@ -186,6 +251,226 @@ const SeatSelection = () => {
     }
   };
 
+  const memoizedLayerContent = useMemo(() => {
+    return (
+      <Layer>
+        {bgImage && (
+          <KonvaImage
+            image={bgImage}
+            width={800}
+            height={500}
+            listening={false}
+          />
+        )}
+
+        {shapes.map((shape, shapeIdx) => {
+          if (shape.type === 'rect') {
+            const isInteractive = !!shape.ticketTypeId;
+            // Map shape.ticketTypeId to actual ticket type
+            // Note: Handle ID mismatch between local template creation (1, 2, 3...) and DB IDs (54, 55, 56...)
+            let targetTt = ticketTypes?.find((t: any) => String(t.id) === String(shape.ticketTypeId));
+            if (!targetTt && ticketTypes && ticketTypes.length > 0 && !isNaN(Number(shape.ticketTypeId)) && Number(shape.ticketTypeId) <= 50) {
+              const sortedTypes = [...ticketTypes].sort((a: any, b: any) => a.id - b.id);
+              const ttIdx = Number(shape.ticketTypeId) - 1;
+              if (ttIdx >= 0 && ttIdx < sortedTypes.length) {
+                targetTt = sortedTypes[ttIdx];
+              }
+            }
+            const groupInfo = groupedTickets.find(g => g.name === targetTt?.name);
+            const availableCount = groupInfo?.availableSeats?.length || 0;
+            const currentQty = targetTt ? (quantities[targetTt.name] || 0) : 0;
+
+            return (
+              <Group
+                key={shape.id || `shape-${shapeIdx}`}
+                x={shape.x}
+                y={shape.y}
+                rotation={shape.rotation || 0}
+                onClick={(e) => {
+                  e.cancelBubble = true;
+                  console.log('[SeatSelection] Zone clicked:', { shapeId: shape.id, ticketTypeId: shape.ticketTypeId, isInteractive, targetTtId: targetTt?.id, targetTtName: targetTt?.name, availableCount });
+                  if (isInteractive && targetTt) {
+                    setActiveZonePick({
+                      ticketTypeId: targetTt.id,
+                      name: targetTt.name,
+                      available: availableCount
+                    });
+                  }
+                }}
+                onTap={(e) => {
+                  e.cancelBubble = true;
+                  if (isInteractive && targetTt) {
+                    setActiveZonePick({
+                      ticketTypeId: targetTt.id,
+                      name: targetTt.name,
+                      available: availableCount
+                    });
+                  }
+                }}
+                onMouseEnter={(e) => {
+                  if (isInteractive) {
+                    const container = e.target.getStage()?.container();
+                    if (container) container.style.cursor = 'pointer';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  const container = e.target.getStage()?.container();
+                  if (container) container.style.cursor = '';
+                }}
+              >
+                <Rect
+                  x={0}
+                  y={0}
+                  width={shape.width}
+                  height={shape.height}
+                  fill={shape.fill || '#cbd5e1'}
+                  stroke={isInteractive ? (currentQty > 0 ? '#ffffff' : '#6366f1') : 'transparent'}
+                  strokeWidth={isInteractive ? (currentQty > 0 ? 3 : 1.5) : 0}
+                  dash={isInteractive && currentQty === 0 ? [5, 3] : undefined}
+                  opacity={shape.opacity !== undefined ? shape.opacity : (isInteractive ? 0.6 : 0.8)}
+                  cornerRadius={6}
+                  shadowColor={isInteractive && currentQty > 0 ? (shape.fill || '#6366f1') : 'transparent'}
+                  shadowBlur={currentQty > 0 ? 15 : 0}
+                  shadowOpacity={0.8}
+                />
+                {(shape.labelText || isInteractive) && (
+                  <Text
+                    x={4}
+                    y={0}
+                    width={shape.width - 8}
+                    height={shape.height}
+                    text={
+                      isInteractive && targetTt
+                        ? `${shape.labelText || targetTt.name}\n(${availableCount} trống)\n${currentQty > 0 ? `★ CHỌN: ${currentQty}` : 'BẤM ĐỂ CHỌN'}`
+                        : (shape.labelText || '')
+                    }
+                    fontSize={Math.max(7, Math.min(13, shape.height / (isInteractive ? 4.5 : 3.5)))}
+                    fontStyle="bold"
+                    fill="#ffffff"
+                    align="center"
+                    verticalAlign="middle"
+                    listening={false}
+                    wrap="word"
+                    ellipsis={true}
+                    shadowColor="rgba(0,0,0,0.8)"
+                    shadowBlur={3}
+                    shadowOpacity={1}
+                    shadowOffset={{ x: 1, y: 1 }}
+                  />
+                )}
+              </Group>
+            );
+          } else if (shape.type === 'text') {
+            return (
+              <Text
+                key={shape.id}
+                x={shape.x}
+                y={shape.y}
+                text={shape.text || ''}
+                fontSize={shape.fontSize || 16}
+                fill={shape.fill || '#475569'}
+                fontStyle="bold"
+                rotation={shape.rotation || 0}
+                listening={false}
+              />
+            );
+          }
+          return null;
+        })}
+
+        {seats.filter((s: any) => Number(s.x) > 0 && Number(s.y) > 0).map((seat) => {
+          const isSelected = selectedSeatIds.includes(seat.id);
+          const isAvailable = seat.status === 'AVAILABLE';
+
+          // Map seat.ticketTypeId to actual DB IDs
+          let targetTt = ticketTypes?.find((t: any) => String(t.id) === String(seat.ticketTypeId));
+          if (!targetTt && ticketTypes && ticketTypes.length > 0 && !isNaN(Number(seat.ticketTypeId)) && Number(seat.ticketTypeId) <= 50) {
+            const sortedTypes = [...ticketTypes].sort((a: any, b: any) => a.id - b.id);
+            const idx = Number(seat.ticketTypeId) - 1;
+            if (idx >= 0 && idx < sortedTypes.length) {
+              targetTt = sortedTypes[idx];
+            }
+          }
+
+          // Styling variables
+          let fillColor = targetTt?.color || seat.color || '#6366f1';
+          let strokeColor = 'transparent';
+          let strokeWidth = 0;
+          let opacity = 1;
+
+          if (!isAvailable) {
+            fillColor = '#e2e8f0'; // gray
+            opacity = 0.6;
+          } else if (isSelected) {
+            strokeColor = '#1e293b';
+            strokeWidth = 2.5;
+            // Keep vibrant fill but with intense stroke
+          }
+
+          return (
+            <Group
+              key={seat.id}
+              x={seat.x || 100}
+              y={seat.y || 100}
+              onClick={(e) => {
+                e.cancelBubble = true;
+                toggleSeat(seat);
+              }}
+              onTap={(e) => {
+                e.cancelBubble = true;
+                toggleSeat(seat);
+              }}
+              style={{ cursor: isAvailable ? 'pointer' : 'not-allowed' }}
+              onMouseEnter={(e) => {
+                if (isAvailable) {
+                  const container = e.target.getStage()?.container();
+                  if (container) container.style.cursor = 'pointer';
+                }
+              }}
+              onMouseLeave={(e) => {
+                const container = e.target.getStage()?.container();
+                if (container) container.style.cursor = '';
+              }}
+            >
+              <Circle
+                radius={15}
+                fill={fillColor}
+                stroke={strokeColor}
+                strokeWidth={strokeWidth}
+                opacity={opacity}
+                shadowColor="black"
+                shadowBlur={isSelected ? 10 : 2}
+                shadowOpacity={isSelected ? 0.3 : 0.1}
+                shadowOffset={{ x: 0, y: 2 }}
+              />
+              {/* Checkmark icon overlay if selected */}
+              {isSelected && (
+                <Circle
+                  radius={5}
+                  fill="#ffffff"
+                  x={0}
+                  y={0}
+                />
+              )}
+              <Text
+                text={seat.seatNumber}
+                fontSize={8}
+                fontStyle="bold"
+                fill={isAvailable ? "#ffffff" : "#94a3b8"}
+                align="center"
+                verticalAlign="middle"
+                x={-15}
+                y={-4}
+                width={30}
+                listening={false}
+              />
+            </Group>
+          );
+        })}
+      </Layer>
+    );
+  }, [bgImage, shapes, ticketTypes, groupedTickets, quantities, selectedSeatIds, seats]);
+
   return (
     <div className="min-h-screen bg-background-light font-display">
       {/* Header */}
@@ -219,201 +504,187 @@ const SeatSelection = () => {
                 <span className="text-xs uppercase tracking-widest">Quay lại sự kiện</span>
               </button>
 
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-6">
                 <div>
-                  <h2 className="text-2xl font-black mb-1">
+                  <h2 className="text-3xl font-black tracking-tight text-slate-900 mb-1">
                     {hasSeatMap ? 'Sơ đồ vị trí' : 'Chọn loại vé'}
                   </h2>
-                  <p className="text-sm text-slate-500 font-medium">
-                    {hasSeatMap ? 'Vui lòng chọn ghế yêu thích của bạn trên bản đồ.' : 'Vui lòng nhập số lượng vé bạn muốn mua.'}
+                  <p className="text-sm text-slate-500 font-medium flex items-center gap-1.5">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                    {hasSeatMap ? 'Chọn vị trí của bạn trên bản đồ 3D trực quan.' : 'Vui lòng nhập số lượng vé mong muốn.'}
                   </p>
                 </div>
-                {/* Legend */}
-                <div className="flex flex-wrap gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  {legendItems.map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-1.5">
-                      <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: item.color }}></div>
-                      <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">{item.name}</span>
+
+                {/* Dynamic Premium Legend */}
+                {hasSeatMap && (
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-3.5 p-4.5 bg-slate-50/80 backdrop-blur border border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-sm">
+                    {legendItems.map((item, idx) => (
+                      <div key={idx} className="flex items-center gap-2.5 group cursor-default">
+                        <div className="w-3 h-3 rounded-full shadow-sm transition-transform group-hover:scale-110" style={{ backgroundColor: item.color || '#3b82f6', boxShadow: `0 0 8px ${item.color || '#3b82f6'}50` }} />
+                        <span className="text-slate-600">{item.name}</span>
+                      </div>
+                    ))}
+                    <div className="w-px h-3.5 bg-slate-200/70 mx-1 hidden sm:block" />
+                    <div className="flex items-center gap-2.5 text-slate-400 opacity-75">
+                      <div className="w-3 h-3 rounded-full bg-slate-200 border border-slate-300/20" />
+                      <span>Đã bán / Đã khóa</span>
                     </div>
-                  ))}
-                  <div className="h-3 w-px bg-slate-200 mx-1"></div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-slate-200 flex items-center justify-center"></div>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Đã bán</span>
                   </div>
-                </div>
+                )}
               </div>
 
               {loading ? (
-                <div className="flex-grow flex flex-col items-center justify-center p-12 text-slate-500 italic">
-                  <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mb-4"></div>
-                  <p className="font-medium">Đang tải thông tin vé...</p>
+                <div className="flex-grow flex flex-col items-center justify-center p-16 text-slate-400 italic">
+                  <div className="animate-spin w-10 h-10 border-[3px] border-slate-200 border-t-primary rounded-full mb-4 shadow-sm"></div>
+                  <p className="font-semibold text-sm uppercase tracking-widest">Đang tải dữ liệu ghế...</p>
                 </div>
               ) : (
                 <div className="flex-grow flex flex-col">
                   {hasSeatMap ? (
                     /* --- RENDER SEAT MAP (KONVA) --- */
                     <>
-                       <div className="mb-4 bg-slate-900/5 text-slate-600 p-2 px-4 rounded-lg text-xs font-bold flex items-center gap-2">
-                         <Icon name="info" size="xs" />
-                         <span>Dùng chuột lăn để phóng to/thu nhỏ, nhấp và kéo để di chuyển bản đồ.</span>
-                       </div>
-                       
-                       <div className="flex-grow relative bg-[#f8fafc] rounded-2xl border-2 border-dashed border-slate-200 overflow-hidden cursor-grab active:cursor-grabbing select-none" style={{ height: '500px' }}>
-                          
-                          {/* Simple Stage visual marker */}
-                          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center pointer-events-none">
-                            <div className="px-6 py-1 bg-slate-800 text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-lg border border-slate-700">
-                               Sân Khấu
+
+                      {/* Immersive Dark Stage Canvas Viewport */}
+                      <div ref={containerRef} className={`flex-grow relative bg-[#0f172a] rounded-[2.5rem] overflow-hidden select-none border-8 border-slate-900 shadow-[0_25px_60px_-15px_rgba(15,23,42,0.3)] flex flex-col transition-all hover:shadow-[0_30px_70px_-12px_rgba(15,23,42,0.4)] ${isCtrlPressed ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`} style={{ height: '550px' }}>
+
+                        {/* Premium Header overlay for Stage marker */}
+                        <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-10 pointer-events-none select-none flex flex-col items-center gap-2">
+                          <div className="relative bg-slate-800/90 backdrop-blur-md text-slate-300 px-10 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] border border-slate-700/50 shadow-xl overflow-hidden flex items-center justify-center">
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-30" />
+                            Sân Khấu / Stage
+                          </div>
+                        </div>
+
+                        <Stage
+                          width={dimensions.width}
+                          height={dimensions.height}
+                          ref={stageRef}
+                          draggable={isCtrlPressed}
+                          scaleX={stageScale}
+                          scaleY={stageScale}
+                          x={stagePosition.x}
+                          y={stagePosition.y}
+                          onWheel={handleWheel}
+                          onDragEnd={(e) => {
+                            if (e.target === e.target.getStage()) {
+                              setStagePosition({ x: e.target.x(), y: e.target.y() });
+                            }
+                          }}
+                          style={{ width: '100%', height: '100%', background: '#0f172a' }}
+                        >
+                          {memoizedLayerContent}
+                        </Stage>
+
+                        {/* --- FLOATING ZONE PICKER OVERLAY --- */}
+                        {activeZonePick && (
+                          <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-xs z-20 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 border border-slate-100 transform animate-scale-up">
+                              <div className="flex justify-between items-start mb-4">
+                                <div>
+                                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Đặt vé cho khu vực</h4>
+                                  <h3 className="text-lg font-black text-slate-900 mt-0.5">{activeZonePick.name}</h3>
+                                </div>
+                                <button
+                                  onClick={() => setActiveZonePick(null)}
+                                  className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center transition-colors font-bold text-xs"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+
+                              <div className="mb-6 flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                <div className="flex flex-col">
+                                  <span className="text-[10px] text-slate-400 font-bold">SỨC CHỨA CÒN LẠI</span>
+                                  <span className="text-sm text-emerald-600 font-black leading-tight">{activeZonePick.available} chỗ</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => updateQuantity(activeZonePick.name, -1, activeZonePick.available)}
+                                    disabled={(quantities[activeZonePick.name] || 0) <= 0}
+                                    className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 font-black text-lg disabled:opacity-40 hover:border-primary hover:text-primary active:scale-95 transition-all shadow-sm"
+                                  >
+                                    -
+                                  </button>
+                                  <span className="w-8 text-center font-black text-xl text-slate-800">
+                                    {quantities[activeZonePick.name] || 0}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateQuantity(activeZonePick.name, 1, activeZonePick.available)}
+                                    disabled={(quantities[activeZonePick.name] || 0) >= activeZonePick.available}
+                                    className="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center font-black text-lg disabled:opacity-40 hover:bg-primary/90 active:scale-95 transition-all shadow-sm"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => setActiveZonePick(null)}
+                                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs tracking-wide shadow-lg active:scale-[0.98] transition-all"
+                              >
+                                Xác nhận
+                              </button>
                             </div>
                           </div>
-
-                          <Stage
-                            width={800}
-                            height={500}
-                            ref={stageRef}
-                            draggable
-                            scaleX={stageScale}
-                            scaleY={stageScale}
-                            x={stagePosition.x}
-                            y={stagePosition.y}
-                            onWheel={handleWheel}
-                            onDragEnd={(e) => {
-                              setStagePosition({ x: e.target.x(), y: e.target.y() });
-                            }}
-                            style={{ width: '100%', height: '100%' }}
-                          >
-                            <Layer>
-                              {seats.map((seat) => {
-                                const isSelected = selectedSeatIds.includes(seat.id);
-                                const isAvailable = seat.status === 'AVAILABLE';
-                                
-                                // Styling variables
-                                let fillColor = seat.color || '#6366f1';
-                                let strokeColor = 'transparent';
-                                let strokeWidth = 0;
-                                let opacity = 1;
-                                
-                                if (!isAvailable) {
-                                  fillColor = '#e2e8f0'; // gray
-                                  opacity = 0.6;
-                                } else if (isSelected) {
-                                  strokeColor = '#1e293b';
-                                  strokeWidth = 2.5;
-                                  // Keep vibrant fill but with intense stroke
-                                }
-
-                                return (
-                                  <Group
-                                    key={seat.id}
-                                    x={seat.x || 100}
-                                    y={seat.y || 100}
-                                    onClick={() => toggleSeat(seat)}
-                                    onTap={() => toggleSeat(seat)}
-                                    style={{ cursor: isAvailable ? 'pointer' : 'not-allowed' }}
-                                    onMouseEnter={(e) => {
-                                      if(isAvailable) {
-                                        const container = e.target.getStage()?.container();
-                                        if(container) container.style.cursor = 'pointer';
-                                      }
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      const container = e.target.getStage()?.container();
-                                      if(container) container.style.cursor = 'grab';
-                                    }}
-                                  >
-                                    <Circle
-                                      radius={15}
-                                      fill={fillColor}
-                                      stroke={strokeColor}
-                                      strokeWidth={strokeWidth}
-                                      opacity={opacity}
-                                      shadowColor="black"
-                                      shadowBlur={isSelected ? 10 : 2}
-                                      shadowOpacity={isSelected ? 0.3 : 0.1}
-                                      shadowOffset={{ x: 0, y: 2 }}
-                                    />
-                                    {/* Checkmark icon overlay if selected */}
-                                    {isSelected && (
-                                      <Circle
-                                         radius={5}
-                                         fill="#ffffff"
-                                         x={0}
-                                         y={0}
-                                      />
-                                    )}
-                                    <Text
-                                      text={seat.seatNumber}
-                                      fontSize={8}
-                                      fontStyle="bold"
-                                      fill={isAvailable ? "#ffffff" : "#94a3b8"}
-                                      align="center"
-                                      verticalAlign="middle"
-                                      x={-15}
-                                      y={-4}
-                                      width={30}
-                                      listening={false}
-                                    />
-                                  </Group>
-                                );
-                              })}
-                            </Layer>
-                          </Stage>
-                       </div>
+                        )}
+                      </div>
                     </>
                   ) : (
                     /* --- RENDER QUANTITY LIST (NO MAP) --- */
                     <div className="flex-grow flex flex-col gap-4">
-                       {groupedTickets.length === 0 ? (
-                         <div className="p-12 border-2 border-dashed border-slate-200 rounded-2xl text-center text-slate-500 font-bold">
-                            Chưa có thông tin vé cho sự kiện này.
-                         </div>
-                       ) : (
-                         groupedTickets.map((group, idx) => {
-                           const currentQty = quantities[group.name] || 0;
-                           const remaining = group.availableSeats.length;
-                           const isSoldOut = remaining === 0;
+                      {groupedTickets.length === 0 ? (
+                        <div className="p-12 border-2 border-dashed border-slate-200 rounded-2xl text-center text-slate-500 font-bold">
+                          Chưa có thông tin vé cho sự kiện này.
+                        </div>
+                      ) : (
+                        groupedTickets.map((group, idx) => {
+                          const currentQty = quantities[group.name] || 0;
+                          const remaining = group.availableSeats.length;
+                          const isSoldOut = remaining === 0;
 
-                           return (
-                             <div key={idx} className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex items-center justify-between transition-all hover:border-primary/30 hover:shadow-md">
-                               <div className="flex items-center gap-4">
-                                 <div className="w-3 h-12 rounded-full" style={{ backgroundColor: group.color }}></div>
-                                 <div>
-                                   <h3 className="text-lg font-extrabold text-slate-800">{group.name}</h3>
-                                   <p className="text-primary font-black text-xl mt-1">
-                                     {new Intl.NumberFormat('vi-VN').format(group.price)} <span className="text-sm font-bold text-slate-400">VNĐ</span>
-                                   </p>
-                                   <div className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200">
-                                     {isSoldOut ? 'Hết vé' : `Còn trống ${remaining}/${group.totalSeats}`}
-                                   </div>
-                                 </div>
-                               </div>
+                          return (
+                            <div key={idx} className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex items-center justify-between transition-all hover:border-primary/30 hover:shadow-md">
+                              <div className="flex items-center gap-4">
+                                <div className="w-3 h-12 rounded-full" style={{ backgroundColor: group.color }}></div>
+                                <div>
+                                  <h3 className="text-lg font-extrabold text-slate-800">{group.name}</h3>
+                                  <p className="text-primary font-black text-xl mt-1">
+                                    {new Intl.NumberFormat('vi-VN').format(group.price)} <span className="text-sm font-bold text-slate-400">VNĐ</span>
+                                  </p>
+                                  <div className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                                    {isSoldOut ? 'Hết vé' : `Còn trống ${remaining}/${group.totalSeats}`}
+                                  </div>
+                                </div>
+                              </div>
 
-                               <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-xl border border-slate-100">
-                                 <button
-                                   onClick={() => updateQuantity(group.name, -1, remaining)}
-                                   disabled={currentQty <= 0}
-                                   className="w-10 h-10 rounded-lg bg-white shadow-sm border border-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-100 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                 >
-                                   <Icon name="remove" size="sm" />
-                                 </button>
-                                 
-                                 <span className="w-8 text-center font-black text-xl text-slate-800">
-                                   {currentQty}
-                                 </span>
+                              <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                <button
+                                  onClick={() => updateQuantity(group.name, -1, remaining)}
+                                  disabled={currentQty <= 0}
+                                  className="w-10 h-10 rounded-lg bg-white shadow-sm border border-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-100 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <Icon name="remove" size="sm" />
+                                </button>
 
-                                 <button
-                                   onClick={() => updateQuantity(group.name, 1, remaining)}
-                                   disabled={currentQty >= remaining}
-                                   className="w-10 h-10 rounded-lg bg-primary text-white shadow-md shadow-primary/30 flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                 >
-                                   <Icon name="add" size="sm" />
-                                 </button>
-                               </div>
-                             </div>
-                           );
-                         })
-                       )}
+                                <span className="w-8 text-center font-black text-xl text-slate-800">
+                                  {currentQty}
+                                </span>
+
+                                <button
+                                  onClick={() => updateQuantity(group.name, 1, remaining)}
+                                  disabled={currentQty >= remaining}
+                                  className="w-10 h-10 rounded-lg bg-primary text-white shadow-md shadow-primary/30 flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <Icon name="add" size="sm" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
                   )}
                 </div>
@@ -448,23 +719,24 @@ const SeatSelection = () => {
                     </span>
                     <div className="flex flex-wrap gap-2 justify-end max-w-[60%]">
                       {finalSeatObjects.length > 0 ? (
-                        hasSeatMap ? (
-                          finalSeatObjects.map(s => (
+                        <>
+                          {/* Physical seats */}
+                          {finalSeatObjects.filter(s => selectedSeatIds.includes(s.id)).map(s => (
                             <span key={s.id} className="px-2 py-1 text-white text-xs font-black rounded-lg shadow-sm" style={{ backgroundColor: s.color || '#6366f1' }}>
                               {s.seatNumber}
                             </span>
-                          ))
-                        ) : (
-                           Object.entries(quantities).map(([name, qty]) => {
-                             if (qty <= 0) return null;
-                             const color = groupedTickets.find(g => g.name === name)?.color || '#6366f1';
-                             return (
-                               <span key={name} className="px-2 py-1 text-white text-xs font-black rounded-lg shadow-sm" style={{ backgroundColor: color }}>
-                                 {name} x{qty}
-                               </span>
-                             );
-                           })
-                        )
+                          ))}
+                          {/* Quantities (zones) */}
+                          {Object.entries(quantities).map(([name, qty]) => {
+                            if (qty <= 0) return null;
+                            const color = groupedTickets.find(g => g.name === name)?.color || '#6366f1';
+                            return (
+                              <span key={name} className="px-2 py-1 text-white text-xs font-black rounded-lg shadow-sm" style={{ backgroundColor: color }}>
+                                {name} x{qty}
+                              </span>
+                            );
+                          })}
+                        </>
                       ) : (
                         <span className="text-xs font-bold text-slate-300">Chưa chọn vé</span>
                       )}

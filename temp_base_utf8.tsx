@@ -7,11 +7,10 @@ import { Icon, Loader } from '../components/ui';
 import Avatar from '../components/ui/Avatar';
 import { EventService } from '../services/eventService';
 import toast from 'react-hot-toast';
-import { EditEventModal, ImagePreviewModal, SeatAttendeeModal, ZoneAttendeesModal } from './OrganizerEventModals';
+import { EditEventModal, ImagePreviewModal, SeatAttendeeModal } from './OrganizerEventModals';
 import { Html5Qrcode } from 'html5-qrcode';
 import { API_BASE_URL } from '../constants';
-import { Stage, Layer, Circle, Text, Group, Rect, Image as KonvaImage } from 'react-konva';
-import useImage from 'use-image';
+import { Stage, Layer, Circle, Text, Group, Rect } from 'react-konva';
 
 interface ManageStats {
     totalSeats: number;
@@ -64,15 +63,12 @@ const OrganizerEventManage = () => {
     const [seats, setSeats] = useState<any[]>([]);
     const [comments, setComments] = useState<any[]>([]);
     const [eventOrders, setEventOrders] = useState<any[]>([]);
-    const [ticketTypes, setTicketTypes] = useState<any[]>([]);
-    const [shapes, setShapes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<'ALL' | 'CHECKED_IN' | 'PENDING'>('ALL');
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [guestViewMode, setGuestViewMode] = useState<'list' | 'seats'>('list');
     const [selectedSeatInfo, setSelectedSeatInfo] = useState<Attendee | null>(null);
-    const [selectedZoneForModal, setSelectedZoneForModal] = useState<any>(null);
     const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
     const [replyTexts, setReplyTexts] = useState<Record<number, string>>({});
     const [ratingFilter, setRatingFilter] = useState<number | null>(null);
@@ -81,25 +77,6 @@ const OrganizerEventManage = () => {
     const [manualCode, setManualCode] = useState('');
     const [guestPage, setGuestPage] = useState(1);
     const itemsPerPage = 3;
-
-    const [bgImage] = useImage(event?.seatMapBgUrl || '');
-
-    const [zoneSearchQuery, setZoneSearchQuery] = useState('');
-
-    const ticketSalesBreakdown = React.useMemo(() => {
-        if (!ticketTypes) return [];
-        return ticketTypes.map((tt: any) => {
-            const sold = attendees.filter((a: any) => a.ticketTypeName === tt.name).length;
-            const total = tt.totalQuantity || 0;
-            const percentage = total > 0 ? Math.round((sold / total) * 100) : 0;
-            return {
-                ...tt,
-                sold,
-                total,
-                percentage
-            };
-        }).filter((tt: any) => tt.name.toLowerCase().includes(zoneSearchQuery.toLowerCase()));
-    }, [ticketTypes, attendees, zoneSearchQuery]);
 
     const uniqueTicketTypes = React.useMemo(() => {
         const map = new Map();
@@ -111,190 +88,19 @@ const OrganizerEventManage = () => {
         return Array.from(map.values());
     }, [seats]);
 
-    const memoizedSeatMap = React.useMemo(() => {
-        if (seats.length === 0 && shapes.length === 0 && !bgImage) {
-            return <div className="text-slate-400 py-20 italic text-sm">Đang tải sơ đồ sự kiện...</div>;
-        }
-
-        return (
-            <Stage 
-                width={800} 
-                height={500} 
-                draggable
-                onMouseEnter={(e) => {
-                    // Set to grab if not on an interactive shape
-                    if (e.target === e.target.getStage()) {
-                        const container = e.target.getStage()?.container();
-                        if (container) container.style.cursor = 'grab';
-                    }
-                }}
-                onMouseDown={(e) => {
-                    if (e.target === e.target.getStage()) {
-                        const container = e.target.getStage()?.container();
-                        if (container) container.style.cursor = 'grabbing';
-                    }
-                }}
-                onMouseUp={(e) => {
-                    const container = e.target.getStage()?.container();
-                    if (container) container.style.cursor = 'grab';
-                }}
-            >
-                <Layer>
-                    {/* Background Image if any */}
-                    {bgImage && (
-                        <KonvaImage
-                            image={bgImage}
-                            width={800}
-                            height={500}
-                            listening={false}
-                        />
-                    )}
-
-                    {/* Sophisticated Grid System */}
-                    {!bgImage && Array.from({ length: 21 }).map((_, i) => (
-                        <Rect key={'v' + i} x={i * 40} y={0} width={1} height={500} fill="#1e293b" opacity={0.3} />
-                    ))}
-                    {!bgImage && Array.from({ length: 13 }).map((_, i) => (
-                        <Rect key={'h' + i} x={0} y={i * 40} width={800} height={1} fill="#1e293b" opacity={0.3} />
-                    ))}
-
-                    {/* Render Static Shapes / Background Map Elements */}
-                    {shapes.map((shape: any) => {
-                        if (shape.type === 'rect') {
-                            const isInteractive = !!shape.ticketTypeId;
-                            const targetTt = ticketTypes?.find((t: any) => t.id === shape.ticketTypeId);
-                            const displayText = isInteractive && targetTt ? (shape.labelText || targetTt.name) : shape.labelText;
-                            return (
-                                <Group
-                                    key={shape.id}
-                                    x={shape.x}
-                                    y={shape.y}
-                                    rotation={shape.rotation || 0}
-                                >
-                                    <Rect
-                                        x={0}
-                                        y={0}
-                                        width={shape.width}
-                                        height={shape.height}
-                                        fill={shape.fill || '#cbd5e1'}
-                                        stroke={isInteractive ? '#6366f1' : 'transparent'}
-                                        strokeWidth={isInteractive ? 1.5 : 0}
-                                        dash={isInteractive ? [5, 3] : undefined}
-                                        opacity={shape.opacity !== undefined ? shape.opacity : (isInteractive ? 0.5 : 0.7)}
-                                        cornerRadius={4}
-                                    />
-                                    {displayText && (
-                                        <Text
-                                            x={2}
-                                            y={0}
-                                            width={shape.width - 4}
-                                            height={shape.height}
-                                            text={displayText}
-                                            fontSize={Math.max(8, Math.min(13, shape.height / 3.5))}
-                                            fontStyle="bold"
-                                            fill="#ffffff"
-                                            align="center"
-                                            verticalAlign="middle"
-                                            listening={false}
-                                            wrap="word"
-                                            ellipsis={true}
-                                        />
-                                    )}
-                                </Group>
-                            );
-                        } else if (shape.type === 'text') {
-                            return (
-                                <Text
-                                    key={shape.id}
-                                    x={shape.x}
-                                    y={shape.y}
-                                    text={shape.text || ''}
-                                    fontSize={shape.fontSize || 16}
-                                    fill={shape.fill || '#94a3b8'}
-                                    fontStyle="bold"
-                                    rotation={shape.rotation || 0}
-                                    listening={false}
-                                />
-                            );
-                        }
-                        return null;
-                    })}
-
-                    {/* Render Interactive Seats */}
-                    {seats.filter((s: any) => Number(s.x) > 0 && Number(s.y) > 0).map((seat: any) => {
-                        const isOccupied = seat.status !== 'AVAILABLE';
-                        const attendee = isOccupied ? attendees.find((a: any) => a.seatNumber === seat.seatNumber) : null;
-                        const isCheckedIn = isOccupied && attendee?.status === 'CHECKED_IN';
-
-                        const baseColor = seat.color || '#3b82f6';
-                        const circleFill = isCheckedIn ? '#10b981' : (isOccupied ? baseColor : 'rgba(15, 23, 42, 0.8)');
-                        const circleStroke = isCheckedIn ? '#fff' : baseColor;
-                        const shadowColor = isCheckedIn ? '#10b981' : baseColor;
-                        const textColor = isOccupied ? '#fff' : baseColor;
-
-                        return (
-                            <Group
-                                key={seat.id}
-                                x={Number(seat.x) || 0}
-                                y={Number(seat.y) || 0}
-                                onClick={() => {
-                                    if (attendee) {
-                                        setSelectedSeatInfo(attendee);
-                                    } else {
-                                        toast.dismiss();
-                                        toast(`${seat.seatNumber} - ${seat.ticketTypeName} (Đang trống)`, { icon: '🎫' });
-                                    }
-                                }}
-                                onMouseEnter={(e) => {
-                                    const container = e.target.getStage()?.container();
-                                    if (container) container.style.cursor = attendee ? 'pointer' : 'help';
-                                }}
-                                onMouseLeave={(e) => {
-                                    const container = e.target.getStage()?.container();
-                                    if (container) container.style.cursor = 'default';
-                                }}
-                            >
-                                <Circle
-                                    radius={14}
-                                    fill={circleFill}
-                                    shadowBlur={isOccupied ? 12 : 4}
-                                    shadowColor={shadowColor}
-                                    shadowOpacity={isOccupied ? 0.5 : 0.2}
-                                    stroke={circleStroke}
-                                    strokeWidth={isOccupied ? 1.5 : 2}
-                                />
-                                <Text
-                                    text={seat.seatNumber}
-                                    fontSize={seat.seatNumber.length > 2 ? 8 : 10}
-                                    fontStyle="bold"
-                                    fill={textColor}
-                                    align="center"
-                                    verticalAlign="middle"
-                                    offsetX={seat.seatNumber.length > 2 ? 7 : 5}
-                                    offsetY={5}
-                                />
-                            </Group>
-                        );
-                    })}
-                </Layer>
-            </Stage>
-        );
-    }, [bgImage, shapes, ticketTypes, seats, attendees, setSelectedSeatInfo]);
-
-
 
     const handleReply = async (commentId: number) => {
-        const reply = replyTexts[commentId]?.trim() || "Ban tổ chức sẽ rút kinh nghiệm, cảm ơn bạn đã nhận xét";
+        const reply = replyTexts[commentId]?.trim() || "Ban tß╗ò chß╗⌐c sß║╜ r├║t kinh nghiß╗çm, cß║úm ╞ín bß║ín ─æ├ú nhß║¡n x├⌐t";
 
         try {
             await EventService.replyToComment(commentId, reply);
-            toast.success("Đã gửi phản hồi");
+            toast.success("─É├ú gß╗¡i phß║ún hß╗ôi");
             setReplyTexts(prev => ({ ...prev, [commentId]: "" }));
             // Refresh comments
             const updatedComments = await EventService.getEventComments(id!);
             setComments(updatedComments);
         } catch (error) {
-            toast.error("Không thể gửi phản hồi");
+            toast.error("Kh├┤ng thß╗â gß╗¡i phß║ún hß╗ôi");
         }
     };
 
@@ -305,7 +111,7 @@ const OrganizerEventManage = () => {
                 c.id === commentId ? { ...c, isLikedByOrganizer: !c.isLikedByOrganizer } : c
             ));
         } catch (error) {
-            toast.error("Thao tác thất bại");
+            toast.error("Thao t├íc thß║Ñt bß║íi");
         }
     };
 
@@ -356,58 +162,58 @@ const OrganizerEventManage = () => {
         setTimeout(() => {
             setAiPlanResult({
                 tasks: [
-                    { id: 1, text: "Chốt danh sách nhà cung cấp F&B", priority: 'High' },
-                    { id: 2, text: "Gửi thư mời điện tử & QR Code cho khách", priority: 'High' },
-                    { id: 3, text: "Kiểm duyệt kịch bản âm thanh ánh sáng", priority: 'Medium' },
-                    { id: 4, text: "Chuẩn bị quà tặng lưu niệm (Gift box)", priority: 'Low' },
-                    { id: 5, text: "Xây dựng layout mặt bằng bố trí", priority: 'Medium' }
+                    { id: 1, text: "Chß╗æt danh s├ích nh├á cung cß║Ñp F&B", priority: 'High' },
+                    { id: 2, text: "Gß╗¡i th╞░ mß╗¥i ─æiß╗çn tß╗¡ & QR Code cho kh├ích", priority: 'High' },
+                    { id: 3, text: "Kiß╗âm duyß╗çt kß╗ïch bß║ún ├óm thanh ├ính s├íng", priority: 'Medium' },
+                    { id: 4, text: "Chuß║⌐n bß╗ï qu├á tß║╖ng l╞░u niß╗çm (Gift box)", priority: 'Low' },
+                    { id: 5, text: "X├óy dß╗▒ng layout mß║╖t bß║▒ng bß╗æ tr├¡", priority: 'Medium' }
                 ],
                 tools: [
-                    { name: "Màn hình LED P2.5", qty: 1, unit: "Bộ" },
-                    { name: "Hệ thống Mic không dây", qty: 6, unit: "Cái" },
-                    { name: "Standee đón khách", qty: 12, unit: "Tấm" },
-                    { name: "Thẻ đeo nhân sự", qty: 30, unit: "Bộ" }
+                    { name: "M├án h├¼nh LED P2.5", qty: 1, unit: "Bß╗Ö" },
+                    { name: "Hß╗ç thß╗æng Mic kh├┤ng d├óy", qty: 6, unit: "C├íi" },
+                    { name: "Standee ─æ├│n kh├ích", qty: 12, unit: "Tß║Ñm" },
+                    { name: "Thß║╗ ─æeo nh├ón sß╗▒", qty: 30, unit: "Bß╗Ö" }
                 ],
                 budgetSections: [
                     {
                         id: 'III',
-                        title: 'Dàn dựng và trang trí',
+                        title: 'D├án dß╗▒ng v├á trang tr├¡',
                         total: 450000000,
                         subSections: [
                             {
                                 id: 'A',
-                                title: 'Khu vực đón khách',
+                                title: 'Khu vß╗▒c ─æ├│n kh├ích',
                                 items: [
-                                    { stt: 1, item: 'Cổng chào', unit: 'chiếc', qty: 1, unitPrice: 25000000, remarks: 'Thiết kế theo theme sự kiện' },
-                                    { stt: 2, item: 'Standee', unit: 'chiếc', qty: 10, unitPrice: 500000, remarks: 'Thiết kế theo theme sự kiện' },
-                                    { stt: 3, item: 'Banner dọc', unit: 'chiếc', qty: 10, unitPrice: 300000, remarks: 'Thiết kế theo theme sự kiện' },
-                                    { stt: 4, item: 'Backdrop chụp hình', unit: 'chiếc', qty: 1, unitPrice: 15000000, remarks: 'Thiết kế theo theme sự kiện, platform và đèn trang trí' },
-                                    { stt: 5, item: 'Cánh cửa thần kỳ', unit: 'bộ', qty: 5, unitPrice: 20000000, remarks: 'Cánh cửa lớn thiết kế kiểu hightech và màn hình' },
+                                    { stt: 1, item: 'Cß╗òng ch├áo', unit: 'chiß║┐c', qty: 1, unitPrice: 25000000, remarks: 'Thiß║┐t kß║┐ theo theme sß╗▒ kiß╗çn' },
+                                    { stt: 2, item: 'Standee', unit: 'chiß║┐c', qty: 10, unitPrice: 500000, remarks: 'Thiß║┐t kß║┐ theo theme sß╗▒ kiß╗çn' },
+                                    { stt: 3, item: 'Banner dß╗ìc', unit: 'chiß║┐c', qty: 10, unitPrice: 300000, remarks: 'Thiß║┐t kß║┐ theo theme sß╗▒ kiß╗çn' },
+                                    { stt: 4, item: 'Backdrop chß╗Ñp h├¼nh', unit: 'chiß║┐c', qty: 1, unitPrice: 15000000, remarks: 'Thiß║┐t kß║┐ theo theme sß╗▒ kiß╗çn, platform v├á ─æ├¿n trang tr├¡' },
+                                    { stt: 5, item: 'C├ính cß╗¡a thß║ºn kß╗│', unit: 'bß╗Ö', qty: 5, unitPrice: 20000000, remarks: 'C├ính cß╗¡a lß╗¢n thiß║┐t kß║┐ kiß╗âu hightech v├á m├án h├¼nh' },
                                 ]
                             },
                             {
                                 id: 'B',
-                                title: 'Khu vực phòng tiệc',
+                                title: 'Khu vß╗▒c ph├▓ng tiß╗çc',
                                 items: [
-                                    { stt: 6, item: 'Sân khấu', unit: 'gói', qty: 1, unitPrice: 250000000, remarks: 'Sân khấu lớn và hoàn thiện bề mặt. Bậc lên xuống sân khấu. Thiết kế trang trí vách sân khấu' },
-                                    { stt: 7, item: 'Hệ thống giàn Truss', unit: 'gói', qty: 1, unitPrice: 50000000, remarks: 'Cho sân khấu, màn LED nhiều lớp, hệ thống ATAS' },
-                                    { stt: 8, item: 'Bục phát biểu và logo', unit: 'gói', qty: 1, unitPrice: 2000000, remarks: '' },
+                                    { stt: 6, item: 'S├ón khß║Ñu', unit: 'g├│i', qty: 1, unitPrice: 250000000, remarks: 'S├ón khß║Ñu lß╗¢n v├á ho├án thiß╗çn bß╗ü mß║╖t. Bß║¡c l├¬n xuß╗æng s├ón khß║Ñu. Thiß║┐t kß║┐ trang tr├¡ v├ích s├ón khß║Ñu' },
+                                    { stt: 7, item: 'Hß╗ç thß╗æng gi├án Truss', unit: 'g├│i', qty: 1, unitPrice: 50000000, remarks: 'Cho s├ón khß║Ñu, m├án LED nhiß╗üu lß╗¢p, hß╗ç thß╗æng ATAS' },
+                                    { stt: 8, item: 'Bß╗Ñc ph├ít biß╗âu v├á logo', unit: 'g├│i', qty: 1, unitPrice: 2000000, remarks: '' },
                                 ]
                             }
                         ]
                     },
                     {
                         id: 'IV',
-                        title: 'Thiết bị',
+                        title: 'Thiß║┐t bß╗ï',
                         total: 320000000,
                         subSections: [
                             {
                                 id: 'A',
-                                title: 'Hệ thống âm thanh ánh sáng',
+                                title: 'Hß╗ç thß╗æng ├óm thanh ├ính s├íng',
                                 items: [
-                                    { stt: 1, item: 'Hệ thống ATAS', unit: 'gói', qty: 1, unitPrice: 60000000, remarks: '' },
-                                    { stt: 2, item: 'Màn LED', unit: 'gói', qty: 1, unitPrice: 180000000, remarks: 'Hệ thống màn LED lớn nhiều lớp' },
-                                    { stt: 3, item: 'Hệ thống trượt màn LED', unit: 'gói', qty: 1, unitPrice: 20000000, remarks: 'Có thể trượt để mở màn LED' },
+                                    { stt: 1, item: 'Hß╗ç thß╗æng ATAS', unit: 'g├│i', qty: 1, unitPrice: 60000000, remarks: '' },
+                                    { stt: 2, item: 'M├án LED', unit: 'g├│i', qty: 1, unitPrice: 180000000, remarks: 'Hß╗ç thß╗æng m├án LED lß╗¢n nhiß╗üu lß╗¢p' },
+                                    { stt: 3, item: 'Hß╗ç thß╗æng tr╞░ß╗út m├án LED', unit: 'g├│i', qty: 1, unitPrice: 20000000, remarks: 'C├│ thß╗â tr╞░ß╗út ─æß╗â mß╗ƒ m├án LED' },
                                 ]
                             }
                         ]
@@ -429,24 +235,15 @@ const OrganizerEventManage = () => {
         if (!id) return;
         setLoading(true);
         try {
-            const [eventData, statsData, attendeesData, seatsData, commentsData, ordersData, ticketTypesData] = await Promise.all([
+            const [eventData, statsData, attendeesData, seatsData, commentsData, ordersData] = await Promise.all([
                 EventService.getEventById(id),
                 EventService.getEventManageStats(id),
                 EventService.getEventAttendees(id),
                 EventService.getEventSeats(id),
                 EventService.getEventComments(id),
-                EventService.getEventOrders(id),
-                EventService.getEventTicketTypes(id)
+                EventService.getEventOrders(id)
             ]);
             setEvent(eventData);
-            setTicketTypes(ticketTypesData || []);
-            if (eventData.seatMapLayout) {
-                try {
-                    setShapes(JSON.parse(eventData.seatMapLayout));
-                } catch (e) {
-                    console.error('Error parsing layout', e);
-                }
-            }
             setStats(statsData);
             setAttendees(attendeesData);
             setSeats(seatsData || []);
@@ -461,14 +258,14 @@ const OrganizerEventManage = () => {
 
     const handleResubmit = async () => {
         if (!id) return;
-        const loadingToast = toast.loading('Đang gửi lại yêu cầu...');
+        const loadingToast = toast.loading('─Éang gß╗¡i lß║íi y├¬u cß║ºu...');
         try {
             await EventService.resubmitEvent(id);
-            toast.success('Đã gửi lại yêu cầu phê duyệt thành công', { id: loadingToast });
+            toast.success('─É├ú gß╗¡i lß║íi y├¬u cß║ºu ph├¬ duyß╗çt th├ánh c├┤ng', { id: loadingToast });
             fetchData();
         } catch (error: any) {
             console.error('Error resubmitting event:', error);
-            toast.error(error.response?.data?.message || 'Gửi lại yêu cầu thất bại', { id: loadingToast });
+            toast.error(error.response?.data?.message || 'Gß╗¡i lß║íi y├¬u cß║ºu thß║Ñt bß║íi', { id: loadingToast });
         }
     };
 
@@ -519,7 +316,7 @@ const OrganizerEventManage = () => {
 
     // Scroll lock when modal is open
     useEffect(() => {
-        if (activeEditType || selectedSeatInfo || selectedZoneForModal) {
+        if (activeEditType || selectedSeatInfo) {
             document.body.style.overflow = 'hidden';
         } else {
             document.body.style.overflow = 'unset';
@@ -527,7 +324,7 @@ const OrganizerEventManage = () => {
         return () => {
             document.body.style.overflow = 'unset';
         };
-    }, [activeEditType, selectedSeatInfo, selectedZoneForModal]);
+    }, [activeEditType, selectedSeatInfo]);
 
     useEffect(() => {
         if (event) {
@@ -546,7 +343,7 @@ const OrganizerEventManage = () => {
     const [qrError, setQrError] = useState<string | null>(null);
 
     const handleQrSuccess = async (decodedText: string) => {
-        const loadingToast = toast.loading("Đang thực hiện check-in...");
+        const loadingToast = toast.loading("─Éang thß╗▒c hiß╗çn check-in...");
         try {
             // 1. Get info
             const orderInfo = await EventService.getOrderByQR(decodedText);
@@ -555,16 +352,16 @@ const OrganizerEventManage = () => {
 
             setScanResult(orderInfo);
             setIsScanning(false);
-            toast.success("Check-in thành công!", { id: loadingToast });
+            toast.success("Check-in th├ánh c├┤ng!", { id: loadingToast });
             fetchData();
         } catch (error: any) {
-            toast.error(error.response?.data?.message || "Mã QR không hợp lệ hoặc đã được sử dụng", { id: loadingToast });
+            toast.error(error.response?.data?.message || "M├ú QR kh├┤ng hß╗úp lß╗ç hoß║╖c ─æ├ú ─æ╞░ß╗úc sß╗¡ dß╗Ñng", { id: loadingToast });
         }
     };
 
     const handleManualCheckIn = async () => {
         if (!manualCode.trim()) {
-            toast.error("Vui lòng nhập mã code");
+            toast.error("Vui l├▓ng nhß║¡p m├ú code");
             return;
         }
         handleQrSuccess(manualCode.trim());
@@ -587,7 +384,7 @@ const OrganizerEventManage = () => {
                 }
             ).catch(err => {
                 console.error("Unable to start scanning", err);
-                setQrError("Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập hoặc sử dụng HTTPS.");
+                setQrError("Kh├┤ng thß╗â truy cß║¡p camera. Vui l├▓ng kiß╗âm tra quyß╗ün truy cß║¡p hoß║╖c sß╗¡ dß╗Ñng HTTPS.");
             });
         }
 
@@ -609,13 +406,13 @@ const OrganizerEventManage = () => {
             const decodedText = await html5QrCode.scanFile(file, true);
             handleQrSuccess(decodedText);
         } catch (err) {
-            toast.error("Không thể nhận diện mã QR từ ảnh này");
+            toast.error("Kh├┤ng thß╗â nhß║¡n diß╗çn m├ú QR tß╗½ ß║únh n├áy");
         } finally {
             html5QrCode.clear();
         }
     };
 
-    const isAnyModalOpen = !!selectedSeatInfo || !!selectedZoneForModal || isGeneratingPlan || !!activeEditType || !!scanResult || !!selectedImageUrl;
+    const isAnyModalOpen = !!selectedSeatInfo || isGeneratingPlan || !!activeEditType || !!scanResult || !!selectedImageUrl;
 
     useEffect(() => {
         if (isAnyModalOpen) {
@@ -630,17 +427,17 @@ const OrganizerEventManage = () => {
 
     const handleCheckIn = async (ticketId: number, currentStatus: string) => {
         if (currentStatus === 'CHECKED_IN') {
-            toast.error('Không thể hoàn tác check-in');
+            toast.error('Kh├┤ng thß╗â ho├án t├íc check-in');
             return;
         }
 
         try {
             await EventService.checkInTicket(ticketId, true);
-            toast.success('Check-in thành công');
+            toast.success('Check-in th├ánh c├┤ng');
             // Refresh everything to get the latest dates and statuses
             fetchData();
         } catch (error: any) {
-            toast.error(error.response?.data?.message || 'Thao tác thất bại');
+            toast.error(error.response?.data?.message || 'Thao t├íc thß║Ñt bß║íi');
         }
     };
 
@@ -720,26 +517,26 @@ const OrganizerEventManage = () => {
     }
 
     const tabs = [
-        { id: 'overview', label: 'Tổng quan', icon: 'visibility' },
-        { id: 'guests', label: 'Khách mời', icon: 'how_to_reg' },
-        { id: 'finance', label: 'Tài chính', icon: 'payments' },
-        { id: 'feedback', label: 'Phản hồi', icon: 'reviews' }
+        { id: 'overview', label: 'Tß╗òng quan', icon: 'visibility' },
+        { id: 'guests', label: 'Kh├ích mß╗¥i', icon: 'how_to_reg' },
+        { id: 'finance', label: 'T├ái ch├¡nh', icon: 'payments' },
+        { id: 'feedback', label: 'Phß║ún hß╗ôi', icon: 'reviews' }
     ];
 
 
     const handleUpdateEvent = async (formData: any, schedulesData: any[]) => {
         try {
-            // Mock update - Cập nhật state cục bộ để UI phản hồi ngay lập tức
+            // Mock update - Cß║¡p nhß║¡t state cß╗Ñc bß╗Ö ─æß╗â UI phß║ún hß╗ôi ngay lß║¡p tß╗⌐c
             const updatedEvent = { ...event, ...formData, schedules: schedulesData };
             setEvent(updatedEvent);
 
-            // Ở đây có thể gọi API thực tế nếu cần:
+            // ß╗₧ ─æ├óy c├│ thß╗â gß╗ìi API thß╗▒c tß║┐ nß║┐u cß║ºn:
             // await EventService.updateEvent(id, updatedEvent);
 
-            toast.success('Cập nhật thành công');
+            toast.success('Cß║¡p nhß║¡t th├ánh c├┤ng');
             setActiveEditType(null);
         } catch (error) {
-            toast.error('Cập nhật thất bại');
+            toast.error('Cß║¡p nhß║¡t thß║Ñt bß║íi');
         }
     };
 
@@ -762,8 +559,8 @@ const OrganizerEventManage = () => {
         >
             <div className="min-h-screen bg-slate-50" style={{ scrollbarGutter: 'stable' }}>
                 <PageHeader
-                    title={event?.title || 'Quản lý sự kiện'}
-                    subtitle="Theo dõi và quản lý chi tiết sự kiện của bạn"
+                    title={event?.title || 'Quß║ún l├╜ sß╗▒ kiß╗çn'}
+                    subtitle="Theo d├╡i v├á quß║ún l├╜ chi tiß║┐t sß╗▒ kiß╗çn cß╗ºa bß║ín"
                 />
 
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4 pb-10">
@@ -772,7 +569,7 @@ const OrganizerEventManage = () => {
                         <Link
                             to="/organizer/events"
                             className="w-12 h-12 bg-white rounded-2xl shadow-md border border-slate-200 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all group shrink-0 animate-in fade-in slide-in-from-left-4 duration-500"
-                            title="Quay lại danh sách"
+                            title="Quay lß║íi danh s├ích"
                         >
                             <Icon name="arrow_back" size="sm" className="group-hover:-translate-x-1 transition-transform" />
                         </Link>
@@ -807,23 +604,23 @@ const OrganizerEventManage = () => {
                                         </div>
                                         <div className="flex-1">
                                             <div className="flex items-center justify-between mb-2">
-                                                <h4 className="text-red-900 font-black text-sm uppercase tracking-widest">Sự kiện bị từ chối</h4>
-                                                <span className="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded-lg font-black uppercase">Cần chỉnh sửa</span>
+                                                <h4 className="text-red-900 font-black text-sm uppercase tracking-widest">Sß╗▒ kiß╗çn bß╗ï tß╗½ chß╗æi</h4>
+                                                <span className="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded-lg font-black uppercase">Cß║ºn chß╗ënh sß╗¡a</span>
                                             </div>
                                             <p className="text-red-700 text-sm font-medium leading-relaxed bg-white/50 p-4 rounded-2xl border border-red-100 mb-4">
-                                                <span className="text-red-400 font-black mr-2">LÝ DO:</span>
-                                                {event?.rejectReason || 'Quản trị viên chưa cung cấp lý do cụ thể. Vui lòng liên hệ hỗ trợ.'}
+                                                <span className="text-red-400 font-black mr-2">L├¥ DO:</span>
+                                                {event?.rejectReason || 'Quß║ún trß╗ï vi├¬n ch╞░a cung cß║Ñp l├╜ do cß╗Ñ thß╗â. Vui l├▓ng li├¬n hß╗ç hß╗ù trß╗ú.'}
                                             </p>
                                             <div className="flex flex-wrap items-center gap-4">
                                                 <button
                                                     onClick={handleResubmit}
                                                     className="px-6 py-2.5 bg-blue-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200 transition-all flex items-center gap-2"
                                                 >
-                                                    <Icon name="send" size="sm" /> Gửi lại yêu cầu phê duyệt
+                                                    <Icon name="send" size="sm" /> Gß╗¡i lß║íi y├¬u cß║ºu ph├¬ duyß╗çt
                                                 </button>
                                                 <div className="flex items-center gap-2 text-red-600">
                                                     <Icon name="info" size="xs" />
-                                                    <p className="text-[10px] font-bold uppercase tracking-wider italic">Cập nhật thông tin dựa trên phản hồi trước khi gửi lại.</p>
+                                                    <p className="text-[10px] font-bold uppercase tracking-wider italic">Cß║¡p nhß║¡t th├┤ng tin dß╗▒a tr├¬n phß║ún hß╗ôi tr╞░ß╗¢c khi gß╗¡i lß║íi.</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -840,7 +637,7 @@ const OrganizerEventManage = () => {
                                         <div className="flex justify-between items-start">
                                             <h3 className="text-3xl lg:text-4xl font-black text-slate-900 leading-tight tracking-tight flex items-center gap-3">
                                                 {event?.title}
-                                                <CleanEditButton onClick={() => setActiveEditType('title')} title="Đổi tên sự kiện" />
+                                                <CleanEditButton onClick={() => setActiveEditType('title')} title="─Éß╗òi t├¬n sß╗▒ kiß╗çn" />
                                             </h3>
 
                                         </div>
@@ -854,12 +651,12 @@ const OrganizerEventManage = () => {
                                                 }}
                                             >
                                                 <Icon name={event?.category?.icon || 'event'} size="sm" />
-                                                {event?.category?.name || event?.categoryName || 'Sự kiện'}
+                                                {event?.category?.name || event?.categoryName || 'Sß╗▒ kiß╗çn'}
                                             </span>
                                         </div>
                                         <div className="space-y-5 relative group/info">
                                             <div className="absolute -right-2 top-0">
-                                                <CleanEditButton onClick={() => setActiveEditType('info')} title="Sửa thời gian & địa điểm" />
+                                                <CleanEditButton onClick={() => setActiveEditType('info')} title="Sß╗¡a thß╗¥i gian & ─æß╗ïa ─æiß╗âm" />
                                             </div>
 
                                             <div className="flex items-center gap-4 group/item">
@@ -867,7 +664,7 @@ const OrganizerEventManage = () => {
                                                     <Icon name="calendar_today" size="sm" />
                                                 </div>
                                                 <div>
-                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Thời gian tổ chức</p>
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Thß╗¥i gian tß╗ò chß╗⌐c</p>
                                                     <p className="text-slate-900 font-bold">{event?.startTime ? new Date(event.startTime).toLocaleString('vi-VN', {
                                                         weekday: 'long',
                                                         year: 'numeric',
@@ -875,7 +672,7 @@ const OrganizerEventManage = () => {
                                                         day: 'numeric',
                                                         hour: '2-digit',
                                                         minute: '2-digit'
-                                                    }).replace('lúc ', '') : 'Chưa cập nhật'}</p>
+                                                    }).replace('l├║c ', '') : 'Ch╞░a cß║¡p nhß║¡t'}</p>
 
                                                 </div>
                                             </div>
@@ -885,7 +682,7 @@ const OrganizerEventManage = () => {
                                                     <Icon name="location_on" size="sm" />
                                                 </div>
                                                 <div>
-                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Địa điểm</p>
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">─Éß╗ïa ─æiß╗âm</p>
                                                     <p className="text-slate-900 font-bold">{event?.location}</p>
                                                 </div>
                                             </div>
@@ -903,10 +700,10 @@ const OrganizerEventManage = () => {
                                                 <Icon name="confirmation_number" size="sm" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 truncate">Vé đã bán</p>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 truncate">V├⌐ ─æ├ú b├ín</p>
                                                 <div className="flex items-baseline gap-1">
                                                     <h4 className="text-2xl font-black text-slate-900">{stats?.soldSeats}</h4>
-                                                    <span className="text-slate-400 font-bold text-[10px]">/ {stats?.totalSeats} mục tiêu</span>
+                                                    <span className="text-slate-400 font-bold text-[10px]">/ {stats?.totalSeats} mß╗Ñc ti├¬u</span>
                                                 </div>
                                                 <div className="mt-3 h-1.5 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
                                                     <div className="h-full bg-primary" style={{ width: `${((stats?.soldSeats || 0) / (stats?.totalSeats || 1)) * 100}%` }} />
@@ -922,9 +719,9 @@ const OrganizerEventManage = () => {
                                                 <Icon name="payments" size="sm" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 truncate">Doanh thu hiện thực</p>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 truncate">Doanh thu hiß╗çn thß╗▒c</p>
                                                 <h4 className="text-2xl font-black text-emerald-600 truncate">{formatCurrency(stats?.totalRevenue || 0)}</h4>
-                                                <p className="mt-1.5 text-[10px] text-slate-400 font-medium">Tỷ lệ lấp đầy: {Math.round(((stats?.soldSeats || 0) / (stats?.totalSeats || 1)) * 100)}%</p>
+                                                <p className="mt-1.5 text-[10px] text-slate-400 font-medium">Tß╗╖ lß╗ç lß║Ñp ─æß║ºy: {Math.round(((stats?.soldSeats || 0) / (stats?.totalSeats || 1)) * 100)}%</p>
                                             </div>
                                         </div>
                                     </div>
@@ -936,9 +733,9 @@ const OrganizerEventManage = () => {
                                                 <Icon name="how_to_reg" size="sm" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 truncate">Tỷ lệ Check-in</p>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 truncate">Tß╗╖ lß╗ç Check-in</p>
                                                 <h4 className="text-2xl font-black text-orange-600">{Math.round(((stats?.checkedInSeats || 0) / (stats?.soldSeats || 1)) * 100)}%</h4>
-                                                <p className="mt-1.5 text-[10px] text-slate-400 font-medium truncate">{stats?.checkedInSeats} khách đã đến</p>
+                                                <p className="mt-1.5 text-[10px] text-slate-400 font-medium truncate">{stats?.checkedInSeats} kh├ích ─æ├ú ─æß║┐n</p>
                                             </div>
                                         </div>
                                     </div>
@@ -951,9 +748,9 @@ const OrganizerEventManage = () => {
                                             <h5 className="font-black text-slate-900 mb-6 uppercase tracking-widest flex items-center justify-between">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-1.5 h-6 bg-primary rounded-full" />
-                                                    Lịch trình
+                                                    Lß╗ïch tr├¼nh
                                                 </div>
-                                                <CleanEditButton onClick={() => setActiveEditType('schedule')} title="Sửa lịch trình" />
+                                                <CleanEditButton onClick={() => setActiveEditType('schedule')} title="Sß╗¡a lß╗ïch tr├¼nh" />
                                             </h5>
 
 
@@ -971,7 +768,7 @@ const OrganizerEventManage = () => {
                                                     </div>
                                                 ))}
                                                 {(!event?.schedules || event.schedules.length === 0) && (
-                                                    <p className="text-xs text-slate-400 font-medium italic">Chưa có lịch trình chính thức</p>
+                                                    <p className="text-xs text-slate-400 font-medium italic">Ch╞░a c├│ lß╗ïch tr├¼nh ch├¡nh thß╗⌐c</p>
                                                 )}
 
                                             </div>
@@ -987,14 +784,14 @@ const OrganizerEventManage = () => {
                                             <h5 className="font-black text-slate-900 mb-6 uppercase tracking-widest flex items-center justify-between relative z-10">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-1.5 h-6 bg-emerald-500 rounded-full" />
-                                                    Mô tả sự kiện
+                                                    M├┤ tß║ú sß╗▒ kiß╗çn
                                                 </div>
-                                                <CleanEditButton onClick={() => setActiveEditType('description')} title="Sửa mô tả" />
+                                                <CleanEditButton onClick={() => setActiveEditType('description')} title="Sß╗¡a m├┤ tß║ú" />
                                             </h5>
 
 
                                             <div className="text-sm text-slate-600 leading-loose font-medium whitespace-pre-line bg-slate-50/50 p-6 md:p-8 rounded-3xl border border-slate-100 relative z-10">
-                                                {event?.description || 'Chưa có mô tả chi tiết cho sự kiện này.'}
+                                                {event?.description || 'Ch╞░a c├│ m├┤ tß║ú chi tiß║┐t cho sß╗▒ kiß╗çn n├áy.'}
                                             </div>
                                         </div>
                                     </div>
@@ -1012,13 +809,13 @@ const OrganizerEventManage = () => {
                                                 onClick={() => setGuestViewMode('list')}
                                                 className={`px-6 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${guestViewMode === 'list' ? 'bg-white shadow-sm text-primary' : 'text-slate-500'}`}
                                             >
-                                                <Icon name="list" size="sm" /> Danh sách
+                                                <Icon name="list" size="sm" /> Danh s├ích
                                             </button>
                                             <button
                                                 onClick={() => setGuestViewMode('seats')}
                                                 className={`px-6 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${guestViewMode === 'seats' ? 'bg-white shadow-sm text-primary' : 'text-slate-500'}`}
                                             >
-                                                <Icon name="grid_view" size="sm" /> Sơ đồ ghế
+                                                <Icon name="grid_view" size="sm" /> S╞í ─æß╗ô ghß║┐
                                             </button>
                                         </div>
                                     )}
@@ -1038,7 +835,7 @@ const OrganizerEventManage = () => {
                                             }`}>
                                             <Icon name={isScanning ? "close" : "qr_code_scanner"} size="xs" />
                                         </div>
-                                        <span className="relative z-10">{isScanning ? "Đóng Scanner" : "Quét mã QR"}</span>
+                                        <span className="relative z-10">{isScanning ? "─É├│ng Scanner" : "Qu├⌐t m├ú QR"}</span>
                                     </button>
                                 </div>
 
@@ -1065,8 +862,8 @@ const OrganizerEventManage = () => {
                                             {/* Right Side: Inputs */}
                                             <div className="flex-1 w-full space-y-6 self-center animate-fade-in-up [animation-delay:400ms] opacity-0">
                                                 <div className="space-y-1">
-                                                    <h4 className="text-lg font-black text-slate-900 tracking-tight">Quét mã QR</h4>
-                                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">Tự động nhận diện và check-in</p>
+                                                    <h4 className="text-lg font-black text-slate-900 tracking-tight">Qu├⌐t m├ú QR</h4>
+                                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">Tß╗▒ ─æß╗Öng nhß║¡n diß╗çn v├á check-in</p>
                                                 </div>
 
                                                 <div className="space-y-4">
@@ -1079,7 +876,7 @@ const OrganizerEventManage = () => {
                                                             type="text"
                                                             value={manualCode}
                                                             onChange={(e) => setManualCode(e.target.value)}
-                                                            placeholder="Nhập mã vé thủ công..."
+                                                            placeholder="Nhß║¡p m├ú v├⌐ thß╗º c├┤ng..."
                                                             className="w-full pl-11 pr-24 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold focus:border-primary/30 outline-none transition-all placeholder:text-slate-300 uppercase tracking-widest"
                                                             onKeyDown={(e) => e.key === 'Enter' && handleManualCheckIn()}
                                                         />
@@ -1087,7 +884,7 @@ const OrganizerEventManage = () => {
                                                             onClick={handleManualCheckIn}
                                                             className="absolute right-1.5 top-1.5 bottom-1.5 px-5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary transition-all active:scale-95 shadow-lg"
                                                         >
-                                                            Xác nhận
+                                                            X├íc nhß║¡n
                                                         </button>
                                                     </div>
 
@@ -1097,8 +894,8 @@ const OrganizerEventManage = () => {
                                                             <Icon name="add_photo_alternate" size="sm" className="group-hover/upload:rotate-12 transition-transform" />
                                                         </div>
                                                         <div className="flex-1">
-                                                            <span className="block text-[12px] font-black text-slate-800 uppercase tracking-widest group-hover/upload:text-blue-600 transition-colors">Tải ảnh QR từ máy</span>
-                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Hỗ trợ PNG, JPG • Tối đa 5MB</span>
+                                                            <span className="block text-[12px] font-black text-slate-800 uppercase tracking-widest group-hover/upload:text-blue-600 transition-colors">Tß║úi ß║únh QR tß╗½ m├íy</span>
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Hß╗ù trß╗ú PNG, JPG ΓÇó Tß╗æi ─æa 5MB</span>
                                                         </div>
                                                         <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
                                                         <div className="w-10 h-10 rounded-full flex items-center justify-center bg-white/50 text-slate-300 group-hover/upload:bg-blue-50 group-hover/upload:text-blue-600 transition-all">
@@ -1121,7 +918,7 @@ const OrganizerEventManage = () => {
                                                         </div>
                                                         <input
                                                             type="text"
-                                                            placeholder="Tìm tên khách, email, số ghế..."
+                                                            placeholder="T├¼m t├¬n kh├ích, email, sß╗æ ghß║┐..."
                                                             className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 focus:border-primary focus:bg-white rounded-2xl font-bold outline-none transition-all placeholder:text-slate-400 shadow-sm"
                                                             value={searchTerm}
                                                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -1143,8 +940,8 @@ const OrganizerEventManage = () => {
                                                                         statusFilter === 'CHECKED_IN' ? 'text-emerald-500' : 'text-amber-500'
                                                                 } />
                                                                 <span className="truncate">{
-                                                                    statusFilter === 'ALL' ? 'Tất cả' :
-                                                                        statusFilter === 'CHECKED_IN' ? 'Đã đến' : 'Chưa đến'
+                                                                    statusFilter === 'ALL' ? 'Tß║Ñt cß║ú' :
+                                                                        statusFilter === 'CHECKED_IN' ? '─É├ú ─æß║┐n' : 'Ch╞░a ─æß║┐n'
                                                                 }</span>
                                                             </div>
                                                             <Icon name="expand_more" size="xs" className={`text-slate-400 transition-transform duration-300 ${isFilterOpen ? 'rotate-180' : ''}`} />
@@ -1155,9 +952,9 @@ const OrganizerEventManage = () => {
                                                                 <div className="fixed inset-0 z-[40]" onClick={() => setIsFilterOpen(false)} />
                                                                 <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl z-[50] py-2 animate-in zoom-in-95 fade-in duration-200 overflow-hidden">
                                                                     {[
-                                                                        { id: 'ALL', label: 'Tất cả trạng thái', icon: 'apps', color: 'text-blue-600' },
-                                                                        { id: 'CHECKED_IN', label: 'Đã check-in', icon: 'check_circle', color: 'text-emerald-500' },
-                                                                        { id: 'PENDING', label: 'Chưa check-in', icon: 'hourglass_empty', color: 'text-amber-500' }
+                                                                        { id: 'ALL', label: 'Tß║Ñt cß║ú trß║íng th├íi', icon: 'apps', color: 'text-blue-600' },
+                                                                        { id: 'CHECKED_IN', label: '─É├ú check-in', icon: 'check_circle', color: 'text-emerald-500' },
+                                                                        { id: 'PENDING', label: 'Ch╞░a check-in', icon: 'hourglass_empty', color: 'text-amber-500' }
                                                                     ].map((opt) => (
                                                                         <button
                                                                             key={opt.id}
@@ -1184,7 +981,7 @@ const OrganizerEventManage = () => {
                                                                 <Icon name="check_circle" size="xs" />
                                                             </div>
                                                             <div className="min-w-0">
-                                                                <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">Đã đến</p>
+                                                                <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">─É├ú ─æß║┐n</p>
                                                                 <p className="text-sm font-black text-emerald-900 leading-none">{stats?.checkedInSeats || 0}</p>
                                                             </div>
                                                         </div>
@@ -1193,7 +990,7 @@ const OrganizerEventManage = () => {
                                                                 <Icon name="groups" size="xs" />
                                                             </div>
                                                             <div className="min-w-0">
-                                                                <p className="text-[8px] font-black text-indigo-600 uppercase tracking-widest leading-none mb-1">Tổng vé</p>
+                                                                <p className="text-[8px] font-black text-indigo-600 uppercase tracking-widest leading-none mb-1">Tß╗òng v├⌐</p>
                                                                 <p className="text-sm font-black text-indigo-900 leading-none">{stats?.soldSeats || 0}</p>
                                                             </div>
                                                         </div>
@@ -1205,10 +1002,10 @@ const OrganizerEventManage = () => {
                                                         <table className="w-full text-left border-collapse">
                                                             <thead>
                                                                 <tr className="bg-slate-50/50">
-                                                                    <th className="px-8 py-4 text-[14px] font-black uppercase">Khách mời</th>
-                                                                    <th className="px-8 py-4 text-[14px] font-black uppercase">Thông tin vé</th>
+                                                                    <th className="px-8 py-4 text-[14px] font-black uppercase">Kh├ích mß╗¥i</th>
+                                                                    <th className="px-8 py-4 text-[14px] font-black uppercase">Th├┤ng tin v├⌐</th>
                                                                     <th className="px-8 py-4 text-[14px] font-black uppercase">Check-in Date</th>
-                                                                    <th className="px-8 py-4 text-[14px] font-black uppercase text-center">Trạng thái</th>
+                                                                    <th className="px-8 py-4 text-[14px] font-black uppercase text-center">Trß║íng th├íi</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody className="divide-y divide-slate-50">
@@ -1266,7 +1063,7 @@ const OrganizerEventManage = () => {
                                                                                     </span>
                                                                                 </div>
                                                                             ) : (
-                                                                                <span className="text-xs font-bold text-slate-400 italic whitespace-nowrap">Chưa check-in</span>
+                                                                                <span className="text-xs font-bold text-slate-400 italic whitespace-nowrap">Ch╞░a check-in</span>
                                                                             )}
                                                                         </td>
                                                                         <td className="px-8 py-6 text-center">
@@ -1296,9 +1093,9 @@ const OrganizerEventManage = () => {
                                                 {totalGuestPages > 1 && (
                                                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 animate-fade-in">
                                                         <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                                                            Trang <span className="text-primary">{guestPage}</span> / {totalGuestPages}
-                                                            <span className="mx-2 text-slate-200">•</span>
-                                                            Tổng <span className="text-slate-900">{groupedAttendees.length}</span> khách mời
+                                                            Trang <span className="text-primary">{guestPage}</span> / {totalGuestPages} 
+                                                            <span className="mx-2 text-slate-200">ΓÇó</span> 
+                                                            Tß╗òng <span className="text-slate-900">{groupedAttendees.length}</span> kh├ích mß╗¥i
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             <button
@@ -1306,7 +1103,7 @@ const OrganizerEventManage = () => {
                                                                 disabled={guestPage === 1}
                                                                 className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed group"
                                                             >
-                                                                <Icon name="chevron_left" size="sm" className="group-hover:-translate-x-0.5 transition-transform" />
+                                                                 <Icon name="chevron_left" size="sm" className="group-hover:-translate-x-0.5 transition-transform" />
                                                             </button>
 
                                                             <div className="flex items-center gap-1.5 px-2">
@@ -1322,10 +1119,11 @@ const OrganizerEventManage = () => {
                                                                         <button
                                                                             key={pageNum}
                                                                             onClick={() => setGuestPage(pageNum)}
-                                                                            className={`min-w-[40px] h-10 rounded-xl text-[11px] font-black transition-all ${guestPage === pageNum
-                                                                                ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-110'
-                                                                                : 'bg-white text-slate-500 border border-slate-200 hover:border-primary/30'
-                                                                                }`}
+                                                                            className={`min-w-[40px] h-10 rounded-xl text-[11px] font-black transition-all ${
+                                                                                guestPage === pageNum
+                                                                                    ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-110'
+                                                                                    : 'bg-white text-slate-500 border border-slate-200 hover:border-primary/30'
+                                                                            }`}
                                                                         >
                                                                             {pageNum}
                                                                         </button>
@@ -1346,138 +1144,128 @@ const OrganizerEventManage = () => {
                                             </div>
                                         ) : (
                                             <div className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
-                                                {/* Condensed Premium Legend */}
-                                                <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-4 mb-10 text-[10px] font-black uppercase tracking-wider border-b border-slate-100 pb-8">
-                                                    {/* Semantic Status States */}
-                                                    <div className="flex items-center flex-wrap gap-4 border-r border-slate-200 pr-6">
-                                                        <div className="flex items-center gap-2 bg-emerald-50/80 text-emerald-700 px-3 py-1.5 rounded-full border border-emerald-100">
-                                                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
-                                                            <span className="tracking-wide">Đã Check-In</span>
-                                                        </div>
+                                                {/* Dynamic Premium Legend */}
+                                                <div className="flex flex-wrap justify-center gap-x-8 gap-y-5 mb-12 text-[11px] font-black uppercase tracking-[0.15em] border-b border-slate-100 pb-10">
+                                                    <div className="flex items-center gap-3 group bg-emerald-50/50 px-4 py-2 rounded-full border border-emerald-100/50 transition-all hover:bg-emerald-50">
+                                                        <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-transform group-hover:scale-110" />
+                                                        <span className="text-emerald-700">─É├ú Check-in</span>
+                                                    </div>
+                                                    
+                                                    {uniqueTicketTypes.map((tt: any) => (
+                                                        <React.Fragment key={tt.name}>
+                                                            <div className="flex items-center gap-3 group px-4 py-2 rounded-full transition-all hover:bg-slate-50" title={`${tt.name} - ─É├ú thanh to├ín`}>
+                                                                <div className="w-3.5 h-3.5 rounded-full shadow-sm transition-transform group-hover:scale-110" style={{ backgroundColor: tt.color || '#3b82f6', boxShadow: `0 0 10px ${(tt.color || '#3b82f6')}50` }} />
+                                                                <span className="text-slate-600">{tt.name} <span className="opacity-50 ml-1">(─É├ú b├ín)</span></span>
+                                                            </div>
+                                                            <div className="flex items-center gap-3 group px-4 py-2 rounded-full transition-all hover:bg-slate-50" title={`${tt.name} - C├▓n trß╗æng`}>
+                                                                <div className="w-3.5 h-3.5 rounded-full border-2 transition-transform group-hover:scale-110" style={{ borderColor: tt.color || '#3b82f6', backgroundColor: 'transparent' }} />
+                                                                <span className="text-slate-400">Trß╗æng <span className="opacity-50 ml-1">({tt.name})</span></span>
+                                                            </div>
+                                                        </React.Fragment>
+                                                    ))}
+                                                </div>
 
-                                                        <div className="flex items-center gap-2 bg-slate-50 text-slate-600 px-3 py-1.5 rounded-full border border-slate-200">
-                                                            <div className="w-2.5 h-2.5 rounded-full bg-slate-500 shadow-xs" />
-                                                            <span className="tracking-wide">Đã bán</span>
-                                                        </div>
-
-                                                        <div className="flex items-center gap-2 bg-slate-50 text-slate-400 px-3 py-1.5 rounded-full border border-slate-200">
-                                                            <div className="w-2.5 h-2.5 rounded-full border-2 border-slate-400 bg-transparent" />
-                                                            <span className="tracking-wide">Trống</span>
+                                                {/* The Premium Seat Map Canvas Stage */}
+                                                <div className="relative w-full bg-slate-900 rounded-[3rem] overflow-hidden flex flex-col items-center shadow-2xl border-8 border-slate-800 animate-in zoom-in-95 duration-500">
+                                                    {/* STAGE OVERLAY */}
+                                                    <div className="w-full py-4 bg-slate-800/60 backdrop-blur-md flex justify-center relative z-10 border-b border-slate-700/50 shadow-lg">
+                                                        <div className="relative bg-slate-700 text-slate-300 px-16 py-2 rounded-full text-xs font-black uppercase tracking-[0.4em] border border-slate-600/50 shadow-inner overflow-hidden">
+                                                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-30" />
+                                                            S├ón Khß║Ñu / Stage
                                                         </div>
                                                     </div>
 
-                                                    {/* Unique Ticket Class Pill Indicators */}
-                                                    <div className="flex items-center flex-wrap gap-3">
-                                                        {uniqueTicketTypes.map((tt: any) => (
-                                                            <div key={tt.name} className="flex items-center gap-2.5 px-3.5 py-1.5 bg-slate-50/50 border border-slate-100 rounded-full transition-all hover:bg-white hover:shadow-sm hover:border-slate-200/70 cursor-default group">
-                                                                <div className="w-2 h-2 rounded-full transition-transform group-hover:scale-110" style={{ backgroundColor: tt.color || '#3b82f6', boxShadow: `0 0 8px ${(tt.color || '#3b82f6')}40` }} />
-                                                                <span className="text-slate-700 font-extrabold tracking-tight leading-none mt-[1px]">{tt.name}</span>
-                                                            </div>
-                                                        ))}
+                                                    {/* CANVAS VIEWPORT CONTAINER */}
+                                                    <div className="relative w-full bg-[#0f172a] overflow-auto py-8 custom-scrollbar">
+                                                        <div className="w-fit mx-auto min-w-[800px] flex justify-center">
+                                                            <Stage width={800} height={500}>
+                                                                <Layer>
+                                                                    {/* Sophisticated Grid System */}
+                                                                    {Array.from({ length: 21 }).map((_, i) => (
+                                                                        <Rect key={'v' + i} x={i * 40} y={0} width={1} height={500} fill="#1e293b" opacity={0.3} />
+                                                                    ))}
+                                                                    {Array.from({ length: 13 }).map((_, i) => (
+                                                                        <Rect key={'h' + i} x={0} y={i * 40} width={800} height={1} fill="#1e293b" opacity={0.3} />
+                                                                    ))}
+
+                                                                    {/* Render Interactive Seats */}
+                                                                    {seats.map((seat: any) => {
+                                                                        const isOccupied = seat.status !== 'AVAILABLE';
+                                                                        const attendee = isOccupied ? attendees.find((a: any) => a.seatNumber === seat.seatNumber) : null;
+                                                                        const isCheckedIn = isOccupied && attendee?.status === 'CHECKED_IN';
+                                                                        
+                                                                        const baseColor = seat.color || '#3b82f6';
+                                                                        const circleFill = isCheckedIn ? '#10b981' : (isOccupied ? baseColor : 'rgba(15, 23, 42, 0.8)');
+                                                                        const circleStroke = isCheckedIn ? '#fff' : baseColor;
+                                                                        const shadowColor = isCheckedIn ? '#10b981' : baseColor;
+                                                                        const textColor = isOccupied ? '#fff' : baseColor;
+
+                                                                        return (
+                                                                            <Group
+                                                                                key={seat.id}
+                                                                                x={Number(seat.x) || 0}
+                                                                                y={Number(seat.y) || 0}
+                                                                                onClick={() => {
+                                                                                    if (attendee) {
+                                                                                        setSelectedSeatInfo(attendee);
+                                                                                    } else {
+                                                                                        toast.dismiss();
+                                                                                        toast(`${seat.seatNumber} - ${seat.ticketTypeName} (─Éang trß╗æng)`, { icon: '≡ƒÄ½' });
+                                                                                    }
+                                                                                }}
+                                                                                onMouseEnter={(e) => {
+                                                                                    const container = e.target.getStage()?.container();
+                                                                                    if (container) container.style.cursor = attendee ? 'pointer' : 'help';
+                                                                                }}
+                                                                                onMouseLeave={(e) => {
+                                                                                    const container = e.target.getStage()?.container();
+                                                                                    if (container) container.style.cursor = 'default';
+                                                                                }}
+                                                                            >
+                                                                                <Circle
+                                                                                    radius={14}
+                                                                                    fill={circleFill}
+                                                                                    shadowBlur={isOccupied ? 12 : 4}
+                                                                                    shadowColor={shadowColor}
+                                                                                    shadowOpacity={isOccupied ? 0.5 : 0.2}
+                                                                                    stroke={circleStroke}
+                                                                                    strokeWidth={isOccupied ? 1.5 : 2}
+                                                                                />
+                                                                                <Text
+                                                                                    text={seat.seatNumber}
+                                                                                    fontSize={seat.seatNumber.length > 2 ? 8 : 10}
+                                                                                    fontStyle="bold"
+                                                                                    fill={textColor}
+                                                                                    align="center"
+                                                                                    verticalAlign="middle"
+                                                                                    offsetX={seat.seatNumber.length > 2 ? 7 : 5}
+                                                                                    offsetY={5}
+                                                                                />
+                                                                            </Group>
+                                                                        );
+                                                                    })}
+                                                                </Layer>
+                                                            </Stage>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {/* HINT FOOTER */}
+                                                    <div className="w-full py-3 bg-slate-800/30 border-t border-slate-800/50 px-6 flex justify-between items-center text-[10px] text-slate-500 font-medium uppercase tracking-wider">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                            Live Seating View
+                                                        </div>
+                                                        <div>
+                                                            Click on occupied seats to view details
+                                                        </div>
                                                     </div>
                                                 </div>
 
-                                                {/* Modern 2-Column Grid for Seat Map & Real-time Analytics Sidebar */}
-                                                <div className="grid grid-cols-1 xl:grid-cols-4 gap-8 items-start">
-                                                    {/* The Premium Seat Map Canvas Stage (Occupies 3 cols) */}
-                                                    <div className="xl:col-span-3 relative w-full bg-slate-900 rounded-[3rem] overflow-hidden flex flex-col items-center shadow-2xl border-8 border-slate-800 animate-in zoom-in-95 duration-500">
-                                                        {/* STAGE OVERLAY */}
-                                                        <div className="w-full py-4 bg-slate-800/60 backdrop-blur-md flex justify-center relative z-10 border-b border-slate-700/50 shadow-lg">
-                                                            <div className="relative bg-slate-700 text-slate-300 px-16 py-2 rounded-full text-xs font-black uppercase tracking-[0.4em] border border-slate-600/50 shadow-inner overflow-hidden">
-                                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-30" />
-                                                                Sân Khấu / Stage
-                                                            </div>
-                                                        </div>
-
-                                                        {/* CANVAS VIEWPORT CONTAINER */}
-                                                        <div className="relative w-full bg-[#0f172a] overflow-auto py-8 custom-scrollbar">
-                                                            <div className="w-fit mx-auto min-w-[800px] flex justify-center">
-                                                                {memoizedSeatMap}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* HINT FOOTER */}
-                                                        <div className="w-full py-3 bg-slate-800/30 border-t border-slate-800/50 px-6 flex justify-between items-center text-[10px] text-slate-500 font-medium uppercase tracking-wider">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                                                Live Seating View
-                                                            </div>
-                                                            <div>
-                                                                Click on occupied seats to view details
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* THE PREMIUM ZONING SIDEBAR (Occupies 1 col) */}
-                                                    <div className="xl:col-span-1 bg-white border border-slate-200 rounded-[2.5rem] p-6 shadow-sm flex flex-col gap-5 min-w-0 overflow-hidden animate-in slide-in-from-right-6 duration-500 self-stretch">
-                                                        {/* Sidebar Header */}
-                                                        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                                                            <div className="flex items-center gap-2.5">
-                                                                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center shadow-xs">
-                                                                    <Icon name="grid_view" size="sm" />
-                                                                </div>
-                                                                <h3 className="font-black text-slate-800 text-[15px] tracking-tight">Chi tiết</h3>
-                                                            </div>
-                                                        </div>
-
-
-
-                                                        {/* Zoning Cards List */}
-                                                        <div className="flex flex-col gap-3.5 max-h-[420px] xl:max-h-[480px] overflow-y-auto pr-1.5 custom-scrollbar">
-                                                            {ticketSalesBreakdown.length === 0 ? (
-                                                                <div className="p-8 text-center italic text-slate-400 text-xs border border-dashed border-slate-200 rounded-2xl">
-                                                                    Không tìm thấy phân khu nào.
-                                                                </div>
-                                                            ) : (
-                                                                ticketSalesBreakdown.map((tt: any) => {
-                                                                    const percentColor = tt.percentage >= 80 ? 'text-emerald-600 bg-emerald-50 border-emerald-100/40' : tt.percentage >= 30 ? 'text-amber-600 bg-amber-50 border-amber-100/40' : 'text-red-500 bg-red-50 border-red-100/40';
-
-                                                                    return (
-                                                                        <div 
-                                                                            key={tt.id || tt.name} 
-                                                                            onClick={() => setSelectedZoneForModal(tt)}
-                                                                            className="bg-white border border-slate-100 rounded-[1.5rem] p-4 shadow-[0_4px_20px_rgba(0,0,0,0.01)] flex flex-col gap-3 transition-all hover:shadow-md hover:border-slate-200/70 hover:-translate-y-0.5 group cursor-pointer relative overflow-hidden shrink-0"
-                                                                        >
-                                                                            <div className="flex items-center justify-between">
-                                                                                <div className="flex items-center gap-3 min-w-0">
-                                                                                    {/* Vertical color stripe like in image */}
-                                                                                    <div className="w-1.5 h-8 rounded-full shrink-0 transition-transform group-hover:scale-y-110" style={{ backgroundColor: tt.color || '#3b82f6' }} />
-                                                                                    <div className="min-w-0">
-                                                                                        <h4 className="font-black text-slate-800 text-xs truncate leading-tight group-hover:text-primary transition-colors">{tt.name}</h4>
-                                                                                        <p className="text-[9px] text-slate-400 font-bold tracking-wide mt-0.5 truncate">{new Intl.NumberFormat('vi-VN').format(tt.price)} đ • Vé {tt.type === 'SEATED' ? 'Đầu' : 'Thường'}</p>
-                                                                                    </div>
-                                                                                </div>
-                                                                                <Icon name="chevron_right" size="xs" className="text-slate-300 transition-all group-hover:text-slate-500 group-hover:translate-x-0.5 shrink-0" />
-                                                                            </div>
-
-                                                                            {/* Two columns stats */}
-                                                                            <div className="grid grid-cols-2 gap-2.5 mt-1">
-                                                                                <div className="bg-slate-50/50 p-2.5 rounded-xl border border-slate-100/50 flex flex-col justify-center">
-                                                                                    <span className="text-[8.5px] text-slate-400 font-bold uppercase tracking-wider leading-none mb-1.5">Đã bán</span>
-                                                                                    <span className="text-[11px] font-black text-slate-700 tracking-tight leading-none">{tt.sold} / {tt.total}</span>
-                                                                                </div>
-                                                                                <div className="bg-slate-50/50 p-2.5 rounded-xl border border-slate-100/50 flex flex-col justify-center">
-                                                                                    <span className="text-[8.5px] text-slate-400 font-bold uppercase tracking-wider leading-none mb-1.5">Tỷ lệ</span>
-                                                                                    <span className={`text-[11px] font-black tracking-tight leading-none ${percentColor.split(' ')[0]}`}>{tt.percentage}%</span>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    );
-                                                                })
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
 
                                                 <SeatAttendeeModal
                                                     attendee={selectedSeatInfo}
                                                     onClose={() => setSelectedSeatInfo(null)}
                                                     onCheckIn={handleCheckIn}
-                                                />
-                                                <ZoneAttendeesModal
-                                                    zone={selectedZoneForModal}
-                                                    attendees={attendees}
-                                                    onClose={() => setSelectedZoneForModal(null)}
                                                 />
                                             </div>
                                         )}
@@ -1494,15 +1282,15 @@ const OrganizerEventManage = () => {
                                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-12 relative z-10">
                                             <div>
                                                 <div className="flex items-center gap-2 mb-1">
-                                                    <h4 className="text-2xl font-black text-slate-900 tracking-tight">Doanh thu theo tuần</h4>
+                                                    <h4 className="text-2xl font-black text-slate-900 tracking-tight">Doanh thu theo tuß║ºn</h4>
                                                 </div>
-                                                <p className="text-[11px] text-slate-400 font-black uppercase tracking-[0.2em]">Báo cáo tài chính chi tiết</p>
+                                                <p className="text-[11px] text-slate-400 font-black uppercase tracking-[0.2em]">B├ío c├ío t├ái ch├¡nh chi tiß║┐t</p>
                                             </div>
                                             <div className="flex items-center gap-3">
                                                 <button
                                                     onClick={() => fetchData()}
                                                     className="w-10 h-10 flex items-center justify-center bg-white text-blue-400 rounded-xl hover:text-primary border border-blue-50 shadow-sm transition-all"
-                                                    title="Làm mới dữ liệu"
+                                                    title="L├ám mß╗¢i dß╗» liß╗çu"
                                                 >
                                                     <Icon name="refresh" size="sm" />
                                                 </button>
@@ -1556,13 +1344,13 @@ const OrganizerEventManage = () => {
                                                     return (
                                                         <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-300 animate-in fade-in duration-700 z-20">
                                                             <Icon name="insert_chart" size="lg" className="mb-4 opacity-10 scale-150" />
-                                                            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4">Không có dữ liệu tuần này</p>
+                                                            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4">Kh├┤ng c├│ dß╗» liß╗çu tuß║ºn n├áy</p>
                                                             {hasAnyData && weekWithData && (
                                                                 <button
                                                                     onClick={() => setCurrentWeekStart(weekWithData)}
                                                                     className="px-6 py-3 bg-gradient-to-r from-primary to-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-blue-100"
                                                                 >
-                                                                    Xem tuần có doanh thu gần nhất
+                                                                    Xem tuß║ºn c├│ doanh thu gß║ºn nhß║Ñt
                                                                 </button>
                                                             )}
                                                         </div>
@@ -1638,9 +1426,9 @@ const OrganizerEventManage = () => {
                                                 <Icon name="account_balance_wallet" className="text-[100px]" />
                                             </div>
                                             <div className="relative z-10">
-                                                <p className="text-emerald-100 text-[10px] font-bold uppercase tracking-widest mb-1">Doanh thu hiện thực</p>
+                                                <p className="text-emerald-100 text-[10px] font-bold uppercase tracking-widest mb-1">Doanh thu hiß╗çn thß╗▒c</p>
                                                 <h4 className="text-3xl font-black mb-1">{formatCurrency(stats?.totalRevenue || 0)}</h4>
-                                                <p className="text-[9px] text-emerald-100/40 italic">Đã bao gồm VAT & Phí hệ thống</p>
+                                                <p className="text-[9px] text-emerald-100/40 italic">─É├ú bao gß╗ôm VAT & Ph├¡ hß╗ç thß╗æng</p>
                                             </div>
                                         </div>
 
@@ -1651,10 +1439,10 @@ const OrganizerEventManage = () => {
                                             </div>
                                             <div className="relative z-10">
                                                 <div className="flex items-center gap-2 mb-1">
-                                                    <p className="text-rose-200 text-[10px] font-bold uppercase tracking-widest">Chi phí sự kiện</p>
+                                                    <p className="text-rose-200 text-[10px] font-bold uppercase tracking-widest">Chi ph├¡ sß╗▒ kiß╗çn</p>
                                                 </div>
                                                 <h4 className="text-3xl font-black mb-1">{formatCurrency(0)}</h4>
-                                                <p className="text-[9px] text-rose-100/40 italic">Ước tính phí vận hành & Quảng cáo</p>
+                                                <p className="text-[9px] text-rose-100/40 italic">╞»ß╗¢c t├¡nh ph├¡ vß║¡n h├ánh & Quß║úng c├ío</p>
                                             </div>
                                         </div>
                                     </div>
@@ -1668,7 +1456,7 @@ const OrganizerEventManage = () => {
                                                 <Icon name="history" size="xs" />
                                             </div>
                                             <div>
-                                                <span className="font-black text-md uppercase block leading-none mb-1">Giao dịch gần nhất</span>
+                                                <span className="font-black text-md uppercase block leading-none mb-1">Giao dß╗ïch gß║ºn nhß║Ñt</span>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2 bg-black/10 p-1 rounded-xl border border-white/10">
@@ -1693,15 +1481,15 @@ const OrganizerEventManage = () => {
                                         <table className="w-full text-left whitespace-nowrap">
                                             <thead>
                                                 <tr className="bg-blue-50 text-[10px] font-black text-blue-400 uppercase tracking-[0.15em] border-b border-blue-100">
-                                                    <th className="p-5">Mã GD</th>
-                                                    <th className="p-5">Khách hàng</th>
-                                                    <th className="p-5">Số ghế</th>
-                                                    <th className="p-5">Thời gian</th>
-                                                    <th className="p-5">Số tiền</th>
-                                                    <th className="p-5">Thuế hệ thống</th>
-                                                    <th className="p-5">Thực nhận</th>
-                                                    <th className="p-5">Phương thức</th>
-                                                    <th className="p-5">Trạng thái</th>
+                                                    <th className="p-5">M├ú GD</th>
+                                                    <th className="p-5">Kh├ích h├áng</th>
+                                                    <th className="p-5">Sß╗æ ghß║┐</th>
+                                                    <th className="p-5">Thß╗¥i gian</th>
+                                                    <th className="p-5">Sß╗æ tiß╗ün</th>
+                                                    <th className="p-5">Thuß║┐ hß╗ç thß╗æng</th>
+                                                    <th className="p-5">Thß╗▒c nhß║¡n</th>
+                                                    <th className="p-5">Ph╞░╞íng thß╗⌐c</th>
+                                                    <th className="p-5">Trß║íng th├íi</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-50 font-medium">
@@ -1722,7 +1510,7 @@ const OrganizerEventManage = () => {
                                                                         const isVip = ticket.ticketTypeName?.toLowerCase().includes('vip');
                                                                         return (
                                                                             <span key={ticket.id} className={`px-2 py-0.5 rounded text-xs font-bold border ${isVip ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                                                                                {isVip && <span className="mr-0.5">⭐</span>}{ticket.seatNumber}
+                                                                                {isVip && <span className="mr-0.5">Γ¡É</span>}{ticket.seatNumber}
                                                                             </span>
                                                                         );
                                                                     })}
@@ -1755,9 +1543,9 @@ const OrganizerEventManage = () => {
                                                             </td>
                                                             <td className="p-5" >
                                                                 {order.status === 'COMPLETED' ? (
-                                                                    <span className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-emerald-100 shadow-sm">Thành công</span>
+                                                                    <span className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-emerald-100 shadow-sm">Th├ánh c├┤ng</span>
                                                                 ) : order.status === 'PENDING' ? (
-                                                                    <span className="px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-amber-100 shadow-sm">Chờ xử lý</span>
+                                                                    <span className="px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-amber-100 shadow-sm">Chß╗¥ xß╗¡ l├╜</span>
                                                                 ) : (
                                                                     <span className="px-3 py-1.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-red-100 shadow-sm">{order.status}</span>
                                                                 )}
@@ -1779,15 +1567,15 @@ const OrganizerEventManage = () => {
                                                     <Icon name="auto_awesome" className="text-white text-4xl" />
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <h4 className="text-2xl font-black text-slate-900 tracking-tight">Kế hoạch & Dự toán AI</h4>
-                                                    <p className="text-slate-500 text-sm max-w-md mx-auto leading-relaxed">Sử dụng trí tuệ nhân tạo để tự động hóa danh sách công việc, dụng cụ cần thiết và dự toán ngân sách chi tiết cho sự kiện này.</p>
+                                                    <h4 className="text-2xl font-black text-slate-900 tracking-tight">Kß║┐ hoß║ích & Dß╗▒ to├ín AI</h4>
+                                                    <p className="text-slate-500 text-sm max-w-md mx-auto leading-relaxed">Sß╗¡ dß╗Ñng tr├¡ tuß╗ç nh├ón tß║ío ─æß╗â tß╗▒ ─æß╗Öng h├│a danh s├ích c├┤ng viß╗çc, dß╗Ñng cß╗Ñ cß║ºn thiß║┐t v├á dß╗▒ to├ín ng├ón s├ích chi tiß║┐t cho sß╗▒ kiß╗çn n├áy.</p>
                                                 </div>
                                                 <button
                                                     onClick={generateAIPlan}
                                                     className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs tracking-widest hover:bg-slate-800 transition-all shadow-xl hover:shadow-2xl hover:translate-y-[-2px] flex items-center gap-3"
                                                 >
                                                     <Icon name="bolt" size="sm" />
-                                                    BẮT ĐẦU TẠO NGAY
+                                                    Bß║«T ─Éß║ªU Tß║áO NGAY
                                                 </button>
                                             </div>
                                         )}
@@ -1805,8 +1593,8 @@ const OrganizerEventManage = () => {
                                                     <div className="absolute -bottom-2 -left-2 w-3 h-3 bg-blue-400 rounded-full animate-bounce delay-150"></div>
                                                 </div>
                                                 <div className="space-y-2 text-center">
-                                                    <h4 className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600 animate-pulse">ĐANG PHÂN TÍCH SỰ KIỆN...</h4>
-                                                    <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">AI đang thiết lập công việc & ngân sách</p>
+                                                    <h4 className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600 animate-pulse">─ÉANG PH├éN T├ìCH Sß╗░ KIß╗åN...</h4>
+                                                    <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">AI ─æang thiß║┐t lß║¡p c├┤ng viß╗çc & ng├ón s├ích</p>
                                                 </div>
                                             </div>
                                         )}
@@ -1820,10 +1608,10 @@ const OrganizerEventManage = () => {
                                                         </div>
                                                         <div>
                                                             <h4 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                                                                Kế hoạch & Dự toán AI
+                                                                Kß║┐ hoß║ích & Dß╗▒ to├ín AI
                                                                 <span className="px-2 py-0.5 bg-purple-100 text-purple-600 rounded text-[8px] font-black uppercase tracking-tighter">Premium Gen</span>
                                                             </h4>
-                                                            <p className="text-[10px] text-slate-500 font-bold tracking-widest uppercase mt-1">Tối ưu hóa ngân sách dựa trên loại hình sự kiện & mục tiêu</p>
+                                                            <p className="text-[10px] text-slate-500 font-bold tracking-widest uppercase mt-1">Tß╗æi ╞░u h├│a ng├ón s├ích dß╗▒a tr├¬n loß║íi h├¼nh sß╗▒ kiß╗çn & mß╗Ñc ti├¬u</p>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-3">
@@ -1833,7 +1621,7 @@ const OrganizerEventManage = () => {
                                                         <button
                                                             onClick={generateAIPlan}
                                                             className="p-3 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl transition-all"
-                                                            title="Tạo lại kế hoạch"
+                                                            title="Tß║ío lß║íi kß║┐ hoß║ích"
                                                         >
                                                             <Icon name="refresh" size="sm" />
                                                         </button>
@@ -1846,9 +1634,9 @@ const OrganizerEventManage = () => {
                                                         <div className="flex items-center justify-between mb-4">
                                                             <div className="flex items-center gap-2">
                                                                 <div className="w-1.5 h-6 bg-purple-500 rounded-full" />
-                                                                <h5 className="font-black text-xs uppercase tracking-widest text-slate-700">Công việc trọng tâm</h5>
+                                                                <h5 className="font-black text-xs uppercase tracking-widest text-slate-700">C├┤ng viß╗çc trß╗ìng t├óm</h5>
                                                             </div>
-                                                            <span className="text-[10px] font-bold text-slate-400">{aiPlanResult.tasks.length} nhiệm vụ</span>
+                                                            <span className="text-[10px] font-bold text-slate-400">{aiPlanResult.tasks.length} nhiß╗çm vß╗Ñ</span>
                                                         </div>
                                                         <div className="grid grid-cols-1 gap-2">
                                                             {aiPlanResult.tasks.map((task: any, idx: number) => (
@@ -1872,9 +1660,9 @@ const OrganizerEventManage = () => {
                                                         <div className="flex items-center justify-between mb-4">
                                                             <div className="flex items-center gap-2">
                                                                 <div className="w-1.5 h-6 bg-pink-500 rounded-full" />
-                                                                <h5 className="font-black text-xs uppercase tracking-widest text-slate-700">Tài liệu & Thiết bị</h5>
+                                                                <h5 className="font-black text-xs uppercase tracking-widest text-slate-700">T├ái liß╗çu & Thiß║┐t bß╗ï</h5>
                                                             </div>
-                                                            <span className="text-[10px] font-bold text-slate-400">{aiPlanResult.tools.length} loại</span>
+                                                            <span className="text-[10px] font-bold text-slate-400">{aiPlanResult.tools.length} loß║íi</span>
                                                         </div>
                                                         <div className="bg-slate-50/50 rounded-2xl border border-slate-100 overflow-hidden divide-y divide-slate-100">
                                                             {aiPlanResult.tools.map((tool: any, idx: number) => (
@@ -1903,12 +1691,12 @@ const OrganizerEventManage = () => {
                                                                 <Icon name="table_chart" size="sm" />
                                                             </div>
                                                             <div>
-                                                                <h5 className="font-black text-sm uppercase tracking-widest">DỰ TOÁN NGÂN SÁCH CHI TIẾT</h5>
-                                                                <p className="text-[9px] text-white/50 font-bold uppercase tracking-tighter">Dựa trên khối lượng và đơn giá thực tế</p>
+                                                                <h5 className="font-black text-sm uppercase tracking-widest">Dß╗░ TO├üN NG├éN S├üCH CHI TIß║╛T</h5>
+                                                                <p className="text-[9px] text-white/50 font-bold uppercase tracking-tighter">Dß╗▒a tr├¬n khß╗æi l╞░ß╗úng v├á ─æ╞ín gi├í thß╗▒c tß║┐</p>
                                                             </div>
                                                         </div>
                                                         <div className="text-right relative z-10">
-                                                            <p className="text-[9px] text-white/50 font-bold uppercase mb-1">Tổng cộng dự toán</p>
+                                                            <p className="text-[9px] text-white/50 font-bold uppercase mb-1">Tß╗òng cß╗Öng dß╗▒ to├ín</p>
                                                             <p className="text-2xl font-black text-primary">
                                                                 {formatCurrency(aiPlanResult.budgetSections.reduce((acc: number, cur: any) => acc + cur.total, 0))}
                                                             </p>
@@ -1921,12 +1709,12 @@ const OrganizerEventManage = () => {
                                                                 <thead>
                                                                     <tr className="bg-orange-500 text-white text-[10px] uppercase tracking-widest shadow-lg">
                                                                         <th className="p-4 border border-orange-600 w-12 text-center first:rounded-tl-[2rem]">STT</th>
-                                                                        <th className="p-4 border border-orange-600 text-left min-w-[300px]">Mục</th>
-                                                                        <th className="p-4 border border-orange-600 text-center w-28">Đơn vị</th>
-                                                                        <th className="p-4 border border-orange-600 text-center w-28">Số lượng</th>
-                                                                        <th className="p-4 border border-orange-600 text-right min-w-[130px]">Đơn giá</th>
-                                                                        <th className="p-4 border border-orange-600 text-right min-w-[160px]">Thành tiền (VND)</th>
-                                                                        <th className="p-4 border border-orange-600 text-left min-w-[280px] last:rounded-tr-[2rem]">Chú thích</th>
+                                                                        <th className="p-4 border border-orange-600 text-left min-w-[300px]">Mß╗Ñc</th>
+                                                                        <th className="p-4 border border-orange-600 text-center w-28">─É╞ín vß╗ï</th>
+                                                                        <th className="p-4 border border-orange-600 text-center w-28">Sß╗æ l╞░ß╗úng</th>
+                                                                        <th className="p-4 border border-orange-600 text-right min-w-[130px]">─É╞ín gi├í</th>
+                                                                        <th className="p-4 border border-orange-600 text-right min-w-[160px]">Th├ánh tiß╗ün (VND)</th>
+                                                                        <th className="p-4 border border-orange-600 text-left min-w-[280px] last:rounded-tr-[2rem]">Ch├║ th├¡ch</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
@@ -1936,7 +1724,7 @@ const OrganizerEventManage = () => {
                                                                             <tr className="bg-[#a6ce39] text-white leading-loose shadow-sm">
                                                                                 <td className="p-4 border border-emerald-600 text-center uppercase font-black">{section.id}</td>
                                                                                 <td className="p-4 border border-emerald-600 uppercase tracking-widest font-black" colSpan={4}>{section.title}</td>
-                                                                                <td className="p-4 border border-emerald-600 text-right font-black text-sm">{formatCurrency(section.total).replace('₫', '')}</td>
+                                                                                <td className="p-4 border border-emerald-600 text-right font-black text-sm">{formatCurrency(section.total).replace('Γé½', '')}</td>
                                                                                 <td className="p-4 border border-emerald-600"></td>
                                                                             </tr>
 
@@ -1954,8 +1742,8 @@ const OrganizerEventManage = () => {
                                                                                             <td className="p-4 border-x border-slate-100 pl-10 font-bold text-slate-800">{item.item}</td>
                                                                                             <td className="p-4 border-x border-slate-100 text-center font-medium italic text-slate-400">{item.unit}</td>
                                                                                             <td className="p-4 border-x border-slate-100 text-center font-black text-slate-700">{item.qty}</td>
-                                                                                            <td className="p-4 border-x border-slate-100 text-right font-medium">{formatCurrency(item.unitPrice).replace('₫', '')}</td>
-                                                                                            <td className="p-4 border-x border-slate-100 text-right font-black text-slate-900">{formatCurrency(item.qty * item.unitPrice).replace('₫', '')}</td>
+                                                                                            <td className="p-4 border-x border-slate-100 text-right font-medium">{formatCurrency(item.unitPrice).replace('Γé½', '')}</td>
+                                                                                            <td className="p-4 border-x border-slate-100 text-right font-black text-slate-900">{formatCurrency(item.qty * item.unitPrice).replace('Γé½', '')}</td>
                                                                                             <td className="p-4 border-x border-slate-100 text-xs font-normal italic leading-relaxed text-slate-400 group-hover:text-slate-600 transition-colors">
                                                                                                 {item.remarks}
                                                                                             </td>
@@ -1967,7 +1755,7 @@ const OrganizerEventManage = () => {
                                                                     ))}
                                                                     {/* Final Total Row */}
                                                                     <tr className="bg-slate-900 text-white">
-                                                                        <td colSpan={5} className="p-6 border border-slate-900 text-right uppercase tracking-[0.2em] font-black text-[10px] text-white/50">TỔNG CỘNG HỆ THỐNG DỰ TOÁN</td>
+                                                                        <td colSpan={5} className="p-6 border border-slate-900 text-right uppercase tracking-[0.2em] font-black text-[10px] text-white/50">Tß╗öNG Cß╗ÿNG Hß╗å THß╗ÉNG Dß╗░ TO├üN</td>
                                                                         <td className="p-6 border border-slate-900 text-right font-black text-2xl text-primary">
                                                                             {formatCurrency(aiPlanResult.budgetSections.reduce((acc: number, cur: any) => acc + cur.total, 0))}
                                                                         </td>
@@ -1983,8 +1771,8 @@ const OrganizerEventManage = () => {
                                                             <Icon name="info" size="sm" />
                                                         </div>
                                                         <div>
-                                                            <h6 className="text-[11px] font-black text-amber-900 uppercase">Lưu ý quan trọng</h6>
-                                                            <p className="text-[10px] text-amber-700 font-medium leading-relaxed italic">Dự toán này mang tính chất tham khảo dựa trên dữ liệu thị trường hiện tại. Chi phí thực tế có thể thay đổi tùy thuộc vào nhà cung cấp và thời điểm đặt hàng.</p>
+                                                            <h6 className="text-[11px] font-black text-amber-900 uppercase">L╞░u ├╜ quan trß╗ìng</h6>
+                                                            <p className="text-[10px] text-amber-700 font-medium leading-relaxed italic">Dß╗▒ to├ín n├áy mang t├¡nh chß║Ñt tham khß║úo dß╗▒a tr├¬n dß╗» liß╗çu thß╗ï tr╞░ß╗¥ng hiß╗çn tß║íi. Chi ph├¡ thß╗▒c tß║┐ c├│ thß╗â thay ─æß╗òi t├╣y thuß╗Öc v├áo nh├á cung cß║Ñp v├á thß╗¥i ─æiß╗âm ─æß║╖t h├áng.</p>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -2008,9 +1796,9 @@ const OrganizerEventManage = () => {
                                             <Icon name="star" size="xs" filled />
                                         </div>
                                         <div className="min-w-0">
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Xếp hạng trung bình</p>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Xß║┐p hß║íng trung b├¼nh</p>
                                             <div className="flex items-center gap-2">
-                                                <h4 className="text-lg font-black text-slate-900 leading-none">{comments.length} đánh giá</h4>
+                                                <h4 className="text-lg font-black text-slate-900 leading-none">{comments.length} ─æ├ính gi├í</h4>
                                             </div>
                                             <div className="flex gap-1 mt-2">
                                                 {[1, 2, 3, 4, 5].map((s) => (
@@ -2029,7 +1817,7 @@ const OrganizerEventManage = () => {
                                     {/* Distribution Box - Compact */}
                                     <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5 relative overflow-hidden group transition-all hover:shadow-md">
                                         <div className="flex items-center justify-between mb-3">
-                                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phân bổ đánh giá</h4>
+                                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ph├ón bß╗ò ─æ├ính gi├í</h4>
                                             <Icon name="insert_chart" size="xs" className="text-slate-300" />
                                         </div>
                                         <div className="space-y-1.5">
@@ -2052,13 +1840,13 @@ const OrganizerEventManage = () => {
                                     {/* Action Needed Box - Compact */}
                                     <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5 flex items-center justify-between relative overflow-hidden group transition-all hover:shadow-md hover:border-primary/20">
                                         <div className="relative z-10">
-                                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Cần phản hồi</h4>
+                                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Cß║ºn phß║ún hß╗ôi</h4>
                                             <div className="flex items-baseline gap-3">
                                                 <p className="text-4xl font-black text-slate-900 tracking-tighter">
                                                     {comments.filter(c => !c.reply).length}
                                                 </p>
                                                 <div className="px-2.5 py-1 bg-amber-50 text-amber-600 rounded-lg border border-amber-100 shadow-sm">
-                                                    <span className="text-[9px] font-black uppercase tracking-widest">Tồn đọng</span>
+                                                    <span className="text-[9px] font-black uppercase tracking-widest">Tß╗ôn ─æß╗ìng</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -2073,7 +1861,7 @@ const OrganizerEventManage = () => {
                                 {/* All Reviews */}
                                 <div className="space-y-6">
                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-2">
-                                        <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Tất cả nhận xét</h3>
+                                        <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Tß║Ñt cß║ú nhß║¡n x├⌐t</h3>
                                         <div className="flex flex-wrap items-center gap-2">
                                             <button
                                                 onClick={() => setRatingFilter(null)}
@@ -2082,7 +1870,7 @@ const OrganizerEventManage = () => {
                                                     : 'bg-white text-gray-400 border-gray-100 hover:border-gray-200 hover:text-gray-600'
                                                     }`}
                                             >
-                                                Tất cả
+                                                Tß║Ñt cß║ú
                                             </button>
                                             {[5, 4, 3, 2, 1].map(star => {
                                                 const starColors: any = {
@@ -2113,7 +1901,7 @@ const OrganizerEventManage = () => {
                                         if (filteredComments.length === 0) {
                                             return (
                                                 <div className="p-20 text-center text-gray-900 font-black uppercase text-sm border-2 border-gray-200 bg-gray-50/50 rounded-[3rem]">
-                                                    {ratingFilter ? `Chưa có nhận xét ${ratingFilter} sao` : "Chưa có nhận xét nào"}
+                                                    {ratingFilter ? `Ch╞░a c├│ nhß║¡n x├⌐t ${ratingFilter} sao` : "Ch╞░a c├│ nhß║¡n x├⌐t n├áo"}
                                                 </div>
                                             );
                                         }
@@ -2187,7 +1975,7 @@ const OrganizerEventManage = () => {
                                                                                 }`}
                                                                         >
                                                                             <Icon name="favorite" size="xs" filled={review.isLikedByOrganizer} className={review.isLikedByOrganizer ? 'scale-110' : 'group-hover/heart:scale-120 transition-transform'} />
-                                                                            <span className="text-[10px] font-black uppercase tracking-widest">{review.isLikedByOrganizer ? 'Đã yêu thích' : 'Yêu thích'}</span>
+                                                                            <span className="text-[10px] font-black uppercase tracking-widest">{review.isLikedByOrganizer ? '─É├ú y├¬u th├¡ch' : 'Y├¬u th├¡ch'}</span>
                                                                         </button>
 
                                                                         <div className={`flex items-center gap-2 px-4 py-1.5 rounded-xl border transition-all duration-500 ${review.reply
@@ -2196,7 +1984,7 @@ const OrganizerEventManage = () => {
                                                                             }`}>
                                                                             <Icon name={review.reply ? "check_circle" : "pending"} size="xs" filled={review.reply} />
                                                                             <span className="text-[10px] font-black uppercase tracking-widest">
-                                                                                {review.reply ? 'Đã phản hồi' : 'Chờ phản hồi'}
+                                                                                {review.reply ? '─É├ú phß║ún hß╗ôi' : 'Chß╗¥ phß║ún hß╗ôi'}
                                                                             </span>
                                                                         </div>
                                                                     </div>
@@ -2207,7 +1995,7 @@ const OrganizerEventManage = () => {
                                                                                 <div className="w-7 h-7 rounded-lg bg-slate-900 text-white flex items-center justify-center">
                                                                                     <Icon name="subdirectory_arrow_right" size="xs" />
                                                                                 </div>
-                                                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Phản hồi từ Ban Tổ Chức</span>
+                                                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Phß║ún hß╗ôi tß╗½ Ban Tß╗ò Chß╗⌐c</span>
                                                                             </div>
                                                                             <p className="text-xs font-bold leading-relaxed text-slate-900 pl-9">{review.reply}</p>
                                                                         </div>
@@ -2215,7 +2003,7 @@ const OrganizerEventManage = () => {
                                                                         <div className="flex gap-3 bg-white p-2 rounded-[2rem] border-2 border-slate-900/10 focus-within:border-slate-900/30 focus-within:shadow-xl transition-all duration-500">
                                                                             <input
                                                                                 type="text"
-                                                                                placeholder="Ban tổ chức sẽ rút kinh nghiệm, cảm ơn bạn đã nhận xét"
+                                                                                placeholder="Ban tß╗ò chß╗⌐c sß║╜ r├║t kinh nghiß╗çm, cß║úm ╞ín bß║ín ─æ├ú nhß║¡n x├⌐t"
                                                                                 className="flex-1 px-5 py-3 bg-transparent border-0 focus:ring-0 text-xs font-black outline-none placeholder:text-slate-500 placeholder:font-black placeholder:uppercase placeholder:tracking-widest"
                                                                                 value={replyTexts[review.id] || ''}
                                                                                 onChange={(e) => setReplyTexts({ ...replyTexts, [review.id]: e.target.value })}
@@ -2246,14 +2034,14 @@ const OrganizerEventManage = () => {
                                 <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4">
                                     <Icon name="construction" size="xl" />
                                 </div>
-                                <h4 className="text-2xl font-black text-slate-900 tracking-tight">Tính năng Đang hoàn thiện</h4>
-                                <p className="text-slate-500 max-w-md mx-auto">Chúng tôi đang đồng bộ hóa bộ công cụ chỉnh sửa để mang lại trải nghiệm tốt nhất. Trong thời gian này, bạn có thể xem thông tin tổng quát.</p>
+                                <h4 className="text-2xl font-black text-slate-900 tracking-tight">T├¡nh n─âng ─Éang ho├án thiß╗çn</h4>
+                                <p className="text-slate-500 max-w-md mx-auto">Ch├║ng t├┤i ─æang ─æß╗ông bß╗Ö h├│a bß╗Ö c├┤ng cß╗Ñ chß╗ënh sß╗¡a ─æß╗â mang lß║íi trß║úi nghiß╗çm tß╗æt nhß║Ñt. Trong thß╗¥i gian n├áy, bß║ín c├│ thß╗â xem th├┤ng tin tß╗òng qu├ít.</p>
                                 <div className="pt-6">
                                     <button
                                         onClick={() => setActiveTab('overview')}
                                         className="px-8 py-3 bg-slate-900 text-white rounded-2xl font-bold hover:scale-105 transition-all shadow-xl"
                                     >
-                                        Quay lại Tổng quan
+                                        Quay lß║íi Tß╗òng quan
                                     </button>
                                 </div>
                             </div>
@@ -2290,10 +2078,10 @@ const OrganizerEventManage = () => {
                                     </div>
                                     <div>
                                         <div className="flex items-center gap-2">
-                                            <h3 className="text-xl font-black tracking-tight">Check-in Thành công</h3>
+                                            <h3 className="text-xl font-black tracking-tight">Check-in Th├ánh c├┤ng</h3>
                                             <div className="px-2 py-0.5 bg-emerald-500 text-white text-[8px] font-black rounded-full animate-bounce">SUCCESS</div>
                                         </div>
-                                        <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Đơn hàng #{scanResult.id}</p>
+                                        <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">─É╞ín h├áng #{scanResult.id}</p>
                                     </div>
                                 </div>
                                 <button
@@ -2313,7 +2101,7 @@ const OrganizerEventManage = () => {
                                                 <Icon name="person" size="sm" />
                                             </div>
                                             <div>
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Người mua</p>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ng╞░ß╗¥i mua</p>
                                                 <p className="text-sm font-black text-slate-900">{scanResult.userName}</p>
                                             </div>
                                         </div>
@@ -2326,7 +2114,7 @@ const OrganizerEventManage = () => {
                                     <div className="space-y-3">
                                         <p className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                                             <Icon name="confirmation_number" size="xs" />
-                                            Danh sách vé ({scanResult.tickets?.length || 0})
+                                            Danh s├ích v├⌐ ({scanResult.tickets?.length || 0})
                                         </p>
                                         <div className="grid gap-3">
                                             {scanResult.tickets?.map((ticket: any) => {
@@ -2351,7 +2139,7 @@ const OrganizerEventManage = () => {
                                                                         {ticket.ticketTypeName}
                                                                     </span>
                                                                     <span className="text-xs font-black text-slate-400">|</span>
-                                                                    <span className="text-sm font-black text-slate-900">Ghế {ticket.seatNumber}</span>
+                                                                    <span className="text-sm font-black text-slate-900">Ghß║┐ {ticket.seatNumber}</span>
                                                                 </div>
                                                                 <p className="text-xs font-bold text-slate-600 mt-0.5 truncate max-w-[200px]">{ticket.sessionName}</p>
                                                             </div>
@@ -2374,7 +2162,7 @@ const OrganizerEventManage = () => {
                                     className="w-full py-4 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:shadow-xl hover:shadow-slate-900/20 transition-all active:scale-95 flex items-center justify-center gap-2"
                                 >
                                     <Icon name="done_all" size="sm" />
-                                    Hoàn tất
+                                    Ho├án tß║Ñt
                                 </button>
                             </div>
                         </div>

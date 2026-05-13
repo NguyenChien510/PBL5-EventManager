@@ -98,10 +98,6 @@ const VouchersRewards = () => {
               <span className="text-lg font-black text-slate-900">{(user?.loyaltyPoints || 0).toLocaleString()} <span className="text-xs font-medium text-slate-400">pts</span></span>
             </div>
           </div>
-          <div className="h-10 w-px bg-slate-200" />
-          <div className="flex items-center gap-4">
-            <Avatar src={sidebarConfig.user.avatar} size="lg" className="rounded-2xl shadow-md border-2 border-white" />
-          </div>
         </div>
       </header>
 

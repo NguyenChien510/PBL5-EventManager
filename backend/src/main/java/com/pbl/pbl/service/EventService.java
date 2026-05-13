@@ -408,6 +408,8 @@ public class EventService {
                 .startTime(eventStart)
                 .endTime(eventEnd)
                 .posterUrl(request.getPosterUrl())
+                .seatMapBgUrl(request.getSeatMapBgUrl())
+                .seatMapLayout(request.getSeatMapLayout())
                 .organizer(organizer)
                 .status(EventStatus.pending)
                 .hasSeatMap(request.getHasSeatMap() == null ? true : request.getHasSeatMap())
@@ -454,31 +456,41 @@ public class EventService {
 
             // Generate Seats
             boolean hasSeatMap = request.getHasSeatMap() == null ? true : request.getHasSeatMap();
+            java.util.Map<String, Integer> generatedCountMap = new java.util.HashMap<>();
+
+            // 1. Save physically mapped seats
             if (hasSeatMap && request.getSeatMapConfig() != null && request.getSeatMapConfig().getSeats() != null) {
                 for (com.pbl.pbl.dto.SeatRequestDTO seatReq : request.getSeatMapConfig().getSeats()) {
                     TicketType tt = ticketTypeMap.get(seatReq.getTicketTypeName());
-                    Seat seat = Seat.builder()
-                            .eventSession(session)
-                            .ticketType(tt)
-                            .seatNumber(seatReq.getSeatNumber())
-                            .status(SeatStatus.AVAILABLE)
-                            .x(seatReq.getX())
-                            .y(seatReq.getY())
-                            .build();
-                    seatRepository.save(seat);
+                    if (tt != null) {
+                        Seat seat = Seat.builder()
+                                .eventSession(session)
+                                .ticketType(tt)
+                                .seatNumber(seatReq.getSeatNumber())
+                                .status(SeatStatus.AVAILABLE)
+                                .x(seatReq.getX())
+                                .y(seatReq.getY())
+                                .build();
+                        seatRepository.save(seat);
+                        generatedCountMap.put(tt.getName(), generatedCountMap.getOrDefault(tt.getName(), 0) + 1);
+                    }
                 }
-            } else if (!hasSeatMap) {
-                for (TicketType tt : ticketTypeMap.values()) {
-                    if (tt.getTotalQuantity() != null) {
-                        for (int i = 1; i <= tt.getTotalQuantity(); i++) {
-                            Seat seat = Seat.builder()
-                                    .eventSession(session)
-                                    .ticketType(tt)
-                                    .seatNumber(tt.getName() + "-" + i)
-                                    .status(SeatStatus.AVAILABLE)
-                                    .build();
-                            seatRepository.save(seat);
-                        }
+            }
+
+            // 2. Generate virtual seats for any remaining quantity (Standing Zones / GA)
+            for (TicketType tt : ticketTypeMap.values()) {
+                int currentGenerated = generatedCountMap.getOrDefault(tt.getName(), 0);
+                int totalNeeded = tt.getTotalQuantity() != null ? tt.getTotalQuantity() : 0;
+                
+                if (currentGenerated < totalNeeded) {
+                    for (int i = currentGenerated + 1; i <= totalNeeded; i++) {
+                        Seat seat = Seat.builder()
+                                .eventSession(session)
+                                .ticketType(tt)
+                                .seatNumber(tt.getName() + " - GA" + i)
+                                .status(SeatStatus.AVAILABLE)
+                                .build();
+                        seatRepository.save(seat);
                     }
                 }
             }
@@ -531,6 +543,8 @@ public class EventService {
                 .totalTickets(total)
                 .ticketsLeft(left)
                 .hasSeatMap(event.getHasSeatMap())
+                .seatMapBgUrl(event.getSeatMapBgUrl())
+                .seatMapLayout(event.getSeatMapLayout())
                 .artists(event.getArtists().stream()
                         .map(artistService::convertToDTO)
                         .collect(Collectors.toList()))

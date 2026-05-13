@@ -31,7 +31,7 @@ public class OrderController {
         if (keyword != null && !keyword.trim().isEmpty()) {
             orderPage = orderRepository.searchOrders(keyword.trim(), pageable);
         } else {
-            orderPage = orderRepository.findAll(pageable);
+            orderPage = orderRepository.findAllWithDetails(pageable);
         }
         
         org.springframework.data.domain.Page<OrderDTO> dtoPage = orderPage.map(order -> {

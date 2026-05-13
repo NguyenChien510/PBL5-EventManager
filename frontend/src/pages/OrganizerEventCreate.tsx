@@ -4,9 +4,11 @@ import { useLocationStore } from '../stores/useLocationStore';
 import { Icon } from '../components/ui';
 import { ArtistService } from '../services/artistService';
 import { EventService } from '../services/eventService';
+import { toast } from 'react-hot-toast';
 
 import { DashboardLayout, PageHeader } from '../components/layout';
-import { Stage, Layer, Circle, Text, Group, Rect } from 'react-konva';
+import { Stage, Layer, Circle, Text, Group, Rect, Image as KonvaImage, Transformer } from 'react-konva';
+import useImage from 'use-image';
 import { ChromePicker } from 'react-color';
 import { v4 as uuidv4 } from 'uuid';
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig';
@@ -131,8 +133,27 @@ const OrganizerEventCreate = () => {
     { id: 2, name: 'Vé VIP', price: 1200000, color: '#f59e0b', totalQuantity: 50 },
   ]);
   const [seats, setSeats] = useState<{ id: string; x: number; y: number; ticketTypeId: number; label: string }[]>([]);
+  const [seatMapBgUrl, setSeatMapBgUrl] = useState<string>('');
+  const [bgImage] = useImage(seatMapBgUrl);
+  const [isUploadingBg, setIsUploadingBg] = useState(false);
   const [activePaintTicketId, setActivePaintTicketId] = useState<number | null>(null);
   const [activeColorPicker, setActiveColorPicker] = useState<number | null>(null);
+
+  // Graphics Drawing Engine State
+  const [shapes, setShapes] = useState<any[]>([]);
+  const [activeTool, setActiveTool] = useState<'cursor' | 'seat' | 'rect' | 'text'>('cursor');
+  const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
+  const selectedShapeId = selectedShapeIds.length === 1 ? selectedShapeIds[0] : null;
+  const setSelectedShapeId = (id: string | null) => {
+    setSelectedShapeIds(id ? [id] : []);
+  };
+  const [shapeFill, setShapeFill] = useState('#334155');
+  const trRef = useRef<any>(null);
+
+  // Panning & Rubber-Band Selection States
+  const [selectionStart, setSelectionStart] = useState<{ x: number; y: number } | null>(null);
+  const [selectionEnd, setSelectionEnd] = useState<{ x: number; y: number } | null>(null);
+  const [isCtrlPressed, setIsCtrlPressed] = useState(false);
 
   // Basic Info State
   const [title, setTitle] = useState('');
@@ -171,6 +192,324 @@ const OrganizerEventCreate = () => {
       alert("Tải ảnh thất bại. Vui lòng thử lại.");
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleBgImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploadingBg(true);
+      const data = await EventService.uploadImage(file);
+      setSeatMapBgUrl(data.url);
+    } catch (err) {
+      console.error("Upload failed", err);
+      alert("Tải ảnh nền thất bại. Vui lòng thử lại.");
+    } finally {
+      setIsUploadingBg(false);
+    }
+  };
+
+  const saveLayoutToTemplateSlot = (templateIndex: number) => {
+    if (shapes.length === 0 && seats.length === 0 && !seatMapBgUrl) {
+      toast.error("Sơ đồ hiện đang trống, không có gì để lưu.");
+      return;
+    }
+    const data = { shapes, seats, seatMapBgUrl };
+    localStorage.setItem(`custom_floor_template_${templateIndex}`, JSON.stringify(data));
+    toast.success(`💾 Đã lưu đè sơ đồ & Ảnh nền hiện tại vào Mẫu ${templateIndex}! Mẫu này sẽ được tải ra khi bạn nhấn nút lần tới.`, { icon: '💾' });
+  };
+
+  const applyLayoutTemplate = (templateIndex: number) => {
+    toast.dismiss();
+
+    // Check localStorage override first
+    const savedData = localStorage.getItem(`custom_floor_template_${templateIndex}`);
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        if (parsed.shapes) {
+          setShapes(parsed.shapes);
+          if (parsed.seats) setSeats(parsed.seats);
+          if (parsed.seatMapBgUrl !== undefined) setSeatMapBgUrl(parsed.seatMapBgUrl || '');
+          toast.success(`✨ Đã áp dụng Mẫu sơ đồ ${templateIndex} (Bao gồm Ảnh nền & Khối hình)!`);
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to load override template", err);
+      }
+    }
+
+    const ticketIds = ticketTypes.map(t => t.id);
+    if (ticketIds.length === 0) {
+      toast.error("Vui lòng thêm ít nhất một hạng vé phía trên trước khi áp dụng sơ đồ mẫu.");
+      return;
+    }
+
+    let newShapes: any[] = [];
+
+    // Helper to dynamically link templates back to configured ticket indices
+    const getTicketId = (idx: number) => ticketIds[idx % ticketIds.length];
+
+    if (templateIndex === 1) {
+      // --- Template 1: TRUNG QUÂN 1589 (15 Years Live Concert) ---
+      newShapes = [
+        // Trót Yêu (Cyan) - Linked automatically to first ticket type
+        { id: 'ty-l-' + uuidv4().slice(0, 8), type: 'rect', x: 270, y: 130, width: 125, height: 75, fill: '#06b6d4', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(0), labelText: 'TRÓT YÊU' },
+        { id: 'ty-r-' + uuidv4().slice(0, 8), type: 'rect', x: 405, y: 130, width: 125, height: 75, fill: '#06b6d4', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(0), labelText: 'TRÓT YÊU' },
+
+        // Dấu Mưa (Purple) - Second ticket type
+        { id: 'dm-l-' + uuidv4().slice(0, 8), type: 'rect', x: 270, y: 220, width: 125, height: 75, fill: '#a855f7', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(1), labelText: 'DẤU MƯA' },
+        { id: 'dm-r-' + uuidv4().slice(0, 8), type: 'rect', x: 405, y: 220, width: 125, height: 75, fill: '#a855f7', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(1), labelText: 'DẤU MƯA' },
+
+        // Tự Tình (Green) - Third ticket type
+        { id: 'tt-' + uuidv4().slice(0, 8), type: 'rect', x: 315, y: 315, width: 170, height: 75, fill: '#22c55e', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(2), labelText: 'TỰ TÌNH' },
+
+        // Chưa Bao Giờ (Large Orange Wings) - Fourth ticket type
+        { id: 'cbg-wl-' + uuidv4().slice(0, 8), type: 'rect', x: 130, y: 130, width: 120, height: 165, fill: '#f97316', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(3), labelText: 'CHƯA BAO GIỜ' },
+        { id: 'cbg-wr-' + uuidv4().slice(0, 8), type: 'rect', x: 550, y: 130, width: 120, height: 165, fill: '#f97316', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(3), labelText: 'CHƯA BAO GIỜ' },
+
+        // Chuyện Mưa (Yellow)
+        { id: 'cm-l-' + uuidv4().slice(0, 8), type: 'rect', x: 260, y: 315, width: 45, height: 75, fill: '#eab308', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(4), labelText: 'CHUYỆN MƯA' },
+        { id: 'cm-r-' + uuidv4().slice(0, 8), type: 'rect', x: 495, y: 315, width: 45, height: 75, fill: '#eab308', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(4), labelText: 'CHUYỆN MƯA' },
+
+        // Bottom Corner Wings (Orange Back)
+        { id: 'cbg-bl-' + uuidv4().slice(0, 8), type: 'rect', x: 130, y: 315, width: 120, height: 75, fill: '#f97316', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(3), labelText: 'CHƯA BAO GIỜ (BACK)' },
+        { id: 'cbg-br-' + uuidv4().slice(0, 8), type: 'rect', x: 550, y: 315, width: 120, height: 75, fill: '#f97316', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(3), labelText: 'CHƯA BAO GIỜ (BACK)' },
+      ];
+      toast.success("✨ Đã áp dụng thành công mẫu sơ đồ: Live Concert 1589!");
+    } else if (templateIndex === 2) {
+      // --- Template 2: QUỐC THIÊN CHÂN DUNG NGƯỜI LẠ ---
+      newShapes = [
+        // Chân Dung Người Lạ (Red Top PIT)
+        { id: 'cdnl-l-' + uuidv4().slice(0, 8), type: 'rect', x: 260, y: 90, width: 135, height: 45, fill: '#dc2626', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(0), labelText: 'CHÂN DUNG NGƯỜI LẠ' },
+        { id: 'cdnl-r-' + uuidv4().slice(0, 8), type: 'rect', x: 405, y: 90, width: 135, height: 45, fill: '#dc2626', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(0), labelText: 'CHÂN DUNG NGƯỜI LẠ' },
+
+        // Mong Manh Tình Về (Amber Gold VIP Center)
+        { id: 'mmtv-l-' + uuidv4().slice(0, 8), type: 'rect', x: 260, y: 140, width: 135, height: 45, fill: '#d97706', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(1), labelText: 'MONG MANH TÌNH VỀ' },
+        { id: 'mmtv-r-' + uuidv4().slice(0, 8), type: 'rect', x: 405, y: 140, width: 135, height: 45, fill: '#d97706', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(1), labelText: 'MONG MANH TÌNH VỀ' },
+
+        // Vội Vàng / Chia Cách Bình Yên Wings (Slate Grey Blue)
+        { id: 'w-l-' + uuidv4().slice(0, 8), type: 'rect', x: 90, y: 90, width: 160, height: 95, fill: '#475569', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(2), labelText: 'CHIA CÁCH BÌNH YÊN' },
+        { id: 'w-r-' + uuidv4().slice(0, 8), type: 'rect', x: 550, y: 90, width: 160, height: 95, fill: '#475569', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(2), labelText: 'CHIA CÁCH BÌNH YÊN' },
+
+        // Hoa Và Váy (Darker Gold)
+        { id: 'hvv-l-' + uuidv4().slice(0, 8), type: 'rect', x: 260, y: 200, width: 135, height: 45, fill: '#ca8a04', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(3), labelText: 'HOA VÀ VÁY' },
+        { id: 'hvv-r-' + uuidv4().slice(0, 8), type: 'rect', x: 405, y: 200, width: 135, height: 45, fill: '#ca8a04', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(3), labelText: 'HOA VÀ VÁY' },
+
+        // Kẻ Say Tình (Emerald Green Center)
+        { id: 'kst-l-' + uuidv4().slice(0, 8), type: 'rect', x: 260, y: 250, width: 135, height: 45, fill: '#16a34a', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(4), labelText: 'KẺ SAY TÌNH' },
+        { id: 'kst-r-' + uuidv4().slice(0, 8), type: 'rect', x: 405, y: 250, width: 135, height: 45, fill: '#16a34a', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(4), labelText: 'KẺ SAY TÌNH' },
+
+        // Cánh Hồng Phai (Deep Pink outer sections)
+        { id: 'chp-l-' + uuidv4().slice(0, 8), type: 'rect', x: 70, y: 200, width: 180, height: 95, fill: '#db2777', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(5), labelText: 'CÁNH HỒNG PHAI' },
+        { id: 'chp-r-' + uuidv4().slice(0, 8), type: 'rect', x: 550, y: 200, width: 180, height: 95, fill: '#db2777', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(5), labelText: 'CÁNH HỒNG PHAI' },
+
+        // UPPER BALCONY SECTION (Khu Vực Trên Lầu)
+        { id: 'lau-border-' + uuidv4().slice(0, 8), type: 'rect', x: 50, y: 310, width: 700, height: 170, fill: '#f8fafc', opacity: 0.5, rotation: 0, labelText: 'KHU VỰC TRÊN LẦU' },
+
+        { id: 'lau-l-' + uuidv4().slice(0, 8), type: 'rect', x: 70, y: 350, width: 320, height: 50, fill: '#2563eb', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(6), labelText: 'LẦU TRÁI' },
+        { id: 'lau-r-' + uuidv4().slice(0, 8), type: 'rect', x: 410, y: 350, width: 320, height: 50, fill: '#2563eb', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(6), labelText: 'LẦU PHẢI' },
+
+        { id: 'vty-l-' + uuidv4().slice(0, 8), type: 'rect', x: 230, y: 415, width: 160, height: 50, fill: '#7c3aed', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(7), labelText: 'VÌ TA QUÁ YÊU' },
+        { id: 'vty-r-' + uuidv4().slice(0, 8), type: 'rect', x: 410, y: 415, width: 160, height: 50, fill: '#7c3aed', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(7), labelText: 'VÌ TA QUÁ YÊU' },
+      ];
+      toast.success("✨ Đã áp dụng thành công mẫu sơ đồ: Chân Dung Người Lạ!");
+    } else if (templateIndex === 3) {
+      // --- Template 3: V CONCERT (Modern Stadium Layout with diagonal structures) ---
+      newShapes = [
+        // Main PIT (Khát Vọng 1 & 2 - Vibrant Teal Center)
+        { id: 'kv-1-' + uuidv4().slice(0, 8), type: 'rect', x: 300, y: 95, width: 95, height: 80, fill: '#0ea5e9', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(0), labelText: 'KHÁT VỌNG 1' },
+        { id: 'kv-2-' + uuidv4().slice(0, 8), type: 'rect', x: 405, y: 95, width: 95, height: 80, fill: '#0ea5e9', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(0), labelText: 'KHÁT VỌNG 2' },
+
+        // Top Sides (Chia Sẻ 1 & 2 - Angled Deep Blue / Indigo)
+        { id: 'cs-1-' + uuidv4().slice(0, 8), type: 'rect', x: 150, y: 70, width: 130, height: 75, fill: '#3f51b5', opacity: 0.85, rotation: -18, ticketTypeId: getTicketId(1), labelText: 'CHIA SẺ 1' },
+        { id: 'cs-2-' + uuidv4().slice(0, 8), type: 'rect', x: 515, y: 70, width: 130, height: 75, fill: '#3f51b5', opacity: 0.85, rotation: 18, ticketTypeId: getTicketId(1), labelText: 'CHIA SẺ 2' },
+
+        // VIP Diagonal Strips (Yêu Thương & Tự Hào - Bright Magenta)
+        { id: 'ytth-1-' + uuidv4().slice(0, 8), type: 'rect', x: 120, y: 170, width: 160, height: 90, fill: '#e91e63', opacity: 0.85, rotation: -38, ticketTypeId: getTicketId(2), labelText: 'YÊU THƯƠNG' },
+        { id: 'ytth-2-' + uuidv4().slice(0, 8), type: 'rect', x: 520, y: 170, width: 160, height: 90, fill: '#e91e63', opacity: 0.85, rotation: 38, ticketTypeId: getTicketId(2), labelText: 'TỰ HÀO' },
+
+        // Center Main Audience 1 (Hạnh Phúc 1 - Bright Orange)
+        { id: 'hp-1-' + uuidv4().slice(0, 8), type: 'rect', x: 320, y: 190, width: 160, height: 90, fill: '#ff9800', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(3), labelText: 'HẠNH PHÚC 1' },
+
+        // Center Main Audience 2 (Tự Hào - Deep Royal Red)
+        { id: 'th-' + uuidv4().slice(0, 8), type: 'rect', x: 320, y: 290, width: 160, height: 100, fill: '#b71c1c', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(4), labelText: 'TỰ HÀO VIP' },
+
+        // Far Outer Blocks (Kết Nối - Vivid Purple)
+        { id: 'kn-1-' + uuidv4().slice(0, 8), type: 'rect', x: 40, y: 70, width: 100, height: 95, fill: '#9c27b0', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(5), labelText: 'KẾT NỐI 1' },
+        { id: 'kn-2-' + uuidv4().slice(0, 8), type: 'rect', x: 660, y: 70, width: 100, height: 95, fill: '#9c27b0', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(5), labelText: 'KẾT NỐI 2' },
+
+        // Far Outer Diagonal (Diagonal extended purples)
+        { id: 'ext-1-' + uuidv4().slice(0, 8), type: 'rect', x: 50, y: 240, width: 140, height: 80, fill: '#8e24aa', opacity: 0.8, rotation: -38, ticketTypeId: getTicketId(5), labelText: 'MỞ RỘNG 1' },
+        { id: 'ext-2-' + uuidv4().slice(0, 8), type: 'rect', x: 610, y: 240, width: 140, height: 80, fill: '#8e24aa', opacity: 0.8, rotation: 38, ticketTypeId: getTicketId(5), labelText: 'MỞ RỘNG 2' },
+      ];
+      toast.success("✨ Đã áp dụng thành công mẫu sơ đồ: V Concert Rạng Rỡ Việt Nam!");
+    }
+
+    setShapes(newShapes);
+  }
+
+  // --- AUTO SEAT DETECTION ALGORITHMS (CLIENT-SIDE COMPUTER VISION) ---
+  const [isDetecting, setIsDetecting] = useState(false);
+
+  const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : null;
+  };
+
+  const colorDistance = (c1: { r: number, g: number, b: number }, r2: number, g2: number, b2: number) => {
+    return Math.sqrt(Math.pow(c1.r - r2, 2) + Math.pow(c1.g - g2, 2) + Math.pow(c1.b - b2, 2));
+  };
+
+  const handleAutoDetectSeats = async () => {
+    if (!seatMapBgUrl) {
+      alert("Vui lòng tải ảnh sơ đồ nền lên trước khi thực hiện dò tự động!");
+      return;
+    }
+
+    try {
+      setIsDetecting(true);
+
+      // 1. Preload standard browser Image instance to draw on offscreen canvas
+      const img = new window.Image();
+      img.crossOrigin = "anonymous"; // Highly critical to prevent security exceptions on external hosting
+      img.src = seatMapBgUrl;
+
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = () => reject(new Error("Failed to load blueprint image."));
+      });
+
+      // 2. Create offscreen canvas matching our stage coordinate boundaries exactly
+      const canvas = document.createElement('canvas');
+      canvas.width = 800;
+      canvas.height = 500;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error("Unable to initialize HTML5 2D Context.");
+
+      // Render the uploaded blueprint to extract pixel matrices
+      ctx.drawImage(img, 0, 0, 800, 500);
+      const imgData = ctx.getImageData(0, 0, 800, 500);
+      const pixels = imgData.data;
+
+      // 3. Extract target ticket type colors
+      const colorMappings = ticketTypes.map(t => ({
+        id: t.id,
+        rgb: hexToRgb(t.color),
+        name: t.name
+      })).filter(t => t.rgb !== null) as { id: number, rgb: { r: number, g: number, b: number }, name: string }[];
+
+      if (colorMappings.length === 0) {
+        alert("Vui lòng cấu hình bảng màu hợp lệ cho ít nhất 1 Hạng Vé!");
+        return;
+      }
+
+      // 4. Scan pixel matrix using sparse grid step of 2 for performance & noise reduction
+      const matchedCoordinates: { x: number, y: number, ticketTypeId: number }[] = [];
+      const matchTolerance = 80; // Balance between noise reduction and color deviation
+
+      for (let y = 0; y < 500; y += 2) {
+        for (let x = 0; x < 800; x += 2) {
+          const offset = (y * 800 + x) * 4;
+          const r = pixels[offset];
+          const g = pixels[offset + 1];
+          const b = pixels[offset + 2];
+          const a = pixels[offset + 3];
+
+          // Ignore near-white (background), near-black (borders) or fully transparent
+          if (a < 50 || (r > 235 && g > 235 && b > 235) || (r < 20 && g < 20 && b < 20)) continue;
+
+          let bestTicketTypeId: number | null = null;
+          let smallestDist = matchTolerance;
+
+          for (const mapItem of colorMappings) {
+            const d = colorDistance(mapItem.rgb, r, g, b);
+            if (d < smallestDist) {
+              smallestDist = d;
+              bestTicketTypeId = mapItem.id;
+            }
+          }
+
+          if (bestTicketTypeId !== null) {
+            matchedCoordinates.push({ x, y, ticketTypeId: bestTicketTypeId });
+          }
+        }
+      }
+
+      // 5. K-Means style grouping/averaging to define distinct visual centroids
+      const clusterCentroids: { x: number, y: number, ticketTypeId: number, weight: number }[] = [];
+      const clusterRadius = 14; // Approximates typical minimum circular seat spacing
+
+      for (const pt of matchedCoordinates) {
+        let merged = false;
+
+        for (let i = 0; i < clusterCentroids.length; i++) {
+          const centroid = clusterCentroids[i];
+          if (centroid.ticketTypeId === pt.ticketTypeId) {
+            const radialDist = Math.sqrt(Math.pow(centroid.x - pt.x, 2) + Math.pow(centroid.y - pt.y, 2));
+            if (radialDist < clusterRadius) {
+              // Increment weight and recalculate centroid using cumulative moving average
+              const newWeight = centroid.weight + 1;
+              centroid.x = (centroid.x * centroid.weight + pt.x) / newWeight;
+              centroid.y = (centroid.y * centroid.weight + pt.y) / newWeight;
+              centroid.weight = newWeight;
+              merged = true;
+              break;
+            }
+          }
+        }
+
+        if (!merged) {
+          clusterCentroids.push({ x: pt.x, y: pt.y, ticketTypeId: pt.ticketTypeId, weight: 1 });
+        }
+      }
+
+      // Minimum weight threshold to discard single-pixel static/noise
+      const filteredCentroids = clusterCentroids.filter(c => c.weight > 2);
+
+      if (filteredCentroids.length === 0) {
+        alert("❌ Không tìm thấy cụm màu nào khớp!\nMẹo: Bạn cần chỉnh mã màu của 'Hạng Vé' trong bảng công cụ khớp với màu sắc thật của các chấm tròn trên ảnh sơ đồ nhé.");
+        return;
+      }
+
+      // 6. Process extracted centroids to reactive seat node payload
+      const dynamicCounts: Record<number, number> = {};
+      const generatedSeats = filteredCentroids.map(node => {
+        if (!dynamicCounts[node.ticketTypeId]) dynamicCounts[node.ticketTypeId] = 0;
+        dynamicCounts[node.ticketTypeId]++;
+
+        const matchedType = ticketTypes.find(t => t.id === node.ticketTypeId);
+        const labelPrefix = matchedType?.name.substring(0, 1).toUpperCase() || 'S';
+
+        return {
+          id: uuidv4(),
+          x: Math.round(node.x),
+          y: Math.round(node.y),
+          ticketTypeId: node.ticketTypeId,
+          label: `${labelPrefix}${dynamicCounts[node.ticketTypeId]}`
+        };
+      });
+
+      // 7. Present results and prompt confirmation before state overwrite
+      const confirmMsg = seats.length > 0
+        ? `Bạn đang có ${seats.length} ghế hiện tại. Bạn có muốn XÓA HẾT để thay bằng ${generatedSeats.length} ghế vừa tự động quét được không?`
+        : `Quét sơ đồ thành công! Tự động phát hiện được ${generatedSeats.length} ghế khớp với mã màu vé. Bạn có đồng ý lưu vào sơ đồ không?`;
+
+      if (window.confirm(confirmMsg)) {
+        setSeats(generatedSeats);
+      }
+
+    } catch (err) {
+      console.error("Auto-detection pipeline failed:", err);
+      alert("Quá trình phân tích ảnh gặp lỗi. Vui lòng sử dụng ảnh sơ đồ có định dạng JPEG/PNG tiêu chuẩn.");
+    } finally {
+      setIsDetecting(false);
     }
   };
 
@@ -243,6 +582,54 @@ const OrganizerEventCreate = () => {
       }
     }
   }, [wards, pendingWardName]);
+
+  // Ctrl Key Press Listener Effect (for Stage Panning)
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Control') {
+        setIsCtrlPressed(e.type === 'keydown');
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    window.addEventListener('keyup', handleKey);
+    return () => {
+      window.removeEventListener('keydown', handleKey);
+      window.removeEventListener('keyup', handleKey);
+    };
+  }, []);
+
+  // Graphics Transformer Binding Effect (Supports Multiple Nodes)
+  useEffect(() => {
+    if (trRef.current) {
+      if (selectedShapeIds.length > 0) {
+        const stage = trRef.current.getStage();
+        const nodes = selectedShapeIds
+          .map(id => stage.findOne('#' + id))
+          .filter(node => !!node);
+        trRef.current.nodes(nodes);
+      } else {
+        trRef.current.nodes([]);
+      }
+      trRef.current.getLayer().batchDraw();
+    }
+  }, [selectedShapeIds, shapes]);
+
+  // Graphics Keyboard Delete Shortcut Effect (Supports Bulk Deletion)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (selectedShapeIds.length === 0) return;
+      const activeTagName = document.activeElement?.tagName.toLowerCase();
+      if (activeTagName === 'input' || activeTagName === 'textarea') {
+        return;
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        setShapes(prev => prev.filter(s => !selectedShapeIds.includes(s.id)));
+        setSelectedShapeIds([]);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedShapeIds]);
 
   const categoryRef = useRef<HTMLDivElement>(null);
   const provinceRef = useRef<HTMLDivElement>(null);
@@ -434,6 +821,7 @@ const OrganizerEventCreate = () => {
         provinceId: selectedProvince?.id,
         wardId: selectedWard?.id,
         posterUrl,
+        seatMapBgUrl,
         sessions: sessions.map(s => ({
           sessionDate: s.sessionDate,
           startTime: s.startTime,
@@ -449,7 +837,9 @@ const OrganizerEventCreate = () => {
         ticketTypes: ticketTypes.map(t => ({
           name: t.name,
           price: t.price,
-          totalQuantity: hasSeatMap ? seats.filter(s => s.ticketTypeId === t.id).length : t.totalQuantity,
+          totalQuantity: hasSeatMap
+            ? (seats.some(s => s.ticketTypeId === t.id) ? seats.filter(s => s.ticketTypeId === t.id).length : t.totalQuantity)
+            : t.totalQuantity,
           color: t.color
         })),
         hasSeatMap,
@@ -460,7 +850,8 @@ const OrganizerEventCreate = () => {
             ticketTypeName: ticketTypes.find(t => t.id === s.ticketTypeId)?.name || ticketTypes[0].name,
             seatNumber: s.label
           }))
-        } : null
+        } : null,
+        seatMapLayout: hasSeatMap ? JSON.stringify(shapes) : null
       };
 
       setIsSubmitting(true);
@@ -533,7 +924,7 @@ const OrganizerEventCreate = () => {
         backTo="/organizer/events"
       />
 
-      <div className={`p-6 mx-auto transition-all duration-500 ${currentStep === 1 ? 'max-w-5xl' :
+      <div className={`p-6 mx-auto transition-all duration-500 ${currentStep === 1 || currentStep === 2 ? 'max-w-5xl' :
         currentStep === 4 ? 'max-w-[1700px]' :
           'max-w-7xl'
         }`}>
@@ -553,7 +944,7 @@ const OrganizerEventCreate = () => {
             </div>
             <h2 className="text-2xl font-extrabold text-slate-900 mb-3">Đăng sự kiện thành công!</h2>
             <p className="text-slate-500 mb-8 text-sm font-semibold leading-relaxed px-2">
-              Sự kiện đã được gửi tới ban quản trị để phê duyệt. 
+              Sự kiện đã được gửi tới ban quản trị để phê duyệt.
               Bạn có thể theo dõi tiến trình tại Bảng điều khiển.
             </p>
             <div className="space-y-3">
@@ -764,7 +1155,7 @@ const OrganizerEventCreate = () => {
 
 
                       </div>
-                      <div className="space-y-3 h-[520px] overflow-y-auto pr-2 custom-scrollbar p-3 bg-slate-50/40 rounded-3xl border border-slate-100/80 shadow-inner shadow-slate-900/5">
+                      <div className="space-y-3 h-[420px] overflow-y-auto pr-2 custom-scrollbar p-3 bg-slate-50/40 rounded-3xl border border-slate-100/80 shadow-inner shadow-slate-900/5">
                         {sessions.map((session, index) => (
                           <SessionAccordionItem
                             key={session.id}
@@ -908,7 +1299,7 @@ const OrganizerEventCreate = () => {
                             <Icon name="search" size="sm" />
                           </button>
                         </div>
-                        <div className="w-full h-[320px] bg-slate-100 rounded-3xl overflow-hidden border-2 border-slate-200 relative z-0 shadow-sm mt-4">
+                        <div className="w-full h-[280px] bg-slate-100 rounded-3xl overflow-hidden border-2 border-slate-200 relative z-0 shadow-sm mt-4">
 
                           <MapContainer center={mapCenter} zoom={13} scrollWheelZoom={true} className="h-full w-full z-0">
                             <TileLayer
@@ -1081,20 +1472,22 @@ const OrganizerEventCreate = () => {
                               />
                             </div>
                             <div>
-                              <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">
-                                {hasSeatMap ? 'Số lượng (Đã đặt trên sơ đồ)' : 'Tổng số lượng bán'}
+                             <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">
+                                {(hasSeatMap && seats.some(s => s.ticketTypeId === ticket.id)) ? 'Số lượng (Tự đếm trên sơ đồ)' : 'Tổng số lượng bán'}
                               </label>
-                              {hasSeatMap ? (
-                                <div className="py-2 px-4 bg-blue-50 text-blue-600 font-black text-lg rounded-xl border border-blue-100 flex items-center gap-2">
-                                  <Icon name="event_seat" size="xs" />
-                                  {seats.filter(s => s.ticketTypeId === ticket.id).length}
+                              {(hasSeatMap && seats.some(s => s.ticketTypeId === ticket.id)) ? (
+                                <div className="py-2 px-4 bg-indigo-50 text-indigo-600 font-black text-sm rounded-xl border border-indigo-100 flex items-center gap-2" title="Số lượng được tính bằng cách đếm số chấm ghế bạn đã đặt trực tiếp trên sơ đồ">
+                                  <Icon name="event_seat" size="xs" className="text-indigo-500" />
+                                  <span>{seats.filter(s => s.ticketTypeId === ticket.id).length} Ghế đặt</span>
                                 </div>
                               ) : (
                                 <input
                                   type="number"
+                                  min="0"
                                   value={ticket.totalQuantity}
-                                  onChange={(e) => { const newTypes = [...ticketTypes]; newTypes[index].totalQuantity = parseInt(e.target.value) || 0; setTicketTypes(newTypes); }}
+                                  onChange={(e) => { const newTypes = [...ticketTypes]; newTypes[index].totalQuantity = Math.max(0, parseInt(e.target.value) || 0); setTicketTypes(newTypes); }}
                                   className={`w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:bg-white transition-all ${stepColor.border} focus:ring-4 ${stepColor.ring}`}
+                                  placeholder="Số lượng vé..."
                                 />
                               )}
                             </div>
@@ -1113,9 +1506,109 @@ const OrganizerEventCreate = () => {
                     <>
                       <div className="h-px bg-slate-100 w-full" />
                       <div className="space-y-6">
-                        <div>
-                          <h2 className={`text-2xl font-extrabold mb-1 ${stepColor.text}`}>2. Thiết kế sơ đồ chỗ ngồi</h2>
-                          <p className="text-sm text-slate-500 font-medium">Click chuột vào bảng vẽ để đặt ghế, hoặc bấm để xóa ghế.</p>
+                        <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-50 p-5 rounded-[2rem] border border-slate-200/60 shadow-sm">
+                          <div>
+                            <h2 className={`text-2xl font-extrabold mb-1 ${stepColor.text}`}>2. Thiết kế sơ đồ chỗ ngồi</h2>
+                            <p className="text-sm text-slate-500 font-medium">Vẽ các khu vực hoặc đặt các chấm ghế tự do tùy chỉnh.</p>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider mr-1">🚀 Mẫu Sơ Đồ Nhanh:</span>
+                            {/* Template 1 */}
+                            <div className="flex items-center bg-white border border-slate-200 rounded-xl shadow-sm hover:border-cyan-500 transition-all overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() => applyLayoutTemplate(1)}
+                                className="px-3 py-2 text-slate-700 hover:bg-slate-50 text-xs font-extrabold flex items-center gap-2 active:bg-slate-100"
+                                title="Áp dụng Mẫu 1"
+                              >
+                                <div className="w-2 h-2 rounded-full bg-cyan-500" />
+                                Concert 1589
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => saveLayoutToTemplateSlot(1)}
+                                className="p-2 border-l border-slate-100 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
+                                title="Lưu đè thiết kế hiện tại vào Mẫu 1"
+                              >
+                                <Icon name="save" size="xs" />
+                              </button>
+                            </div>
+
+                            {/* Template 2 */}
+                            <div className="flex items-center bg-white border border-slate-200 rounded-xl shadow-sm hover:border-red-500 transition-all overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() => applyLayoutTemplate(2)}
+                                className="px-3 py-2 text-slate-700 hover:bg-slate-50 text-xs font-extrabold flex items-center gap-2 active:bg-slate-100"
+                                title="Áp dụng Mẫu 2"
+                              >
+                                <div className="w-2 h-2 rounded-full bg-red-500" />
+                                Chân Dung Người Lạ
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => saveLayoutToTemplateSlot(2)}
+                                className="p-2 border-l border-slate-100 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
+                                title="Lưu đè thiết kế hiện tại vào Mẫu 2"
+                              >
+                                <Icon name="save" size="xs" />
+                              </button>
+                            </div>
+
+                            {/* Template 3 */}
+                            <div className="flex items-center bg-white border border-slate-200 rounded-xl shadow-sm hover:border-indigo-500 transition-all overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() => applyLayoutTemplate(3)}
+                                className="px-3 py-2 text-slate-700 hover:bg-slate-50 text-xs font-extrabold flex items-center gap-2 active:bg-slate-100"
+                                title="Áp dụng Mẫu 3"
+                              >
+                                <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                                V Concert
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => saveLayoutToTemplateSlot(3)}
+                                className="p-2 border-l border-slate-100 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
+                                title="Lưu đè thiết kế hiện tại vào Mẫu 3"
+                              >
+                                <Icon name="save" size="xs" />
+                              </button>
+                            </div>
+
+                            <div className="w-px h-6 bg-slate-200 mx-1 hidden md:block" />
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const layoutData = { shapes, seats, seatMapBgUrl };
+                                const dataStr = JSON.stringify(layoutData, null, 2);
+
+                                // Download json file
+                                const blob = new Blob([dataStr], { type: 'application/json' });
+                                const url = URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.download = `layout_export_${Date.now()}.json`;
+                                link.click();
+                                URL.revokeObjectURL(url);
+
+                                // Copy to clipboard
+                                navigator.clipboard.writeText(dataStr)
+                                  .then(() => {
+                                    toast.success("Đã tải tệp JSON và sao chép dữ liệu vào Clipboard!", { icon: '💾' });
+                                  })
+                                  .catch(() => {
+                                    toast.success("Đã xuất và tải xuống tệp sơ đồ JSON!", { icon: '💾' });
+                                  });
+                              }}
+                              className="px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-extrabold rounded-xl hover:bg-emerald-100 hover:border-emerald-400 shadow-sm transition-all flex items-center gap-2 active:scale-95 hover:shadow-md"
+                            >
+                              <Icon name="save" size="sm" />
+                              Lưu / Xuất Sơ Đồ
+                            </button>
+                          </div>
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -1142,6 +1635,225 @@ const OrganizerEventCreate = () => {
                                 ))}
                               </div>
                             </div>
+
+                            <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
+                              <h4 className="text-sm font-black text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                                <Icon name="category" size="xs" /> Công cụ đồ họa
+                              </h4>
+
+                              {/* Tool Toggles */}
+                              <div className="grid grid-cols-4 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => { setActiveTool('cursor'); setSelectedShapeIds([]); }}
+                                  className={`flex flex-col items-center gap-1 py-2 rounded-xl border transition-all ${activeTool === 'cursor' ? 'border-blue-500 bg-blue-50 text-blue-600 font-bold shadow-sm' : 'border-slate-100 text-slate-500 hover:bg-slate-50'}`}
+                                >
+                                  <Icon name="near_me" size="sm" />
+                                  <span className="text-[9px]">Con trỏ</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setActiveTool('seat'); setSelectedShapeIds([]); }}
+                                  className={`flex flex-col items-center gap-1 py-2 rounded-xl border transition-all ${activeTool === 'seat' ? 'border-blue-500 bg-blue-50 text-blue-600 font-bold shadow-sm' : 'border-slate-100 text-slate-500 hover:bg-slate-50'}`}
+                                >
+                                  <Icon name="event_seat" size="sm" />
+                                  <span className="text-[9px]">Đặt Ghế</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setActiveTool('rect'); setSelectedShapeIds([]); }}
+                                  className={`flex flex-col items-center gap-1 py-2 rounded-xl border transition-all ${activeTool === 'rect' ? 'border-blue-500 bg-blue-50 text-blue-600 font-bold shadow-sm' : 'border-slate-100 text-slate-500 hover:bg-slate-50'}`}
+                                >
+                                  <Icon name="rectangle" size="sm" />
+                                  <span className="text-[9px]">Vẽ Khung</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setActiveTool('text'); setSelectedShapeIds([]); }}
+                                  className={`flex flex-col items-center gap-1 py-2 rounded-xl border transition-all ${activeTool === 'text' ? 'border-blue-500 bg-blue-50 text-blue-600 font-bold shadow-sm' : 'border-slate-100 text-slate-500 hover:bg-slate-50'}`}
+                                >
+                                  <Icon name="title" size="sm" />
+                                  <span className="text-[9px]">Thêm Chữ</span>
+                                </button>
+                              </div>
+
+                              {/* Selection Config */}
+                              {selectedShapeId && (
+                                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                                  <p className="text-[10px] font-bold text-slate-500 uppercase">Thuộc tính hình vẽ</p>
+
+                                  <div className="space-y-1.5">
+                                    <label className="text-[9px] font-bold text-slate-400">Màu sắc:</label>
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="color"
+                                        value={shapes.find(s => s.id === selectedShapeId)?.fill || shapeFill}
+                                        onChange={(e) => {
+                                          const nextFill = e.target.value;
+                                          setShapeFill(nextFill);
+                                          setShapes(shapes.map(s => s.id === selectedShapeId ? { ...s, fill: nextFill } : s));
+                                        }}
+                                        className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0 shrink-0 bg-transparent overflow-hidden"
+                                      />
+                                      <div className="flex flex-wrap gap-1">
+                                        {['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#334155', '#0ea5e9', '#ec4899', '#8b5cf6', '#14b8a6', '#84cc16', '#f97316', '#64748b'].map(c => (
+                                          <button
+                                            key={c}
+                                            type="button"
+                                            onClick={() => {
+                                              setShapeFill(c);
+                                              setShapes(shapes.map(s => s.id === selectedShapeId ? { ...s, fill: c } : s));
+                                            }}
+                                            className="w-5 h-5 rounded-full border border-white shadow-sm"
+                                            style={{ backgroundColor: c }}
+                                          />
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {shapes.find(s => s.id === selectedShapeId)?.type === 'text' && (
+                                    <div className="space-y-1">
+                                      <label className="text-[9px] font-bold text-slate-400">Nội dung chữ:</label>
+                                      <input
+                                        type="text"
+                                        value={shapes.find(s => s.id === selectedShapeId)?.text || ''}
+                                        onChange={(e) => {
+                                          const newText = e.target.value;
+                                          setShapes(shapes.map(s => s.id === selectedShapeId ? { ...s, text: newText } : s));
+                                        }}
+                                        className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-xl font-semibold outline-none focus:border-blue-400 shadow-sm"
+                                      />
+                                    </div>
+                                  )}
+
+                                  {shapes.find(s => s.id === selectedShapeId)?.type === 'rect' && (
+                                    <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-3.5 space-y-3 mb-3">
+                                      <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1.5 tracking-wider">
+                                          <Icon name="title" size="xs" className="scale-75 text-slate-400" /> 
+                                          Nhãn hiển thị
+                                        </label>
+                                        <div className="relative flex items-center">
+                                          <input
+                                            type="text"
+                                            placeholder="Ví dụ: VIP, Khu A1..."
+                                            value={shapes.find(s => s.id === selectedShapeId)?.labelText || ''}
+                                            onChange={(e) => {
+                                              const val = e.target.value;
+                                              setShapes(shapes.map(s => s.id === selectedShapeId ? { ...s, labelText: val } : s));
+                                            }}
+                                            className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100/50 transition-all shadow-sm placeholder-slate-400"
+                                          />
+                                          <Icon name="edit_note" size="xs" className="absolute left-3 text-slate-400 pointer-events-none scale-90" />
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1.5 tracking-wider">
+                                          <Icon name="confirmation_number" size="xs" className="scale-75 text-slate-400" />
+                                          Liên kết hạng vé
+                                        </label>
+                                        <div className="relative flex items-center">
+                                          <select
+                                            value={shapes.find(s => s.id === selectedShapeId)?.ticketTypeId || ''}
+                                            onChange={(e) => {
+                                              const val = e.target.value ? parseInt(e.target.value) : null;
+                                              const matchedTt = ticketTypes.find(t => t.id === val);
+                                              setShapes(shapes.map(s => {
+                                                if (s.id === selectedShapeId) {
+                                                  return {
+                                                    ...s,
+                                                    ticketTypeId: val,
+                                                    fill: matchedTt ? matchedTt.color : s.fill
+                                                  };
+                                                }
+                                                return s;
+                                              }));
+                                            }}
+                                            className="w-full pl-9 pr-8 py-2 text-xs bg-white border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100/50 transition-all shadow-sm cursor-pointer appearance-none"
+                                          >
+                                            <option value="" className="text-slate-400 font-semibold">Không liên kết (Trang trí)</option>
+                                            {ticketTypes.map(t => (
+                                              <option key={t.id} value={t.id} className="font-bold text-slate-700">{t.name}</option>
+                                            ))}
+                                          </select>
+                                          <div className="absolute left-3.5 flex items-center justify-center pointer-events-none">
+                                            {(() => {
+                                              const currentShape = shapes.find(s => s.id === selectedShapeId);
+                                              const matchedTt = ticketTypes.find(t => t.id === currentShape?.ticketTypeId);
+                                              return (
+                                                <span 
+                                                  className="w-2.5 h-2.5 rounded-full border-2 border-white ring-1 ring-slate-300 transition-all duration-300" 
+                                                  style={{ backgroundColor: matchedTt ? matchedTt.color : '#94a3b8' }}
+                                                />
+                                              );
+                                            })()}
+                                          </div>
+                                          <Icon name="expand_more" size="xs" className="absolute right-3 text-slate-400 pointer-events-none scale-75" />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                  <div className="space-y-1 border-t border-dashed border-slate-200 pt-3 mt-1">
+                                    <div className="flex items-center justify-between">
+                                      <label className="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                                        <Icon name="rotate_right" size="xs" /> Góc xoay:
+                                      </label>
+                                      <span className="text-[10px] font-extrabold text-blue-600 font-mono">
+                                        {Math.round(shapes.find(s => s.id === selectedShapeId)?.rotation || 0)}°
+                                      </span>
+                                    </div>
+                                    <input
+                                      type="range"
+                                      min="-180"
+                                      max="180"
+                                      value={Math.round(shapes.find(s => s.id === selectedShapeId)?.rotation || 0)}
+                                      onChange={(e) => {
+                                        const rot = parseInt(e.target.value, 10);
+                                        setShapes(shapes.map(s => s.id === selectedShapeId ? { ...s, rotation: rot } : s));
+                                      }}
+                                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500 focus:outline-none"
+                                    />
+                                    <div className="flex gap-1">
+                                      {[-45, 0, 45, 90].map(angle => (
+                                        <button
+                                          key={angle}
+                                          type="button"
+                                          onClick={() => setShapes(shapes.map(s => s.id === selectedShapeId ? { ...s, rotation: angle } : s))}
+                                          className="flex-1 text-[8px] font-black text-slate-500 bg-white border border-slate-200 rounded py-0.5 hover:border-blue-400 hover:text-blue-600 shadow-sm active:scale-95"
+                                        >
+                                          {angle}°
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setShapes(shapes.filter(s => s.id !== selectedShapeId));
+                                      setSelectedShapeId(null);
+                                    }}
+                                    className="w-full flex items-center justify-center gap-1.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-[10px] border border-red-100 transition-colors"
+                                  >
+                                    <Icon name="delete" size="xs" /> Xóa hình này
+                                  </button>
+                                </div>
+                              )}
+
+                              <div className="text-[10px] text-slate-400 italic font-medium bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex items-start gap-1.5 leading-relaxed">
+                                <Icon name="info" size="xs" className="shrink-0 mt-0.5 text-slate-500" />
+                                {activeTool === 'cursor'
+                                  ? "Chế độ con trỏ: Nhấn và kéo chuột trái để bôi bọc chọn nhiều box cùng lúc. Giữ phím Ctrl + Kéo chuột trái để di chuyển (pan) quanh màn hình."
+                                  : activeTool === 'seat'
+                                    ? "Chọn hạng vé rồi nhấn chuột lên sơ đồ để đặt ghế."
+                                    : `Đang ở chế độ ${activeTool === 'rect' ? 'Vẽ Khung' : 'Thêm Chữ'}. Nhấn chuột trái lên sân khấu để vẽ. Nhấn phím Delete để xóa.`
+                                }
+                              </div>
+                            </div>
+
 
                             <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
                               <div className="flex items-center justify-between text-sm">
@@ -1177,38 +1889,282 @@ const OrganizerEventCreate = () => {
                               </div>
                             </div>
 
-                            <div className="relative w-full bg-slate-900 aspect-[4/3] lg:aspect-video max-h-[600px] overflow-hidden cursor-crosshair">
+                            <div className="relative w-full bg-slate-900 aspect-[4/3] lg:aspect-video max-h-[600px] overflow-hidden"
+                              style={{ cursor: isCtrlPressed ? 'grab' : (activeTool === 'cursor' ? 'default' : 'crosshair') }}>
                               <Stage
-                                width={800}
-                                height={500}
+                                width={2000}
+                                height={2000}
                                 className="bg-[#0f172a]"
+                                draggable={isCtrlPressed}
                                 onMouseDown={(e) => {
-                                  // Check if click on empty area of Stage
                                   const clickedOnEmpty = e.target === e.target.getStage();
-                                  if (clickedOnEmpty && activePaintTicketId) {
+                                  if (clickedOnEmpty) {
+                                    if (isCtrlPressed) return; // Stage draggable captures movement
                                     const stage = e.target.getStage();
                                     const pos = stage?.getRelativePointerPosition();
-                                    if (pos) {
-                                      const label = getNextSeatLabel(activePaintTicketId);
-                                      setSeats([...seats, {
-                                        id: uuidv4(),
-                                        x: pos.x,
-                                        y: pos.y,
-                                        ticketTypeId: activePaintTicketId,
-                                        label: label
-                                      }]);
+
+                                    if (activeTool === 'cursor') {
+                                      setSelectedShapeIds([]);
+                                      if (pos) {
+                                        setSelectionStart(pos);
+                                        setSelectionEnd(pos);
+                                      }
+                                    } else {
+                                      setSelectedShapeIds([]);
+                                      if (pos) {
+                                        if (activeTool === 'seat' && activePaintTicketId) {
+                                          const label = getNextSeatLabel(activePaintTicketId);
+                                          setSeats([...seats, {
+                                            id: uuidv4(),
+                                            x: pos.x,
+                                            y: pos.y,
+                                            ticketTypeId: activePaintTicketId,
+                                            label: label
+                                          }]);
+                                        } else if (activeTool === 'rect') {
+                                          const newId = 'rect-' + uuidv4().slice(0, 8);
+                                          setShapes([...shapes, {
+                                            id: newId,
+                                            type: 'rect',
+                                            x: pos.x - 50,
+                                            y: pos.y - 30,
+                                            width: 100,
+                                            height: 60,
+                                            fill: shapeFill,
+                                            rotation: 0,
+                                            opacity: 0.8
+                                          }]);
+                                          setSelectedShapeIds([newId]);
+                                        } else if (activeTool === 'text') {
+                                          const newId = 'text-' + uuidv4().slice(0, 8);
+                                          setShapes([...shapes, {
+                                            id: newId,
+                                            type: 'text',
+                                            x: pos.x,
+                                            y: pos.y,
+                                            text: 'Nhãn Chữ',
+                                            fill: shapeFill,
+                                            fontSize: 16,
+                                            rotation: 0
+                                          }]);
+                                          setSelectedShapeIds([newId]);
+                                        }
+                                      }
                                     }
                                   }
                                 }}
+                                onMouseMove={(e) => {
+                                  if (selectionStart) {
+                                    const stage = e.target.getStage();
+                                    const pos = stage?.getRelativePointerPosition();
+                                    if (pos) {
+                                      setSelectionEnd(pos);
+                                    }
+                                  }
+                                }}
+                                onMouseUp={() => {
+                                  if (selectionStart && selectionEnd) {
+                                    const x1 = Math.min(selectionStart.x, selectionEnd.x);
+                                    const y1 = Math.min(selectionStart.y, selectionEnd.y);
+                                    const x2 = Math.max(selectionStart.x, selectionEnd.x);
+                                    const y2 = Math.max(selectionStart.y, selectionEnd.y);
+
+                                    // Rect overlapping condition
+                                    const newlySelected = shapes.filter(s => {
+                                      if (s.type === 'rect') {
+                                        return (s.x < x2 && s.x + s.width > x1 && s.y < y2 && s.y + s.height > y1);
+                                      } else if (s.type === 'text') {
+                                        const approxW = (s.text || '').length * 10;
+                                        const approxH = s.fontSize || 16;
+                                        return (s.x < x2 && s.x + approxW > x1 && s.y < y2 && s.y + approxH > y1);
+                                      }
+                                      return false;
+                                    }).map(s => s.id);
+
+                                    setSelectedShapeIds(newlySelected);
+                                  }
+                                  setSelectionStart(null);
+                                  setSelectionEnd(null);
+                                }}
                               >
                                 <Layer>
-                                  {/* Grid helpers (optional but looks nice) */}
+                                  {bgImage && (
+                                    <KonvaImage
+                                      image={bgImage}
+                                      width={800}
+                                      height={500}
+                                      opacity={0.95}
+                                      listening={false}
+                                    />
+                                  )}
                                   {Array.from({ length: 20 }).map((_, i) => (
                                     <Rect key={'v' + i} x={i * 40} y={0} width={1} height={500} fill="#1e293b" opacity={0.3} />
                                   ))}
                                   {Array.from({ length: 15 }).map((_, i) => (
                                     <Rect key={'h' + i} x={0} y={i * 40} width={800} height={1} fill="#1e293b" opacity={0.3} />
                                   ))}
+
+                                  {/* Render shapes */}
+                                  {shapes.map((shape) => {
+                                    if (shape.type === 'rect') {
+                                      return (
+                                        <Group
+                                          key={shape.id}
+                                          id={shape.id}
+                                          x={shape.x}
+                                          y={shape.y}
+                                          rotation={shape.rotation}
+                                          draggable
+                                          onDragEnd={(e) => {
+                                            const targetX = e.target.x();
+                                            const targetY = e.target.y();
+                                            setShapes(prev => prev.map(sh =>
+                                              sh.id === shape.id ? { ...sh, x: targetX, y: targetY } : sh
+                                            ));
+                                          }}
+                                          onTransformEnd={(e) => {
+                                            const node = e.target;
+                                            const scaleX = node.scaleX();
+                                            const scaleY = node.scaleY();
+                                            node.scaleX(1);
+                                            node.scaleY(1);
+                                            const newX = node.x();
+                                            const newY = node.y();
+                                            const newW = Math.max(5, node.width() * scaleX);
+                                            const newH = Math.max(5, node.height() * scaleY);
+                                            const newRot = node.rotation();
+                                            setShapes(prev => prev.map(sh =>
+                                              sh.id === shape.id ? {
+                                                ...sh,
+                                                x: newX,
+                                                y: newY,
+                                                width: newW,
+                                                height: newH,
+                                                rotation: newRot
+                                              } : sh
+                                            ));
+                                          }}
+                                          onClick={(e) => {
+                                            e.cancelBubble = true;
+                                            if (e.evt.shiftKey || e.evt.ctrlKey) {
+                                              setSelectedShapeIds(prev => prev.includes(shape.id) ? prev.filter(id => id !== shape.id) : [...prev, shape.id]);
+                                            } else {
+                                              setSelectedShapeIds([shape.id]);
+                                            }
+                                          }}
+                                        >
+                                          <Rect
+                                            x={0}
+                                            y={0}
+                                            width={shape.width}
+                                            height={shape.height}
+                                            fill={shape.fill}
+                                            stroke={selectedShapeIds.includes(shape.id) ? '#3b82f6' : '#475569'}
+                                            strokeWidth={selectedShapeIds.includes(shape.id) ? 2.5 : 1}
+                                            opacity={shape.opacity || 0.8}
+                                            cornerRadius={4}
+                                          />
+                                          {shape.labelText && (
+                                            <Text
+                                              x={2}
+                                              y={0}
+                                              width={shape.width - 4}
+                                              height={shape.height}
+                                              text={shape.labelText}
+                                              fontSize={Math.max(8, Math.min(14, shape.height / 3.5))}
+                                              fill="#ffffff"
+                                              fontStyle="bold"
+                                              align="center"
+                                              verticalAlign="middle"
+                                              listening={false}
+                                              wrap="word"
+                                              ellipsis={true}
+                                            />
+                                          )}
+                                        </Group>
+                                      );
+                                    } else if (shape.type === 'text') {
+                                      return (
+                                        <Text
+                                          key={shape.id}
+                                          id={shape.id}
+                                          x={shape.x}
+                                          y={shape.y}
+                                          text={shape.text}
+                                          fontSize={shape.fontSize || 16}
+                                          fill={shape.fill}
+                                          rotation={shape.rotation}
+                                          fontStyle="bold"
+                                          draggable
+                                          stroke={selectedShapeIds.includes(shape.id) ? '#3b82f6' : 'transparent'}
+                                          strokeWidth={selectedShapeIds.includes(shape.id) ? 1.5 : 0}
+                                          onDragEnd={(e) => {
+                                            const targetX = e.target.x();
+                                            const targetY = e.target.y();
+                                            setShapes(prev => prev.map(sh =>
+                                              sh.id === shape.id ? { ...sh, x: targetX, y: targetY } : sh
+                                            ));
+                                          }}
+                                          onTransformEnd={(e) => {
+                                            const node = e.target;
+                                            const scaleX = node.scaleX();
+                                            node.scaleX(1);
+                                            const newX = node.x();
+                                            const newY = node.y();
+                                            const newSize = Math.max(8, (shape.fontSize || 16) * scaleX);
+                                            const newRot = node.rotation();
+                                            setShapes(prev => prev.map(sh =>
+                                              sh.id === shape.id ? {
+                                                ...sh,
+                                                x: newX,
+                                                y: newY,
+                                                fontSize: newSize,
+                                                rotation: newRot
+                                              } : sh
+                                            ));
+                                          }}
+                                          onClick={(e) => {
+                                            e.cancelBubble = true;
+                                            if (e.evt.shiftKey || e.evt.ctrlKey) {
+                                              setSelectedShapeIds(prev => prev.includes(shape.id) ? prev.filter(id => id !== shape.id) : [...prev, shape.id]);
+                                            } else {
+                                              setSelectedShapeIds([shape.id]);
+                                            }
+                                          }}
+                                        />
+                                      );
+                                    }
+                                    return null;
+                                  })}
+
+                                  {selectedShapeIds.length > 0 && (
+                                    <Transformer
+                                      ref={trRef}
+                                      rotateEnabled={true}
+                                      rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
+                                      boundBoxFunc={(oldBox, newBox) => {
+                                        if (newBox.width < 5 || newBox.height < 5) {
+                                          return oldBox;
+                                        }
+                                        return newBox;
+                                      }}
+                                    />
+                                  )}
+
+                                  {/* Visual Rubber-Band Selection Rectangle */}
+                                  {selectionStart && selectionEnd && (
+                                    <Rect
+                                      x={Math.min(selectionStart.x, selectionEnd.x)}
+                                      y={Math.min(selectionStart.y, selectionEnd.y)}
+                                      width={Math.abs(selectionStart.x - selectionEnd.x)}
+                                      height={Math.abs(selectionStart.y - selectionEnd.y)}
+                                      fill="rgba(59, 130, 246, 0.12)"
+                                      stroke="#3b82f6"
+                                      strokeWidth={1.5}
+                                      dash={[4, 4]}
+                                      listening={false}
+                                    />
+                                  )}
 
                                   {/* Render Seats */}
                                   {seats.map((seat) => {
@@ -1228,9 +2184,7 @@ const OrganizerEventCreate = () => {
                                           setSeats(newSeats);
                                         }}
                                         onClick={(e) => {
-                                          // Prevent Stage mousedown event triggering add
                                           e.cancelBubble = true;
-                                          // Click removes the seat
                                           setSeats(seats.filter(s => s.id !== seat.id));
                                         }}
                                       >

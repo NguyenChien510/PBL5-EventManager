@@ -108,4 +108,10 @@ public class Event {
     @Builder.Default
     @Column(nullable = false)
     private Boolean hasSeatMap = true;
+
+    @Column(length = 500)
+    private String seatMapBgUrl;
+
+    @Column(columnDefinition = "TEXT")
+    private String seatMapLayout;
 }

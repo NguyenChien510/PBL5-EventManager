@@ -5,7 +5,8 @@ import { adminSidebarConfig } from '../config/adminSidebarConfig';
 import { Icon, Loader } from '../components/ui';
 import { EventService } from '../services/eventService';
 import toast from 'react-hot-toast';
-import { Stage, Layer, Circle, Text, Group, Rect } from 'react-konva';
+import { Stage, Layer, Circle, Text, Group, Rect, Image as KonvaImage } from 'react-konva';
+import useImage from 'use-image';
 
 interface ManageStats {
   totalSeats: number;
@@ -62,6 +63,8 @@ const AdminEventManage = () => {
     return Array.from(map.values());
   }, [seats]);
   const [comments, setComments] = useState<any[]>([]);
+  const [shapes, setShapes] = useState<any[]>([]);
+  const [bgImage] = useImage(event?.seatMapBgUrl || '');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [guestViewMode, setGuestViewMode] = useState<'list' | 'seats'>('list');
@@ -195,6 +198,13 @@ const AdminEventManage = () => {
         EventService.getEventComments(id)
       ]);
       setEvent(eventData);
+      if (eventData.seatMapLayout) {
+        try {
+          setShapes(JSON.parse(eventData.seatMapLayout));
+        } catch (e) {
+          console.error('Error parsing layout', e);
+        }
+      }
       setStats(statsData);
       setAttendees(attendeesData);
       setSeats(seatsData || []);
@@ -752,6 +762,15 @@ const AdminEventManage = () => {
                         <div className="w-fit mx-auto min-w-[800px] flex justify-center">
                           <Stage width={800} height={500}>
                             <Layer>
+                              {bgImage && (
+                                <KonvaImage
+                                  image={bgImage}
+                                  width={800}
+                                  height={500}
+                                  opacity={0.9}
+                                  listening={false}
+                                />
+                              )}
                               {/* Sophisticated Grid System */}
                               {Array.from({ length: 21 }).map((_, i) => (
                                 <Rect key={'v' + i} x={i * 40} y={0} width={1} height={500} fill="#1e293b" opacity={0.3} />
@@ -759,6 +778,69 @@ const AdminEventManage = () => {
                               {Array.from({ length: 13 }).map((_, i) => (
                                 <Rect key={'h' + i} x={0} y={i * 40} width={800} height={1} fill="#1e293b" opacity={0.3} />
                               ))}
+
+                              {/* Render custom layout shapes */}
+                              {shapes.map((shape) => {
+                                if (shape.type === 'rect') {
+                                  const isInteractive = !!shape.ticketTypeId;
+                                  const targetTt = event?.ticketTypes?.find((t: any) => t.id === shape.ticketTypeId);
+                                  const displayText = shape.labelText || (isInteractive && targetTt ? `${targetTt.name} (VÙNG)` : '');
+
+                                  return (
+                                    <Group 
+                                      key={shape.id}
+                                      x={shape.x}
+                                      y={shape.y}
+                                      rotation={shape.rotation || 0}
+                                    >
+                                      <Rect
+                                        x={0}
+                                        y={0}
+                                        width={shape.width}
+                                        height={shape.height}
+                                        fill={shape.fill || '#cbd5e1'}
+                                        stroke={isInteractive ? '#6366f1' : 'transparent'}
+                                        strokeWidth={isInteractive ? 1.5 : 0}
+                                        dash={isInteractive ? [5, 3] : undefined}
+                                        opacity={shape.opacity !== undefined ? shape.opacity : (isInteractive ? 0.5 : 0.7)}
+                                        cornerRadius={4}
+                                      />
+                                      {displayText && (
+                                        <Text
+                                          x={2}
+                                          y={0}
+                                          width={shape.width - 4}
+                                          height={shape.height}
+                                          text={displayText}
+                                          fontSize={Math.max(8, Math.min(13, shape.height / 3.5))}
+                                          fontStyle="bold"
+                                          fill="#ffffff"
+                                          align="center"
+                                          verticalAlign="middle"
+                                          listening={false}
+                                          wrap="word"
+                                          ellipsis={true}
+                                        />
+                                      )}
+                                    </Group>
+                                  );
+                                } else if (shape.type === 'text') {
+                                  return (
+                                    <Text
+                                      key={shape.id}
+                                      x={shape.x}
+                                      y={shape.y}
+                                      text={shape.text || ''}
+                                      fontSize={shape.fontSize || 16}
+                                      fill={shape.fill || '#94a3b8'}
+                                      fontStyle="bold"
+                                      rotation={shape.rotation || 0}
+                                      listening={false}
+                                    />
+                                  );
+                                }
+                                return null;
+                              })}
 
                               {/* Render Interactive Seats */}
                               {seats.map((seat: any) => {

@@ -26,15 +26,19 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.user LEFT JOIN FETCH o.tickets t LEFT JOIN FETCH t.seat s LEFT JOIN FETCH s.ticketType LEFT JOIN FETCH s.eventSession es LEFT JOIN FETCH es.event e WHERE o.qrCode = :qrCode")
     java.util.Optional<Order> findWithDetailsByQrCode(@Param("qrCode") String qrCode);
 
-    @Query(value = "SELECT o FROM Order o WHERE " +
+    @Query(value = "SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.user LEFT JOIN FETCH o.tickets t LEFT JOIN FETCH t.seat s LEFT JOIN FETCH s.ticketType LEFT JOIN FETCH s.eventSession es LEFT JOIN FETCH es.event WHERE " +
            "(:keyword IS NULL OR :keyword = '' OR " +
            "LOWER(o.user.email) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(o.user.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "CAST(o.id as string) LIKE CONCAT('%', :keyword, '%'))",
-           countQuery = "SELECT COUNT(o) FROM Order o WHERE " +
+           countQuery = "SELECT COUNT(DISTINCT o) FROM Order o LEFT JOIN o.user WHERE " +
            "(:keyword IS NULL OR :keyword = '' OR " +
            "LOWER(o.user.email) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(o.user.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "CAST(o.id as string) LIKE CONCAT('%', :keyword, '%'))")
     org.springframework.data.domain.Page<Order> searchOrders(@Param("keyword") String keyword, org.springframework.data.domain.Pageable pageable);
+
+    @Query(value = "SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.user LEFT JOIN FETCH o.tickets t LEFT JOIN FETCH t.seat s LEFT JOIN FETCH s.ticketType LEFT JOIN FETCH s.eventSession es LEFT JOIN FETCH es.event",
+           countQuery = "SELECT COUNT(o) FROM Order o")
+    org.springframework.data.domain.Page<Order> findAllWithDetails(org.springframework.data.domain.Pageable pageable);
 }
