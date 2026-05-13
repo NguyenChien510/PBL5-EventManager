@@ -367,6 +367,15 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  caret-color: transparent; /* Disable default caret blinking on non-input elements */
+}
+
+input, 
+textarea, 
+select,
+[contenteditable="true"], 
+[contenteditable] {
+  caret-color: auto !important; /* Restore standard blinking behavior only for user input */
 }
 
 body {
