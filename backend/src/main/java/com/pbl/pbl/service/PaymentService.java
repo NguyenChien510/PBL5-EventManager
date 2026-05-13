@@ -19,7 +19,9 @@ import com.pbl.pbl.repository.TicketRepository;
 import com.pbl.pbl.repository.UserRepository;
 import com.pbl.pbl.repository.EventRepository;
 import com.pbl.pbl.repository.SystemConfigRepository;
+import com.pbl.pbl.repository.CouponRepository;
 import com.pbl.pbl.entity.SystemConfig;
+import com.pbl.pbl.entity.Coupon;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -47,6 +49,7 @@ public class PaymentService {
     private final OrderRepository orderRepository;
     private final EventRepository eventRepository;
     private final SystemConfigRepository systemConfigRepository;
+    private final CouponRepository couponRepository;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -65,6 +68,21 @@ public class PaymentService {
         // platformFee = amount * taxRate / 100
         BigDecimal platformFee = amount.multiply(taxRate).divide(new BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP);
 
+        // Check coupon
+        Coupon appliedCoupon = null;
+        if (paymentDTO.getCouponCode() != null && !paymentDTO.getCouponCode().trim().isEmpty()) {
+            appliedCoupon = couponRepository.findByCode(paymentDTO.getCouponCode().trim())
+                    .orElseThrow(() -> new IllegalArgumentException("Mã giảm giá không tồn tại"));
+            if (appliedCoupon.isUsed()) {
+                throw new IllegalArgumentException("Mã giảm giá này đã được sử dụng");
+            }
+            if (appliedCoupon.getUser() == null || !appliedCoupon.getUser().getId().equals(user.getId())) {
+                throw new IllegalArgumentException("Mã giảm giá không khả dụng cho tài khoản này");
+            }
+            appliedCoupon.setUsed(true);
+            couponRepository.save(appliedCoupon);
+        }
+
         Order order = Order.builder()
                 .user(user)
                 .totalAmount(amount)
@@ -72,6 +90,7 @@ public class PaymentService {
                 .status(OrderStatus.PENDING)
                 .purchaseDate(LocalDateTime.now())
                 .paymentMethod(paymentDTO.getPaymentMethod() != null ? paymentDTO.getPaymentMethod() : "vnpay")
+                .appliedCoupon(appliedCoupon)
                 .build();
 
         order = orderRepository.save(order);
@@ -320,6 +339,10 @@ public class PaymentService {
                         return 1; // Success
                     } else {
                         order.setStatus(OrderStatus.CANCELLED);
+                        if (order.getAppliedCoupon() != null) {
+                            order.getAppliedCoupon().setUsed(false);
+                            couponRepository.save(order.getAppliedCoupon());
+                        }
                         orderRepository.save(order);
                         for (Ticket ticket : order.getTickets()) {
                             ticket.setStatus(TicketStatus.CANCELLED);
@@ -400,6 +423,10 @@ public class PaymentService {
                         return 1; // Success
                     } else {
                         order.setStatus(OrderStatus.CANCELLED);
+                        if (order.getAppliedCoupon() != null) {
+                            order.getAppliedCoupon().setUsed(false);
+                            couponRepository.save(order.getAppliedCoupon());
+                        }
                         orderRepository.save(order);
                         for (Ticket ticket : order.getTickets()) {
                             ticket.setStatus(TicketStatus.CANCELLED);

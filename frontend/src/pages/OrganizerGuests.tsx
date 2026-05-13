@@ -25,6 +25,11 @@ const OrganizerGuests = () => {
   const [highlightedOrderId, setHighlightedOrderId] = useState<number | null>(null)
   const [isEventDropdownOpen, setIsEventDropdownOpen] = useState(false)
   const eventDropdownRef = useRef<HTMLDivElement>(null)
+  const selectedEventIdRef = useRef(selectedEventId)
+
+  useEffect(() => {
+    selectedEventIdRef.current = selectedEventId
+  }, [selectedEventId])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -58,16 +63,18 @@ const OrganizerGuests = () => {
   // Fetch attendees and stats when event changes
   useEffect(() => {
     if (selectedEventId) {
-      fetchEventData()
+      fetchEventData(selectedEventId)
     }
   }, [selectedEventId])
 
-  const fetchEventData = async () => {
+  const fetchEventData = async (overrideEventId?: string | number | null) => {
+    const targetId = overrideEventId ?? selectedEventId;
+    if (!targetId) return;
     setAttendeesLoading(true)
     try {
       const [attendeesData, statsData] = await Promise.all([
-        EventService.getEventAttendees(selectedEventId!),
-        EventService.getEventManageStats(selectedEventId!)
+        EventService.getEventAttendees(targetId),
+        EventService.getEventManageStats(targetId)
       ])
       setAttendees(attendeesData)
 
@@ -85,11 +92,6 @@ const OrganizerGuests = () => {
     try {
       const orderInfo = await EventService.getOrderByQR(decodedText)
 
-      // Auto-select event if it belongs to another event the organizer manages
-      if (orderInfo.eventId && orderInfo.eventId !== selectedEventId) {
-        setSelectedEventId(orderInfo.eventId)
-      }
-
       // Auto check-in
       let checkInSuccess = false;
       try {
@@ -104,10 +106,19 @@ const OrganizerGuests = () => {
       setHighlightedOrderId(orderInfo.id)
       setIsScanning(false)
 
-      // Refresh attendees only if check-in was successful
-      if (checkInSuccess) {
-        fetchEventData()
-      }
+      // Delay 3 seconds before loading the event or updating list
+      setTimeout(() => {
+        if (checkInSuccess) {
+          // Auto-select event if it belongs to another event the organizer manages
+          if (orderInfo.eventId && orderInfo.eventId !== selectedEventIdRef.current) {
+            setSelectedEventId(orderInfo.eventId)
+          } else {
+            // Same event, just refresh data
+            fetchEventData(selectedEventIdRef.current)
+          }
+        }
+      }, 3000)
+
     } catch (error: any) {
       const msg = error.response?.data?.message || "Mã QR không hợp lệ"
       toast.error(msg, { id: loadingToast })
@@ -324,7 +335,7 @@ const OrganizerGuests = () => {
           {/* Guest List - Right Column (8/12) */}
           <div className="lg:col-span-8">
             <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl shadow-slate-200/40 overflow-hidden flex flex-col h-[600px]">
-              <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50/50 to-white flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+              <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50/50 to-white flex flex-col xl:flex-row xl:items-center justify-between gap-4 relative z-30">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                     <Icon name="people" size="sm" />

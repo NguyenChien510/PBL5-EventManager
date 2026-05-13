@@ -12,4 +12,5 @@ public class PaymentDTO {
     private UUID userId;
     private List<Long> seatIds;
     private String paymentMethod;
+    private String couponCode;
 }

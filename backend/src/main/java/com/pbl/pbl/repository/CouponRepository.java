@@ -10,4 +10,5 @@ import java.util.List;
 public interface CouponRepository extends JpaRepository<Coupon, Long> {
     List<Coupon> findByUserAndIsUsedFalse(User user);
     List<Coupon> findByUserIsNull(); // Available for exchange
+    java.util.Optional<Coupon> findByCode(String code);
 }

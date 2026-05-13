@@ -42,6 +42,12 @@ const SeatSelection = () => {
   const [dimensions, setDimensions] = useState({ width: 800, height: 500 });
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
 
+  // Coupon states
+  const [myCoupons, setMyCoupons] = useState<any[]>([]);
+  const [selectedCoupon, setSelectedCoupon] = useState<any>(null);
+  const [couponInput, setCouponInput] = useState('');
+  const [showCouponDropdown, setShowCouponDropdown] = useState(false);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Control' || e.metaKey) {
@@ -85,14 +91,16 @@ const SeatSelection = () => {
         return;
       }
       try {
-        const [eventData, seatsData, ticketsData] = await Promise.all([
+        const [eventData, seatsData, ticketsData, couponData] = await Promise.all([
           EventService.getEventById(id),
           EventService.getEventSeats(id),
-          EventService.getEventTicketTypes(id)
+          EventService.getEventTicketTypes(id),
+          apiClient.get('/coupons/my').then(res => res.data).catch(() => [])
         ]);
         setEvent(eventData);
         setSeats(seatsData || []);
         setTicketTypes(ticketsData || []);
+        setMyCoupons(couponData || []);
         if (eventData.seatMapLayout) {
           try {
             setShapes(JSON.parse(eventData.seatMapLayout));
@@ -218,7 +226,34 @@ const SeatSelection = () => {
   }
 
   const totalTicketPrice = finalSeatObjects.reduce((sum, s) => sum + s.price, 0);
-  const totalPrice = totalTicketPrice;
+
+  const discountAmount = useMemo(() => {
+    if (!selectedCoupon || totalTicketPrice === 0) return 0;
+    const val = selectedCoupon.discountValue;
+    if (val <= 100) {
+      // Percentage discount
+      return (totalTicketPrice * val) / 100;
+    } else {
+      // Flat amount discount
+      return Math.min(val, totalTicketPrice);
+    }
+  }, [selectedCoupon, totalTicketPrice]);
+
+  const totalPrice = Math.max(0, totalTicketPrice - discountAmount);
+
+  const handleApplyCouponCode = () => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) return;
+    const matched = myCoupons.find((c: any) => c.code === code && !c.isUsed);
+    if (matched) {
+      setSelectedCoupon(matched);
+      toast.success('Áp dụng mã giảm giá thành công!');
+      setShowCouponDropdown(false);
+    } else {
+      toast.error('Mã giảm giá không hợp lệ, đã sử dụng hoặc không thuộc về bạn!');
+      setSelectedCoupon(null);
+    }
+  };
 
   const handlePayment = async () => {
     if (finalSelectedSeatIds.length === 0) return;
@@ -231,7 +266,8 @@ const SeatSelection = () => {
           orderInfo: `Thanh toan ve ${event?.title?.substring(0, 50) || 'su kien'}`,
           userId: user?.id,
           seatIds: finalSelectedSeatIds,
-          paymentMethod: activePayment
+          paymentMethod: activePayment,
+          couponCode: selectedCoupon ? selectedCoupon.code : null
         };
 
         const response = await apiClient.post('/payment/create', payload);
@@ -746,6 +782,106 @@ const SeatSelection = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-slate-500">Giá vé ({finalSeatObjects.length} vé)</span>
                     <span className="text-sm font-black">{new Intl.NumberFormat('vi-VN').format(totalTicketPrice)}đ</span>
+                  </div>
+                  <div className="h-px bg-slate-100"></div>
+
+                  {/* Coupon Input & Dropdown */}
+                  <div>
+                    <label className="text-sm font-bold text-slate-500 mb-2 block">Mã giảm giá</label>
+                    <div className="relative">
+                      <div className="flex gap-2">
+                        <div className="relative flex-grow">
+                          <input
+                            type="text"
+                            placeholder="Nhập mã coupon..."
+                            value={couponInput}
+                            onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                            className="w-full px-4 py-2.5 text-sm font-bold bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none uppercase tracking-wider"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowCouponDropdown(!showCouponDropdown)}
+                            className={`absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary p-1 transition-colors ${showCouponDropdown ? 'text-primary' : ''}`}
+                          >
+                            <Icon name="local_activity" size="sm" />
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleApplyCouponCode}
+                          disabled={!couponInput}
+                          className="px-4 py-2 bg-slate-900 text-white text-xs font-black rounded-xl hover:bg-primary transition-all tracking-wider uppercase disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Áp dụng
+                        </button>
+                      </div>
+
+                      {/* Dropdown Vouchers List */}
+                      {showCouponDropdown && (
+                        <div className="absolute z-50 bottom-full mb-2 right-0 left-0 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden max-h-48 overflow-y-auto animate-in fade-in slide-in-from-bottom-2 duration-200">
+                          <div className="p-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Chọn Voucher Của Bạn</span>
+                            <button onClick={() => setShowCouponDropdown(false)} className="text-slate-400 hover:text-slate-600"><Icon name="close" size="xs" /></button>
+                          </div>
+                          {myCoupons.filter(c => !c.isUsed).length === 0 ? (
+                            <div className="p-4 text-center text-xs font-bold text-slate-400">Bạn chưa có mã giảm giá nào khả dụng</div>
+                          ) : (
+                            <div className="p-2 space-y-1">
+                              {myCoupons.filter(c => !c.isUsed).map((coupon) => (
+                                <div
+                                  key={coupon.id}
+                                  onClick={() => {
+                                    setSelectedCoupon(coupon);
+                                    setCouponInput(coupon.code);
+                                    setShowCouponDropdown(false);
+                                    toast.success('Đã chọn mã giảm giá!');
+                                  }}
+                                  className="flex items-center justify-between p-2.5 hover:bg-slate-50 rounded-xl cursor-pointer border border-transparent hover:border-slate-100 transition-all group"
+                                >
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 bg-primary/5 text-primary rounded-lg flex items-center justify-center group-hover:bg-primary/10">
+                                      <Icon name="local_offer" size="xs" />
+                                    </div>
+                                    <div>
+                                      <span className="text-xs font-black block text-slate-800">{coupon.code}</span>
+                                      <span className="text-[10px] text-slate-400 font-bold">
+                                        Giảm {coupon.discountValue <= 100 ? `${coupon.discountValue}%` : `${new Intl.NumberFormat('vi-VN').format(coupon.discountValue)}đ`}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <span className="text-[10px] font-black text-primary hover:text-white hover:bg-primary bg-primary/10 px-2 py-1 rounded-lg uppercase transition-colors">Chọn</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Selected Coupon Badge */}
+                    {selectedCoupon && (
+                      <div className="flex items-center justify-between mt-3 bg-emerald-50 border border-emerald-100/50 px-3 py-2.5 rounded-xl animate-in zoom-in-95 duration-150">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                            <Icon name="check" size="xs" filled />
+                          </div>
+                          <div>
+                            <p className="text-xs font-black text-emerald-800 leading-none">Đã áp dụng: {selectedCoupon.code}</p>
+                            <p className="text-[10px] font-bold text-emerald-600 mt-0.5">-{new Intl.NumberFormat('vi-VN').format(discountAmount)}đ</p>
+                          </div>
+                        </div>
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            setSelectedCoupon(null);
+                            setCouponInput('');
+                          }} 
+                          className="text-[10px] font-black text-slate-400 hover:text-red-500 uppercase tracking-widest transition-colors bg-white px-2 py-1 rounded-lg shadow-sm border border-emerald-100"
+                        >
+                          Huỷ bỏ
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
