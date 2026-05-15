@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { Icon } from '../components/ui'
-import { Navbar } from '../components/layout'
+import { Navbar, Footer } from '../components/layout'
 import { EventCard, EventMap } from '../components/domain'
 import { useCategoryStore } from '../stores/useCategoryStore'
 import { useLocationStore } from '../stores/useLocationStore'
@@ -250,7 +250,7 @@ const Homepage = () => {
   const visibleFeaturedEvents = featuredEventsFromDb;
 
   return (
-    <div className="min-h-screen bg-background-light font-display">
+    <div className="min-h-screen bg-background-light font-display flex flex-col">
       <Navbar />
 
       {/* Hero Section */}
@@ -295,7 +295,7 @@ const Homepage = () => {
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') handleSearch()
                         }}
-                        placeholder="Tìm tên sự kiện, nghệ sĩ, hội thảo..."
+                        placeholder="Tìm tên sự kiện..."
                         className="w-full bg-transparent text-[13px] md:text-sm text-slate-800 placeholder:text-slate-400 outline-none border-none focus:outline-none focus:ring-0"
                       />
                     </div>
@@ -500,19 +500,19 @@ const Homepage = () => {
               { icon: 'qr_code_2', title: 'Nhận vé', desc: 'Nhận e-ticket nhanh chóng và check-in tiện lợi tại cổng.', color: 'emerald' },
             ].map((step, idx) => (
               <div key={step.title} className={`rounded-3xl border border-transparent p-8 group hover:shadow-[0_20px_50px_rgba(0,0,0,0.08)] transition-all duration-500 hover:-translate-y-2 ${step.color === 'blue' ? 'bg-blue-50/40 hover:bg-white hover:border-blue-100' :
-                  step.color === 'purple' ? 'bg-purple-50/40 hover:bg-white hover:border-purple-100' :
-                    'bg-emerald-50/40 hover:bg-white hover:border-emerald-100'
+                step.color === 'purple' ? 'bg-purple-50/40 hover:bg-white hover:border-purple-100' :
+                  'bg-emerald-50/40 hover:bg-white hover:border-emerald-100'
                 }`}>
                 <div className="flex items-center justify-between mb-6">
                   <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 group-hover:rotate-12 ${step.color === 'blue' ? 'bg-blue-600 text-white shadow-xl shadow-blue-200' :
-                      step.color === 'purple' ? 'bg-purple-600 text-white shadow-xl shadow-purple-200' :
-                        'bg-emerald-600 text-white shadow-xl shadow-emerald-200'
+                    step.color === 'purple' ? 'bg-purple-600 text-white shadow-xl shadow-purple-200' :
+                      'bg-emerald-600 text-white shadow-xl shadow-emerald-200'
                     }`}>
                     <Icon name={step.icon} size="lg" />
                   </div>
                   <span className={`text-[10px] font-black tracking-[0.2em] uppercase ${step.color === 'blue' ? 'text-blue-600/30' :
-                      step.color === 'purple' ? 'text-purple-600/30' :
-                        'text-emerald-600/30'
+                    step.color === 'purple' ? 'text-purple-600/30' :
+                      'text-emerald-600/30'
                     }`}>Step 0{idx + 1}</span>
                 </div>
                 <h4 className="text-lg font-black text-slate-900 mb-3">{step.title}</h4>
@@ -543,66 +543,53 @@ const Homepage = () => {
       </section>
 
       {/* Newsletter */}
-      <section className="max-w-7xl mx-auto px-6 py-16">
-        <div className="bg-gradient-to-r from-primary to-electric rounded-3xl p-12 text-white text-center relative overflow-hidden">
-          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_30%_50%,white,transparent_50%)]" />
-          <div className="relative">
-            <h3 className="text-2xl font-extrabold mb-3">Không bỏ lỡ sự kiện nào!</h3>
-            <p className="text-white/70 mb-6">Đăng ký nhận thông báo về các sự kiện mới nhất</p>
-            <div className="flex max-w-md mx-auto gap-3">
-              <input
-                type="email"
-                placeholder="Nhập email của bạn..."
-                className="flex-1 px-5 py-3 rounded-xl bg-white/20 backdrop-blur-md border border-white/20 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/30"
-              />
-              <button className="px-6 py-3 bg-white text-primary font-bold rounded-xl hover:bg-slate-50 transition-colors">
-                Đăng ký
-              </button>
+      <section className="max-w-7xl mx-auto px-6 py-12">
+        <div className="bg-gradient-to-br from-blue-600 via-blue-500 to-sky-600 rounded-[2.5rem] py-10 px-8 md:py-12 md:px-16 text-white relative overflow-hidden shadow-[0_32px_64px_-16px_rgba(37,99,235,0.25)] group">
+          {/* Decorative Elements */}
+          <div className="absolute -top-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-[3000ms] pointer-events-none" />
+          <div className="absolute -bottom-32 -left-24 w-80 h-80 bg-sky-300/20 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-[3000ms] pointer-events-none" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] opacity-[0.03] border border-white rounded-full pointer-events-none animate-pulse" />
+          
+          <div className="relative z-10 grid md:grid-cols-12 gap-8 items-center">
+            {/* Text Content */}
+            <div className="md:col-span-7 text-center md:text-left">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[10px] font-black uppercase tracking-widest text-white mb-4 shadow-inner">
+                <Icon name="mail" size="xs" />
+                Bản tin định kỳ
+              </div>
+              
+              <h3 className="text-2xl md:text-3xl xl:text-4xl font-black tracking-tight mb-2 leading-tight text-shadow-sm">
+                Không bỏ lỡ bất kỳ sự kiện hấp dẫn nào!
+              </h3>
+              <p className="text-blue-50/80 text-sm md:text-base font-semibold leading-relaxed">
+                Đăng ký ngay để trở thành người đầu tiên cập nhật lịch sự kiện và ưu đãi vé sớm.
+              </p>
+            </div>
+            
+            {/* Input Element */}
+            <div className="md:col-span-5">
+              {/* Glassmorphism Input Pill */}
+              <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-1.5 border border-white/20 focus-within:border-white/50 focus-within:ring-4 focus-within:ring-white/10 transition-all duration-300 flex items-center shadow-[0_10px_40px_rgba(0,0,0,0.12)] w-full">
+                <div className="pl-3 text-white/60 flex items-center justify-center flex-shrink-0">
+                  <Icon name="alternate_email" size="sm" />
+                </div>
+                <input
+                  type="email"
+                  placeholder="Địa chỉ email của bạn..."
+                  className="flex-1 px-3 bg-transparent border-none text-white text-sm md:text-base placeholder:text-white/40 outline-none focus:ring-0 font-semibold w-full h-11"
+                />
+                <button className="px-5 py-3 bg-white text-blue-600 hover:bg-slate-50 hover:text-blue-700 font-black text-sm rounded-xl transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 shadow-md hover:shadow-xl flex items-center gap-2 whitespace-nowrap flex-shrink-0 group/btn">
+                  Đăng ký
+                  <Icon name="arrow_forward" size="xs" className="group-hover/btn:translate-x-1 transition-transform duration-300" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-900 text-white/60">
-        <div className="max-w-7xl mx-auto px-6 py-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div>
-              <h4 className="text-white font-bold mb-4">
-                Event<span className="text-sky-400">Platform</span>
-              </h4>
-              <p className="text-sm leading-relaxed">Nền tảng bán vé sự kiện cao cấp hàng đầu Việt Nam.</p>
-            </div>
-            <div>
-              <h4 className="text-white font-bold mb-4">Khám phá</h4>
-              <div className="space-y-2 text-sm">
-                <a href="#" className="block hover:text-white transition-colors">Sự kiện</a>
-                <a href="#" className="block hover:text-white transition-colors">Thể loại</a>
-                <a href="#" className="block hover:text-white transition-colors">Địa điểm</a>
-              </div>
-            </div>
-            <div>
-              <h4 className="text-white font-bold mb-4">Hỗ trợ</h4>
-              <div className="space-y-2 text-sm">
-                <a href="#" className="block hover:text-white transition-colors">FAQ</a>
-                <a href="#" className="block hover:text-white transition-colors">Liên hệ</a>
-                <a href="#" className="block hover:text-white transition-colors">Điều khoản</a>
-              </div>
-            </div>
-            <div>
-              <h4 className="text-white font-bold mb-4">Nhà tổ chức</h4>
-              <div className="space-y-2 text-sm">
-                <a href="#" className="block hover:text-white transition-colors">Đăng ký tổ chức</a>
-                <a href="#" className="block hover:text-white transition-colors">Bảng giá</a>
-                <a href="#" className="block hover:text-white transition-colors">Hướng dẫn</a>
-              </div>
-            </div>
-          </div>
-          <div className="border-t border-white/10 mt-8 pt-8 text-center text-sm">
-            © 2024 EventPlatform. All rights reserved.
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }

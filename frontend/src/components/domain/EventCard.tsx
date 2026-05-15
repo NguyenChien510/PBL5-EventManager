@@ -84,14 +84,14 @@ const EventCard: React.FC<EventCardProps> = ({
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-          <div>
+        <div className="flex items-center justify-between pt-3 border-t border-slate-100 mt-auto">
+          <div className="flex-1 min-w-0 pr-3">
             <p className="text-[9px] text-slate-400 uppercase tracking-widest leading-none mb-0.5">Từ</p>
-            <p className="text-base font-black text-primary">{price}</p>
+            <p className="text-[14px] font-black text-primary leading-snug break-words">{price}</p>
           </div>
           <button
             onClick={onBuyClick}
-            className="px-4 py-2 bg-primary text-white text-[10px] font-black rounded-xl hover:bg-blue-600 transition-all hover:scale-105 active:scale-95 shadow-sm flex items-center gap-1.5"
+            className="px-3.5 py-2 bg-primary hover:bg-blue-600 text-white text-[11px] font-black rounded-xl transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 shadow-[0_4px_12px_rgba(37,99,235,0.25)] hover:shadow-[0_8px_20px_rgba(37,99,235,0.35)] flex items-center justify-center gap-1.5 whitespace-nowrap flex-shrink-0 group-hover:scale-[1.02]"
           >
             <Icon name="confirmation_number" size="xs" />
             Mua vé

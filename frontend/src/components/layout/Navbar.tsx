@@ -41,7 +41,16 @@ const Navbar = () => {
           <Link to="/" className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors">Trang chủ</Link>
           <Link to="/explore" className="text-sm font-medium text-slate-500 hover:text-primary transition-colors">Khám phá</Link>
           <a href="#" className="text-sm font-medium text-slate-500 hover:text-primary transition-colors">Về chúng tôi</a>
-          <a href="#" className="text-sm font-medium text-slate-500 hover:text-primary transition-colors">Liên hệ</a>
+          <a 
+            href="#footer" 
+            onClick={(e) => {
+              e.preventDefault();
+              document.getElementById('footer')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="text-sm font-medium text-slate-500 hover:text-primary transition-colors"
+          >
+            Liên hệ
+          </a>
         </div>
 
         <div className="flex items-center gap-3">

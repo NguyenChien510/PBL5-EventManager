@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useCategoryStore } from '../stores/useCategoryStore'
 import { useLocationStore } from '../stores/useLocationStore'
 import { Icon, Pagination } from '../components/ui'
-import { Navbar } from '../components/layout'
+import { Navbar, Footer } from '../components/layout'
 import { EventCard } from '../components/domain'
 import { EventService } from '../services/eventService'
 
@@ -12,6 +12,8 @@ const sorts = ['Mới nhất', 'Giá tăng dần', 'Giá giảm dần', 'Đánh 
 const EventExplore = () => {
   const [eventsData, setEventsData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 9;
 
   const [minPrice, setMinPrice] = useState<number>(0);
   const [maxPrice, setMaxPrice] = useState<number>(10000000);
@@ -50,12 +52,16 @@ const EventExplore = () => {
         sortBy: selectedSort
       });
       setEventsData(data);
+      setCurrentPage(1);
     } catch (error) {
       console.error("Failed to fetch events:", error);
     } finally {
       setLoading(false);
     }
   };
+
+  const totalPages = Math.ceil(eventsData.length / itemsPerPage);
+  const displayedEvents = eventsData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -94,7 +100,7 @@ const EventExplore = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background-light font-display">
+    <div className="min-h-screen bg-background-light font-display flex flex-col">
       <Navbar />
 
       <div className="max-w-7xl mx-auto px-6 py-8 flex gap-8">
@@ -356,7 +362,7 @@ const EventExplore = () => {
             </div>
           ) : eventsData.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
-              {eventsData.map((evt) => {
+              {displayedEvents.map((evt) => {
                 const startDate = new Date(evt.startTime);
                 const dateStr = startDate.toLocaleDateString("vi-VN", { day: "2-digit", month: "short", year: "numeric" });
                 const timeStr = startDate.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
@@ -390,10 +396,19 @@ const EventExplore = () => {
           )}
 
           {!loading && eventsData.length > 0 && (
-            <Pagination current={1} total={1} label={`Hiển thị ${eventsData.length} sự kiện`} />
+            <Pagination 
+              current={currentPage} 
+              total={totalPages} 
+              onPageChange={(page) => {
+                setCurrentPage(page);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              label={`Hiển thị ${(currentPage - 1) * itemsPerPage + 1} - ${Math.min(currentPage * itemsPerPage, eventsData.length)} trong ${eventsData.length} sự kiện`} 
+            />
           )}
         </main>
       </div>
+      <Footer />
     </div>
   )
 }
