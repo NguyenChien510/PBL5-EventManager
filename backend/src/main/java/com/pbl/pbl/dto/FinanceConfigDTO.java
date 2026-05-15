@@ -11,4 +11,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FinanceConfigDTO {
     private String defaultCommissionRate;
+    private Boolean autoApply;
 }

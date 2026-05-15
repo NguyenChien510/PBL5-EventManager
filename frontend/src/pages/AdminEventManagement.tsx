@@ -6,6 +6,28 @@ import { useNavigate } from 'react-router-dom'
 import { EventService } from '../services/eventService'
 import { toast } from 'react-hot-toast'
 
+const OrganizerAvatar = ({ src, name }: { src?: string; name?: string }) => {
+  const [error, setError] = useState(false)
+  const firstLetter = name?.substring(0, 1).toUpperCase() || 'U'
+  
+  if (src && !error) {
+    return (
+      <img 
+        src={src} 
+        alt={name} 
+        onError={() => setError(true)}
+        className="w-6 h-6 rounded-full object-cover border border-slate-200 shadow-sm" 
+      />
+    )
+  }
+  
+  return (
+    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 via-indigo-500 to-cyan-500 flex items-center justify-center text-[10px] font-black text-white shadow-md border border-indigo-200/30 uppercase select-none">
+      {firstLetter}
+    </div>
+  )
+}
+
 const sidebarConfig = adminSidebarConfig
 
 const AdminEventManagement = () => {
@@ -139,9 +161,7 @@ const AdminEventManagement = () => {
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 border border-slate-200">
-                            {evt.organizerName?.substring(0, 1) || 'U'}
-                          </div>
+                          <OrganizerAvatar src={evt.organizerAvatar} name={evt.organizerName} />
                           <p className="text-xs font-bold text-slate-700">{evt.organizerName || 'System'}</p>
                         </div>
                       </td>

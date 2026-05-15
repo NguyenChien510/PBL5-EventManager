@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react'
 import UserProfile from './pages/UserProfile'
 // import UserTickets from './pages/UserTickets'
 import UserHistory from './pages/UserHistory'
-import UserSettings from './pages/UserSettings'
+
 import EventExplore from './pages/EventExplore'
 import EventDetail from './pages/EventDetail'
 import SeatSelection from './pages/SeatSelection'
@@ -20,11 +20,10 @@ import OrganizerTimeline from './pages/OrganizerTimeline'
 import OrganizerHR from './pages/OrganizerHR'
 import OrganizerFinance from './pages/OrganizerFinance'
 import OrganizerFeedback from './pages/OrganizerFeedback'
-import OrganizerProfile from './pages/OrganizerProfile'
+
 import AdminEventModeration from './pages/AdminEventModeration'
 import AdminEventReview from './pages/AdminEventReview'
 import AdminUserManagement from './pages/AdminUserManagement'
-import AdminFinanceConfig from './pages/AdminFinanceConfig'
 import AdminPaymentHistory from './pages/AdminPaymentHistory'
 import AdminEventManagement from './pages/AdminEventManagement'
 import Homepage from './pages/Homepage'
@@ -93,7 +92,6 @@ function App() {
       { to: '/history', label: 'Sự kiện đã tham gia', icon: 'history' },
       { to: '/vouchers', label: 'Ưu đãi & Quà tặng', icon: 'redeem' },
       { to: '/reviews', label: 'Đánh giá sự kiện', icon: 'rate_review' },
-      { to: '/settings', label: 'Cài đặt', icon: 'settings' },
     ],
   };
 
@@ -116,7 +114,6 @@ function App() {
       { to: '/admin/moderation', label: 'Kiểm duyệt sự kiện', icon: 'verified_user' },
       { to: '/admin/events', label: 'Quản lý sự kiện', icon: 'event_note' },
       { to: '/admin/users', label: 'Quản lý người dùng', icon: 'manage_accounts' },
-      { to: '/admin/finance', label: 'Cấu hình tài chính', icon: 'settings' },
       { to: '/admin/payments', label: 'Lịch sử giao dịch', icon: 'payments' },
     ],
   };
@@ -170,11 +167,10 @@ function App() {
                         key={link.to}
                         to={link.to}
                         onClick={() => setNavOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                          location.pathname === link.to
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${location.pathname === link.to
                             ? 'bg-primary text-white shadow-lg shadow-primary/20'
                             : 'text-slate-600 hover:bg-primary/5 hover:text-primary'
-                        }`}
+                          }`}
                       >
                         <span className="material-symbols-outlined text-xl">{link.icon}</span>
                         <span>{link.label}</span>
@@ -213,7 +209,6 @@ function App() {
           <Route path="/profile" element={<UserProfile />} />
           {/* <Route path="/tickets" element={<UserTickets />} /> */}
           <Route path="/history" element={<UserHistory />} />
-          <Route path="/settings" element={<UserSettings />} />
           <Route path="/vouchers" element={<VouchersRewards />} />
           <Route path="/reviews" element={<EventReviews />} />
         </Route>
@@ -231,7 +226,7 @@ function App() {
           <Route path="/organizer/hr" element={<OrganizerHR />} />
           <Route path="/organizer/finance" element={<OrganizerFinance />} />
           <Route path="/organizer/feedback" element={<OrganizerFeedback />} />
-          <Route path="/organizer/profile" element={<OrganizerProfile />} />
+
         </Route>
 
         {/* Protected Routes: ADMIN only */}
@@ -242,7 +237,6 @@ function App() {
           <Route path="/admin/review/:id" element={<AdminEventReview />} />
           <Route path="/admin/event/manage/:id" element={<AdminEventManage />} />
           <Route path="/admin/users" element={<AdminUserManagement />} />
-          <Route path="/admin/finance" element={<AdminFinanceConfig />} />
           <Route path="/admin/payments" element={<AdminPaymentHistory />} />
         </Route>
       </Routes>

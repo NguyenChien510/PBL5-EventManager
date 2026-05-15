@@ -4,9 +4,9 @@ export const userSidebarConfig = {
   brandIcon: 'confirmation_number',
   sections: [
     {
-      // title: 'Menu',
+      title: 'Menu',
       links: [
-        { to: '/profile', label: 'Tổng quan', icon: 'dashboard' },
+        { to: '/profile', label: 'Thông tin cá nhân', icon: 'dashboard' },
         { to: '/vouchers', label: 'Ưu đãi & Quà tặng', icon: 'featured_seasonal_and_gifts' },
         { to: '/history', label: 'Sự kiện đã tham gia', icon: 'event' },
         // { to: '/reviews', label: 'Đánh giá', icon: 'rate_review' },

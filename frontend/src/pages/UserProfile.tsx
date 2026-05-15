@@ -336,14 +336,22 @@ const UserProfile = () => {
                     }
                   }
                   const isActive = activeTab === tab
+                  const getTabStyles = (name: string, active: boolean) => {
+                    if (active) {
+                      if (name === 'Thanh toán thành công') return 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 scale-105'
+                      if (name === 'Đã check-in') return 'bg-rose-600 text-white shadow-lg shadow-rose-600/20 scale-105'
+                      return 'bg-primary text-white shadow-lg shadow-primary/30 scale-105'
+                    }
+                    if (name === 'Thanh toán thành công') return 'text-slate-500 hover:bg-emerald-50 hover:text-emerald-600'
+                    if (name === 'Đã check-in') return 'text-slate-500 hover:bg-rose-50 hover:text-rose-600'
+                    return 'text-slate-500 hover:bg-white hover:text-primary'
+                  }
+
                   return (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
-                      className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all duration-300 ${isActive
-                        ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-105'
-                        : 'text-slate-500 hover:bg-white hover:text-primary'
-                        }`}
+                      className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all duration-300 ${getTabStyles(tab, isActive)}`}
                     >
                       <Icon name={getIcon(tab)} size="sm" filled={isActive} />
                       {tab}
@@ -387,7 +395,7 @@ const UserProfile = () => {
                           <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm border ${firstTicket.status === 'paid' || firstTicket.status === 'active'
                             ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
                             : firstTicket.status === 'checked_in' || firstTicket.status === 'used'
-                              ? 'bg-blue-50 text-blue-600 border-blue-100'
+                              ? 'bg-rose-50 text-rose-600 border-rose-100'
                               : 'bg-amber-50 text-amber-600 border-amber-100'
                             }`}>
                             {firstTicket.status === 'paid' || firstTicket.status === 'active'

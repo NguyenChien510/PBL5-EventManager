@@ -58,15 +58,22 @@ public class PaymentService {
         User user = userRepository.findById(paymentDTO.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        String taxRateStr = systemConfigRepository.findById("DEFAULT_COMMISSION_RATE")
-                .map(SystemConfig::getConfigValue)
-                .orElse("10"); // Default 10%
-        
-        BigDecimal taxRate = new BigDecimal(taxRateStr);
+        boolean autoApply = systemConfigRepository.findById("AUTO_APPLY_COMMISSION")
+                .map(c -> Boolean.parseBoolean(c.getConfigValue()))
+                .orElse(true);
+
         BigDecimal amount = BigDecimal.valueOf(paymentDTO.getAmount());
+        BigDecimal platformFee = BigDecimal.ZERO;
         
-        // platformFee = amount * taxRate / 100
-        BigDecimal platformFee = amount.multiply(taxRate).divide(new BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP);
+        if (autoApply) {
+            String taxRateStr = systemConfigRepository.findById("DEFAULT_COMMISSION_RATE")
+                    .map(SystemConfig::getConfigValue)
+                    .orElse("10"); // Default 10%
+            BigDecimal taxRate = new BigDecimal(taxRateStr);
+            
+            // platformFee = amount * taxRate / 100
+            platformFee = amount.multiply(taxRate).divide(new BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP);
+        }
 
         // Check coupon
         Coupon appliedCoupon = null;

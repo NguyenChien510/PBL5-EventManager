@@ -5,6 +5,39 @@ import { useState, useEffect } from 'react'
 import { UserService } from '../services/userService'
 import { toast } from 'react-hot-toast'
 
+const UserAvatar = ({ src, name, role, size = 'md' }: { src?: string; name?: string; role?: string; size?: 'md' | 'lg' }) => {
+  const [error, setError] = useState(false)
+  const firstLetter = name?.substring(0, 1).toUpperCase() || '?'
+  
+  const roleName = (role || '').toUpperCase().replace('ROLE_', '')
+  
+  const gradientClasses = roleName.includes('ADMIN') 
+    ? 'from-rose-600 via-red-500 to-orange-500' 
+    : roleName.includes('ORGANIZER')
+    ? 'from-amber-500 via-orange-500 to-yellow-400'
+    : 'from-blue-600 via-cyan-500 to-sky-400'
+
+  const sizeClasses = size === 'lg' ? 'w-20 h-20 text-3xl' : 'w-10 h-10 text-sm font-bold'
+  const borderClasses = size === 'lg' ? 'border-4 border-white shadow-lg' : 'border border-slate-200 shadow-sm'
+
+  if (src && !error) {
+    return (
+      <img 
+        src={src} 
+        alt={name} 
+        onError={() => setError(true)}
+        className={`${sizeClasses} rounded-full object-cover ${borderClasses}`} 
+      />
+    )
+  }
+  
+  return (
+    <div className={`${sizeClasses} rounded-full bg-gradient-to-br ${gradientClasses} flex items-center justify-center font-black text-white uppercase select-none ${size === 'lg' ? 'shadow-xl shadow-indigo-100 border-4 border-white' : 'shadow-md border border-white/30'}`}>
+      {firstLetter}
+    </div>
+  )
+}
+
 const sidebarConfig = adminSidebarConfig
 
 const AdminUserManagement = () => {
@@ -147,9 +180,7 @@ const AdminUserManagement = () => {
                         <div className="absolute left-0 top-2 bottom-2 w-1 bg-primary scale-y-0 group-hover:scale-y-100 transition-transform duration-300 rounded-r-full" />
                         
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm uppercase">
-                            {user.fullName?.charAt(0) || '?'}
-                          </div>
+                          <UserAvatar src={user.avatar} name={user.fullName} role={user.role?.name} />
                           <div>
                             <p className="font-bold text-sm text-slate-900">{user.fullName}</p>
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{user.email}</p>
@@ -215,9 +246,7 @@ const AdminUserManagement = () => {
 
           <div className="p-8 space-y-6">
             <div className="flex items-center gap-5 p-6 bg-slate-50 rounded-3xl border border-slate-100">
-              <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary text-3xl font-black uppercase">
-                {selectedUser.fullName?.charAt(0)}
-              </div>
+              <UserAvatar src={selectedUser.avatar} name={selectedUser.fullName} role={selectedUser.role?.name} size="lg" />
               <div>
                 <h4 className="text-lg font-black text-slate-900">{selectedUser.fullName}</h4>
                 <p className="text-sm font-bold text-slate-500">{selectedUser.email}</p>

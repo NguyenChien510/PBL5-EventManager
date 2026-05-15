@@ -42,12 +42,16 @@ public class AdminFinanceController {
     public ResponseEntity<FinanceConfigDTO> getConfig() {
         return ResponseEntity.ok(FinanceConfigDTO.builder()
                 .defaultCommissionRate(getConfigValue("DEFAULT_COMMISSION_RATE", "10"))
+                .autoApply(Boolean.parseBoolean(getConfigValue("AUTO_APPLY_COMMISSION", "true")))
                 .build());
     }
 
     @PostMapping("/config")
     public ResponseEntity<Void> updateConfig(@RequestBody FinanceConfigDTO configDTO) {
         saveConfig("DEFAULT_COMMISSION_RATE", configDTO.getDefaultCommissionRate(), "Tỷ lệ thuế/phí nền tảng mặc định (%)");
+        if (configDTO.getAutoApply() != null) {
+            saveConfig("AUTO_APPLY_COMMISSION", String.valueOf(configDTO.getAutoApply()), "Tự động áp dụng phí hệ thống cho đơn hàng");
+        }
         return ResponseEntity.ok().build();
     }
 

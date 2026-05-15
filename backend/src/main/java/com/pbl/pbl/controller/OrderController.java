@@ -44,6 +44,7 @@ public class OrderController {
                 .id(order.getId())
                 .userEmail(order.getUser() != null ? order.getUser().getEmail() : "Unknown")
                 .userName(order.getUser() != null ? order.getUser().getFullName() : "Unknown")
+                .userAvatar(order.getUser() != null ? order.getUser().getAvatar() : null)
                 .totalAmount(order.getTotalAmount())
                 .platformFee(order.getPlatformFee())
                 .status(order.getStatus() != null ? order.getStatus().name() : "PENDING")
