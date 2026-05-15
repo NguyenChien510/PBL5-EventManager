@@ -60,54 +60,67 @@ const VouchersRewards = () => {
 
   const handleExchange = async (couponId: number, cost: number) => {
     if ((user?.loyaltyPoints || 0) < cost) {
-      toast.error('Bạn không có đủ điểm để đổi mã này!', {
-        icon: '⚠️',
-        style: {
-          borderRadius: '12px',
-          background: '#1e293b',
-          color: '#fff',
-          fontWeight: 'bold',
-          fontSize: '13px'
+      toast.error(
+        <div className="flex flex-col gap-0.5 text-left">
+          <span className="font-black text-slate-900 text-sm">Không đủ điểm thưởng!</span>
+          <span className="text-[11px] text-slate-500 font-semibold">Hãy tham gia thêm sự kiện để tích lũy điểm nhé.</span>
+        </div>,
+        {
+          icon: '⚠️',
+          duration: 3500,
+          style: {
+            borderRadius: '20px',
+            background: '#ffffff',
+            color: '#334155',
+            padding: '12px 20px',
+            border: '1px solid rgba(148, 163, 184, 0.12)',
+            boxShadow: '0 12px 30px -5px rgba(0, 0, 0, 0.08)',
+          },
         }
-      })
+      )
       return
     }
 
-    const exchangeToast = toast.loading('Đang thực hiện đổi mã...', {
-      style: {
-        borderRadius: '12px',
-        background: '#1e293b',
-        color: '#fff',
-        fontWeight: 'bold',
-        fontSize: '13px'
-      }
-    })
     setExchangingId(couponId)
     try {
       await apiClient.post(`/coupons/exchange?couponId=${couponId}`)
       await Promise.all([fetchProfile(), fetchMyCoupons()])
-      toast.success('Đổi mã thành công! Kiểm tra trong "Mã của tôi" 🎉', {
-        id: exchangeToast,
-        icon: '🎁',
-        style: {
-          borderRadius: '12px',
-          background: '#0f172a',
-          color: '#fff',
-          fontWeight: 'bold',
-          fontSize: '13px'
+      toast.success(
+        <div className="flex flex-col gap-0.5 text-left">
+          <span className="font-black text-emerald-600 text-sm">Đổi quà thành công! 🎉</span>
+          <span className="text-[11px] text-slate-500 font-semibold">Mã giảm giá đã có trong mục "Mã của tôi".</span>
+        </div>,
+        {
+          icon: '🎁',
+          duration: 4500,
+          style: {
+            borderRadius: '20px',
+            background: '#ffffff',
+            color: '#334155',
+            padding: '12px 20px',
+            border: '1px solid rgba(16, 185, 129, 0.12)',
+            boxShadow: '0 12px 30px -5px rgba(16, 185, 129, 0.12)',
+          },
         }
-      })
+      )
     } catch (err) {
-      toast.error('Có lỗi xảy ra khi đổi mã. Vui lòng thử lại!', {
-        id: exchangeToast,
-        style: {
-          borderRadius: '12px',
-          background: '#7f1d1d',
-          color: '#fff',
-          fontWeight: 'bold',
-          fontSize: '13px'
+      toast.error(
+        <div className="flex flex-col gap-0.5 text-left">
+          <span className="font-black text-rose-600 text-sm">Giao dịch thất bại</span>
+          <span className="text-[11px] text-slate-500 font-semibold">Có lỗi xảy ra khi đổi mã. Vui lòng thử lại!</span>
+        </div>,
+        {
+          icon: '❌',
+          style: {
+            borderRadius: '20px',
+            background: '#ffffff',
+            color: '#334155',
+            padding: '12px 20px',
+            border: '1px solid rgba(244, 63, 94, 0.12)',
+            boxShadow: '0 12px 30px -5px rgba(244, 63, 94, 0.12)',
+          },
         }
-      })
+      )
     } finally {
       setExchangingId(null)
     }
@@ -116,16 +129,24 @@ const VouchersRewards = () => {
   const handleCopyCode = (id: number, code: string) => {
     navigator.clipboard.writeText(code)
     setCopiedId(id)
-    toast.success('Đã sao chép mã giảm giá thành công!', {
-      icon: '📋',
-      style: {
-        borderRadius: '12px',
-        background: '#0f172a',
-        color: '#fff',
-        fontWeight: 'bold',
-        fontSize: '13px'
+    toast.success(
+      <div className="flex flex-col gap-0.5 text-left">
+        <span className="font-black text-slate-900 text-sm">Đã sao chép mã!</span>
+        <span className="text-[11px] text-slate-500 font-semibold">Sử dụng ngay mã này tại trang thanh toán vé.</span>
+      </div>,
+      {
+        icon: '📋',
+        duration: 3000,
+        style: {
+          borderRadius: '20px',
+          background: '#ffffff',
+          color: '#334155',
+          padding: '12px 20px',
+          border: '1px solid rgba(148, 163, 184, 0.12)',
+          boxShadow: '0 12px 30px -5px rgba(0, 0, 0, 0.08)',
+        },
       }
-    })
+    )
     setTimeout(() => {
       setCopiedId(null)
     }, 2000)
@@ -226,32 +247,80 @@ const VouchersRewards = () => {
             {/* My Coupons */}
             <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both" style={{ animationDelay: '400ms' }}>
               <h3 className="section-title mb-8"><span className="section-dot" /> Mã giảm giá của tôi</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {myCoupons.map((coupon, i) => (
-                  <div
-                    key={coupon.id}
-                    className="bg-white p-6 rounded-[2rem] border-2 border-dashed border-slate-200 hover:border-primary/40 transition-colors group animate-in fade-in slide-in-from-bottom-8 duration-700 fill-mode-both"
-                    style={{ animationDelay: `${500 + i * 100}ms` }}
-                  >
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
-                        <Icon name="check_circle" className="text-emerald-500" size="sm" />
-                      </div>
-                      <span className="text-[10px] font-black uppercase tracking-widest">Sẵn sàng dùng</span>
-                    </div>
-                    <h5 className="text-lg font-black text-slate-900 mb-1">-{coupon.discountValue <= 100 ? `${coupon.discountValue}%` : `${coupon.discountValue.toLocaleString()}đ`}</h5>
-                    <p className="text-[20px] font-bold text-slate-500 uppercase tracking-tighter mb-6">{coupon.code}</p>
-                    <button 
-                      onClick={() => handleCopyCode(coupon.id, coupon.code)}
-                      className={`w-full py-3 text-[10px] font-black rounded-xl transition-all uppercase tracking-widest ${copiedId === coupon.id ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-95' : 'bg-slate-900 text-white hover:bg-primary'}`}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {myCoupons.map((coupon, i) => {
+                  const isCopied = copiedId === coupon.id
+                  return (
+                    <div
+                      key={coupon.id}
+                      className="relative flex bg-white rounded-[1.5rem] overflow-hidden shadow-[0_4px_20px_-4px_rgba(0,0,0,0.04)] border border-slate-100 hover:border-slate-200/60 hover:shadow-[0_15px_30px_-8px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 transition-all duration-500 group animate-in fade-in slide-in-from-bottom-8 duration-700 fill-mode-both min-h-[100px]"
+                      style={{ animationDelay: `${500 + i * 80}ms` }}
                     >
-                      {copiedId === coupon.id ? 'ĐÃ SAO CHÉP 🎉' : 'SAO CHÉP MÃ'}
-                    </button>
-                  </div>
-                ))}
+                      {/* Left Side: Slim Ticket Gradient Stub */}
+                      <div className="w-24 bg-gradient-to-br from-blue-600 to-indigo-700 flex flex-col items-center justify-center p-3 text-white relative shrink-0 overflow-hidden">
+                        {/* Subtle decorative circles inside stub */}
+                        <div className="absolute inset-0 opacity-[0.06] bg-[radial-gradient(circle_at_center,_#ffffff_2px,_transparent_0)] bg-[length:6px_6px]" />
+                        
+                        <div className="relative z-10 flex flex-col items-center text-center select-none">
+                          <span className="text-[9px] font-black tracking-[0.15em] uppercase opacity-75 mb-0.5">GIẢM</span>
+                          <span className="text-xl font-black tracking-tighter drop-shadow-sm leading-none my-0.5">
+                            {coupon.discountValue <= 100 ? `${coupon.discountValue}%` : `${coupon.discountValue.toLocaleString()}đ`}
+                          </span>
+                          <Icon name="confirmation_number" size="xs" className="text-white/50 mt-0.5" />
+                        </div>
+
+                        {/* Ticket Punch Holes */}
+                        <div className="absolute -top-2.5 -right-2.5 w-5 h-5 bg-slate-50 rounded-full border border-slate-100 z-20" />
+                        <div className="absolute -bottom-2.5 -right-2.5 w-5 h-5 bg-slate-50 rounded-full border border-slate-100 z-20" />
+                      </div>
+
+                      {/* Right Side: Slim Side-by-Side Details */}
+                      <div className="flex-1 py-3 px-5 bg-white flex flex-col justify-center gap-1 relative">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[8px] font-black uppercase tracking-widest">
+                            <span className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse" /> Sẵn sàng dùng
+                          </span>
+                          <div className="flex items-center gap-0.5 text-slate-300 group-hover:text-amber-400 transition-colors duration-300">
+                            <Icon name="verified" size="xs" className="fill-current scale-75" />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3 mt-1">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[8px] font-bold text-slate-400 tracking-widest uppercase mb-0.5">Mã ưu đãi</p>
+                            <p className="text-sm font-black tracking-wider text-slate-700 font-mono truncate select-all group-hover:text-slate-900 transition-colors">{coupon.code}</p>
+                          </div>
+
+                          <button
+                            onClick={() => handleCopyCode(coupon.id, coupon.code)}
+                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase transition-all duration-300 flex items-center gap-1 shrink-0 hover:scale-105 active:scale-95 ${
+                              isCopied
+                                ? 'bg-emerald-500 text-white'
+                                : 'bg-slate-900 text-white hover:bg-primary shadow-sm hover:shadow-md'
+                            }`}
+                          >
+                            {isCopied ? (
+                              <>
+                                <Icon name="check" size="xs" className="scale-90" /> ĐÃ SAO CHÉP
+                              </>
+                            ) : (
+                              <>
+                                <Icon name="content_copy" size="xs" className="scale-90" /> SAO CHÉP
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
                 {myCoupons.length === 0 && (
-                  <div className="col-span-full p-12 text-center bg-white rounded-[2rem] border border-slate-100">
-                    <p className="text-slate-400 text-sm font-medium italic">Bạn chưa có mã giảm giá nào. Hãy tích lũy điểm để đổi quà nhé!</p>
+                  <div className="col-span-full py-16 text-center bg-white rounded-[2.5rem] border border-slate-100 shadow-sm">
+                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                      <Icon name="local_activity" size="lg" />
+                    </div>
+                    <p className="text-slate-600 font-black tracking-tight">Chưa có mã giảm giá</p>
+                    <p className="text-slate-400 text-xs mt-1">Hãy tích lũy điểm và tiến hành đổi thưởng phía trên nhé!</p>
                   </div>
                 )}
               </div>

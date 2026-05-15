@@ -201,9 +201,28 @@ const UserProfile = () => {
   }, [showPasswordModal, selectedTicket, showNameModal])
 
   const getMembershipTier = (pts: number) => {
-    if (pts >= 15000) return { label: 'Hạng Kim Cương', icon: 'diamond' }
-    if (pts >= 5000) return { label: 'Hạng Vàng', icon: 'military_tech' }
-    return { label: 'Hạng Chuẩn', icon: 'stars' }
+    if (pts >= 15000) {
+      return {
+        label: 'Hạng Kim Cương',
+        icon: 'diamond',
+        className: 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-transparent shadow-[0_4px_12px_-2px_rgba(6,182,212,0.3)] font-black',
+        iconColor: 'text-white'
+      }
+    }
+    if (pts >= 5000) {
+      return {
+        label: 'Hạng Vàng',
+        icon: 'military_tech',
+        className: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white border-transparent shadow-[0_4px_12px_-2px_rgba(245,158,11,0.3)] font-black',
+        iconColor: 'text-white'
+      }
+    }
+    return {
+      label: 'Hạng Chuẩn',
+      icon: 'stars',
+      className: 'bg-gradient-to-r from-slate-500 to-slate-600 text-white border-transparent font-black',
+      iconColor: 'text-white'
+    }
   }
 
   const tier = getMembershipTier(user?.loyaltyPoints || 0)
@@ -259,8 +278,9 @@ const UserProfile = () => {
                 <div>
                   <div className="flex flex-col md:flex-row items-center gap-3 mb-3">
                     <h3 className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight">{user?.fullName}</h3>
-                    <div className="px-3 py-1 bg-primary/10 text-primary text-[9px] font-black rounded-full border border-primary/20 uppercase tracking-widest flex items-center gap-1.5">
-                      <Icon name={tier.icon} size="sm" className="scale-75" /> {tier.label}
+                    <div className={`px-3.5 py-1.5 ${tier.className} text-[9px] rounded-full border uppercase tracking-widest flex items-center gap-1.5 transition-all duration-500 select-none hover:scale-105`}>
+                      <Icon name={tier.icon} size="sm" className={`scale-90 ${tier.iconColor}`} filled={true} /> 
+                      <span>{tier.label}</span>
                     </div>
                   </div>
                   <p className="text-xs text-slate-400 mb-6 flex flex-col md:flex-row items-center justify-center md:justify-start gap-1 md:gap-4">
