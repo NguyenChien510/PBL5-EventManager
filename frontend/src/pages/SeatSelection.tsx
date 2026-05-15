@@ -39,7 +39,6 @@ const SeatSelection = () => {
   const stageRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 500 });
-  const [isCtrlPressed, setIsCtrlPressed] = useState(false);
 
   // Coupon states
   const [myCoupons, setMyCoupons] = useState<any[]>([]);
@@ -47,25 +46,7 @@ const SeatSelection = () => {
   const [couponInput, setCouponInput] = useState('');
   const [showCouponDropdown, setShowCouponDropdown] = useState(false);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Control' || e.metaKey) {
-        setIsCtrlPressed(true);
-      }
-    };
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Control' || (!e.metaKey && e.key === 'Meta')) {
-        setIsCtrlPressed(false);
-      }
-    };
 
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, []);
 
   useEffect(() => {
     if (containerRef.current) {
@@ -596,7 +577,7 @@ const SeatSelection = () => {
                     <>
 
                       {/* Immersive Dark Stage Canvas Viewport */}
-                      <div ref={containerRef} className={`flex-grow relative bg-[#0f172a] rounded-[2.5rem] overflow-hidden select-none border-8 border-slate-900 shadow-[0_25px_60px_-15px_rgba(15,23,42,0.3)] flex flex-col transition-all hover:shadow-[0_30px_70px_-12px_rgba(15,23,42,0.4)] ${isCtrlPressed ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`} style={{ height: '550px' }}>
+                      <div ref={containerRef} className="flex-grow relative bg-[#0f172a] rounded-[2.5rem] overflow-hidden select-none border-8 border-slate-900 shadow-[0_25px_60px_-15px_rgba(15,23,42,0.3)] flex flex-col transition-all hover:shadow-[0_30px_70px_-12px_rgba(15,23,42,0.4)] cursor-grab active:cursor-grabbing" style={{ height: '550px' }}>
 
                         {/* Premium Header overlay for Stage marker */}
                         <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-10 pointer-events-none select-none flex flex-col items-center gap-2">
@@ -610,7 +591,8 @@ const SeatSelection = () => {
                           width={dimensions.width}
                           height={dimensions.height}
                           ref={stageRef}
-                          draggable={isCtrlPressed}
+                          draggable={true}
+                          dragDistance={5}
                           scaleX={stageScale}
                           scaleY={stageScale}
                           x={stagePosition.x}
