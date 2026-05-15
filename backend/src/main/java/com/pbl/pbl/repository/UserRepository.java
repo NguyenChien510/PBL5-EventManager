@@ -10,4 +10,5 @@ import com.pbl.pbl.entity.User;
 public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
+    java.util.List<User> findByRole_Name(String roleName);
 }

@@ -124,6 +124,20 @@ const Navbar = () => {
 
                   {/* Menu Options Grouped by Role */}
                   <div className="p-2 max-h-[320px] overflow-y-auto space-y-0.5">
+                    {/* Giao diện Thông tin cá nhân dùng chung */}
+                    <Link
+                      to="/profile"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-primary/10 flex items-center justify-center transition-colors">
+                        <Icon name="person" className="text-slate-500 group-hover:text-primary transition-colors" size="sm" />
+                      </div>
+                      <span>Thông tin cá nhân</span>
+                    </Link>
+
+                    <div className="h-px bg-slate-100 my-1.5 mx-2"></div>
+
                     {roleName === 'ADMIN' ? (
                       <>
                         <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">Danh mục Quản trị</div>
@@ -182,16 +196,6 @@ const Navbar = () => {
                           <span>Trung tâm điều hành</span>
                         </Link>
                         <Link
-                          to="/organizer/create-event"
-                          onClick={() => setIsUserMenuOpen(false)}
-                          className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors group"
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-primary/10 flex items-center justify-center transition-colors">
-                            <Icon name="add_circle" className="text-slate-500 group-hover:text-primary transition-colors" size="sm" />
-                          </div>
-                          <span>Tạo sự kiện mới</span>
-                        </Link>
-                        <Link
                           to="/organizer/events"
                           onClick={() => setIsUserMenuOpen(false)}
                           className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors group"
@@ -226,16 +230,6 @@ const Navbar = () => {
                       <>
                         <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">Danh mục Khách hàng</div>
                         <Link
-                          to="/profile"
-                          onClick={() => setIsUserMenuOpen(false)}
-                          className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors group"
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-primary/10 flex items-center justify-center transition-colors">
-                            <Icon name="person" className="text-slate-500 group-hover:text-primary transition-colors" size="sm" />
-                          </div>
-                          <span>Thông tin cá nhân</span>
-                        </Link>
-                        <Link
                           to="/history"
                           onClick={() => setIsUserMenuOpen(false)}
                           className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold text-slate-700 hover:bg-primary/5 hover:text-primary transition-colors group"
@@ -255,7 +249,6 @@ const Navbar = () => {
                           </div>
                           <span>Ưu đãi & Voucher</span>
                         </Link>
-
                       </>
                     )}
                   </div>

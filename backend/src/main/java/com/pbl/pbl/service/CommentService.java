@@ -18,17 +18,20 @@ public class CommentService {
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final EmailService emailService;
 
     @org.springframework.beans.factory.annotation.Autowired
     public CommentService(
             CommentRepository commentRepository,
             EventRepository eventRepository,
             UserRepository userRepository,
-            UserMapper userMapper) {
+            UserMapper userMapper,
+            EmailService emailService) {
         this.commentRepository = commentRepository;
         this.eventRepository = eventRepository;
         this.userRepository = userRepository;
         this.userMapper = userMapper;
+        this.emailService = emailService;
     }
 
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
@@ -78,9 +81,10 @@ public class CommentService {
 
         comment = commentRepository.save(comment);
 
-        // Add 100 loyalty points for feedback
         user.setLoyaltyPoints((user.getLoyaltyPoints() == null ? 0 : user.getLoyaltyPoints()) + 100L);
         userRepository.save(user);
+
+        emailService.sendNewCommentEmail(comment);
 
         return convertToDTO(comment);
     }

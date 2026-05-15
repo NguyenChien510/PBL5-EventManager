@@ -50,6 +50,7 @@ public class PaymentService {
     private final EventRepository eventRepository;
     private final SystemConfigRepository systemConfigRepository;
     private final CouponRepository couponRepository;
+    private final EmailService emailService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -149,6 +150,8 @@ public class PaymentService {
                 ticketRepository.save(ticket);
                 seatRepository.save(ticket.getSeat());
             }
+
+            emailService.sendTicketEmail(order);
 
             String dummyTransactionId = "MOMO_" + System.currentTimeMillis();
             return "http://localhost:5173/payment-result?status=success&orderInfo=" + 
@@ -343,6 +346,7 @@ public class PaymentService {
                             ticketRepository.save(ticket);
                             seatRepository.save(ticket.getSeat());
                         }
+                        emailService.sendTicketEmail(order);
                         return 1; // Success
                     } else {
                         order.setStatus(OrderStatus.CANCELLED);
@@ -427,6 +431,7 @@ public class PaymentService {
                             ticketRepository.save(ticket);
                             seatRepository.save(ticket.getSeat());
                         }
+                        emailService.sendTicketEmail(order);
                         return 1; // Success
                     } else {
                         order.setStatus(OrderStatus.CANCELLED);

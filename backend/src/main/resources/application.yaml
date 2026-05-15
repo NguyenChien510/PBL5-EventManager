@@ -13,6 +13,21 @@ spring:
       max-lifetime: 1200000
       connection-timeout: 30000
 
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: megamart.noreply@gmail.com
+    password: "hkeelvyesaxtobyw"
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          ssl:
+            trust: smtp.gmail.com
+
   jpa:
     open-in-view: false
     hibernate:

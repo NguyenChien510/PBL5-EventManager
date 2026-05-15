@@ -63,6 +63,7 @@ public class EventService {
     private final ArtistService artistService;
     private final com.pbl.pbl.repository.UserRepository userRepository;
     private final com.pbl.pbl.repository.OrderRepository orderRepository;
+    private final EmailService emailService;
 
     @Transactional(readOnly = true)
     public List<EventResponseDTO> getUpcomingEvents() {
@@ -208,6 +209,11 @@ public class EventService {
 
         event.setStatus(status);
         Event saved = eventRepository.save(event);
+
+        if (status == EventStatus.upcoming) {
+            emailService.sendEventApprovedEmail(saved);
+        }
+
         return convertToResponseDTO(saved);
     }
 
@@ -223,6 +229,10 @@ public class EventService {
         event.setStatus(EventStatus.pending);
         event.setRejectReason(null);
         Event saved = eventRepository.save(event);
+
+        List<com.pbl.pbl.entity.User> admins = userRepository.findByRole_Name("ROLE_ADMIN");
+        emailService.sendEventPendingReview(saved, admins);
+
         return convertToResponseDTO(saved);
     }
 
@@ -513,6 +523,9 @@ public class EventService {
         event.setTotalTickets(totalTicketsCount);
         event.setTicketsLeft(totalTicketsCount);
         Event saved = eventRepository.save(event);
+
+        List<com.pbl.pbl.entity.User> admins = userRepository.findByRole_Name("ROLE_ADMIN");
+        emailService.sendEventPendingReview(saved, admins);
 
         return convertToResponseDTO(saved);
     }
