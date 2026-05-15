@@ -5,7 +5,7 @@ import { EventService } from '../services/eventService'
 import { apiClient } from '../utils/axios'
 import { useAuthStore } from '../stores/useAuthStore'
 import { toast } from 'react-hot-toast'
-import { Stage, Layer, Circle, Text, Group, Rect } from 'react-konva'
+import { Stage, Layer, Circle, Text, Group, Rect, Line } from 'react-konva'
 
 const paymentMethods = [
   { id: 'momo', label: 'Ví MoMo', logo: 'https://developers.momo.vn/v3/assets/images/MOMO-Logo-App-6262c3743a290ef02396a24ea2b66c35.png', color: 'bg-accent-pink' },
@@ -304,6 +304,7 @@ const SeatSelection = () => {
             const groupInfo = groupedTickets.find(g => g.name === targetTt?.name);
             const availableCount = groupInfo?.availableSeats?.length || 0;
             const currentQty = targetTt ? (quantities[targetTt.name] || 0) : 0;
+            const isSoldOut = isInteractive && availableCount === 0;
 
             return (
               <Group
@@ -313,6 +314,7 @@ const SeatSelection = () => {
                 rotation={shape.rotation || 0}
                 onClick={(e) => {
                   e.cancelBubble = true;
+                  if (isSoldOut) return;
                   console.log('[SeatSelection] Zone clicked:', { shapeId: shape.id, ticketTypeId: shape.ticketTypeId, isInteractive, targetTtId: targetTt?.id, targetTtName: targetTt?.name, availableCount });
                   if (isInteractive && targetTt) {
                     setActiveZonePick({
@@ -324,6 +326,7 @@ const SeatSelection = () => {
                 }}
                 onTap={(e) => {
                   e.cancelBubble = true;
+                  if (isSoldOut) return;
                   if (isInteractive && targetTt) {
                     setActiveZonePick({
                       ticketTypeId: targetTt.id,
@@ -333,7 +336,7 @@ const SeatSelection = () => {
                   }
                 }}
                 onMouseEnter={(e) => {
-                  if (isInteractive) {
+                  if (isInteractive && !isSoldOut) {
                     const container = e.target.getStage()?.container();
                     if (container) container.style.cursor = 'pointer';
                   }
@@ -348,16 +351,37 @@ const SeatSelection = () => {
                   y={0}
                   width={shape.width}
                   height={shape.height}
-                  fill={shape.fill || '#cbd5e1'}
-                  stroke={isInteractive ? (currentQty > 0 ? '#ffffff' : '#6366f1') : 'transparent'}
-                  strokeWidth={isInteractive ? (currentQty > 0 ? 3 : 1.5) : 0}
-                  dash={isInteractive && currentQty === 0 ? [5, 3] : undefined}
-                  opacity={shape.opacity !== undefined ? shape.opacity : (isInteractive ? 0.6 : 0.8)}
+                  fill={isSoldOut ? '#1e293b' : (shape.fill || '#cbd5e1')}
+                  stroke={isInteractive ? (isSoldOut ? '#f43f5e' : (currentQty > 0 ? '#ffffff' : '#6366f1')) : 'transparent'}
+                  strokeWidth={isInteractive ? (isSoldOut ? 2 : (currentQty > 0 ? 3 : 1.5)) : 0}
+                  dash={isInteractive && (currentQty === 0 || isSoldOut) ? [5, 3] : undefined}
+                  opacity={isSoldOut ? 0.5 : (shape.opacity !== undefined ? shape.opacity : (isInteractive ? 0.6 : 0.8))}
                   cornerRadius={6}
                   shadowColor={isInteractive && currentQty > 0 ? (shape.fill || '#6366f1') : 'transparent'}
                   shadowBlur={currentQty > 0 ? 15 : 0}
                   shadowOpacity={0.8}
                 />
+
+                {/* Large Red "X" Strike for Sold Out zones */}
+                {isSoldOut && (
+                  <>
+                    <Line
+                      points={[0, 0, shape.width, shape.height]}
+                      stroke="#f43f5e"
+                      strokeWidth={1.5}
+                      opacity={0.4}
+                      listening={false}
+                    />
+                    <Line
+                      points={[shape.width, 0, 0, shape.height]}
+                      stroke="#f43f5e"
+                      strokeWidth={1.5}
+                      opacity={0.4}
+                      listening={false}
+                    />
+                  </>
+                )}
+
                 {(shape.labelText || isInteractive) && (
                   <Text
                     x={4}
@@ -366,12 +390,14 @@ const SeatSelection = () => {
                     height={shape.height}
                     text={
                       isInteractive && targetTt
-                        ? `${shape.labelText || targetTt.name}\n(${availableCount} trống)\n${currentQty > 0 ? `★ CHỌN: ${currentQty}` : 'BẤM ĐỂ CHỌN'}`
+                        ? (isSoldOut
+                          ? `${shape.labelText || targetTt.name}\n🚫 ĐÃ BÁN HẾT`
+                          : `${shape.labelText || targetTt.name}\n(${availableCount} trống)\n${currentQty > 0 ? `★ CHỌN: ${currentQty}` : 'BẤM ĐỂ CHỌN'}`)
                         : (shape.labelText || '')
                     }
                     fontSize={Math.max(7, Math.min(13, shape.height / (isInteractive ? 4.5 : 3.5)))}
                     fontStyle="bold"
-                    fill="#ffffff"
+                    fill={isSoldOut ? '#94a3b8' : '#ffffff'}
                     align="center"
                     verticalAlign="middle"
                     listening={false}
@@ -379,7 +405,7 @@ const SeatSelection = () => {
                     ellipsis={true}
                     shadowColor="rgba(0,0,0,0.8)"
                     shadowBlur={3}
-                    shadowOpacity={1}
+                    shadowOpacity={isSoldOut ? 0.4 : 1}
                     shadowOffset={{ x: 1, y: 1 }}
                   />
                 )}
@@ -846,7 +872,7 @@ const SeatSelection = () => {
                         </div>
                       )}
                     </div>
-                    
+
                     {/* Selected Coupon Badge */}
                     {selectedCoupon && (
                       <div className="flex items-center justify-between mt-3 bg-emerald-50 border border-emerald-100/50 px-3 py-2.5 rounded-xl animate-in zoom-in-95 duration-150">
@@ -859,12 +885,12 @@ const SeatSelection = () => {
                             <p className="text-[10px] font-bold text-emerald-600 mt-0.5">-{new Intl.NumberFormat('vi-VN').format(discountAmount)}đ</p>
                           </div>
                         </div>
-                        <button 
+                        <button
                           type="button"
                           onClick={() => {
                             setSelectedCoupon(null);
                             setCouponInput('');
-                          }} 
+                          }}
                           className="text-[10px] font-black text-slate-400 hover:text-red-500 uppercase tracking-widest transition-colors bg-white px-2 py-1 rounded-lg shadow-sm border border-emerald-100"
                         >
                           Huỷ bỏ
