@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { DashboardLayout, PageHeader } from '../components/layout';
 import { adminSidebarConfig } from '../config/adminSidebarConfig';
 import { Icon, Loader } from '../components/ui';
 import { EventService } from '../services/eventService';
 import toast from 'react-hot-toast';
-import { Stage, Layer, Circle, Text, Group, Rect } from 'react-konva';
+import { Stage, Layer, Circle, Text, Group, Rect, Line } from 'react-konva';
+import { Html5Qrcode } from 'html5-qrcode';
+import { API_BASE_URL } from '../constants';
+import { SeatAttendeeModal, ZoneAttendeesModal } from './OrganizerEventModals';
 
 interface ManageStats {
   totalSeats: number;
@@ -24,6 +28,10 @@ interface Attendee {
   ticketTypeName: string;
   status: string;
   purchaseDate: string;
+  orderId: number;
+  ticketTypeColor?: string;
+  checkInDate?: string;
+  userAvatar?: string;
 }
 
 // Sub-components for Roster
@@ -68,9 +76,23 @@ const AdminEventManage = () => {
   const [guestViewMode, setGuestViewMode] = useState<'list' | 'seats'>('list');
   const [selectedSeatInfo, setSelectedSeatInfo] = useState<Attendee | null>(null);
 
+  // Premium Guest States imported from Organizer Flow
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'CHECKED_IN' | 'PENDING'>('ALL');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [guestPage, setGuestPage] = useState(1);
+  const itemsPerPage = 5;
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanResult, setScanResult] = useState<any>(null);
+  const [manualCode, setManualCode] = useState('');
+  const [qrError, setQrError] = useState<string | null>(null);
+  const [selectedZoneForModal, setSelectedZoneForModal] = useState<any>(null);
+  const [zoneSearchQuery, setZoneSearchQuery] = useState('');
+  const [ticketTypes, setTicketTypes] = useState<any[]>([]);
+
   // Finance pagination
   const [transactionPage, setTransactionPage] = useState(1);
   const transactionsPerPage = 5;
+  const [orders, setOrders] = useState<any[]>([]);
 
   // New state for Finance tab
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
@@ -107,75 +129,7 @@ const AdminEventManage = () => {
     { day: 'CN', val: 110 },
   ];
 
-  const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
-  const [aiPlanResult, setAiPlanResult] = useState<any>(null);
 
-  const generateAIPlan = () => {
-    setIsGeneratingPlan(true);
-    setTimeout(() => {
-      setAiPlanResult({
-        tasks: [
-          { id: 1, text: "Chốt danh sách nhà cung cấp F&B", priority: 'High' },
-          { id: 2, text: "Gửi thư mời điện tử & QR Code cho khách", priority: 'High' },
-          { id: 3, text: "Kiểm duyệt kịch bản âm thanh ánh sáng", priority: 'Medium' },
-          { id: 4, text: "Chuẩn bị quà tặng lưu niệm (Gift box)", priority: 'Low' },
-          { id: 5, text: "Xây dựng layout mặt bằng bố trí", priority: 'Medium' }
-        ],
-        tools: [
-          { name: "Màn hình LED P2.5", qty: 1, unit: "Bộ" },
-          { name: "Hệ thống Mic không dây", qty: 6, unit: "Cái" },
-          { name: "Standee đón khách", qty: 12, unit: "Tấm" },
-          { name: "Thẻ đeo nhân sự", qty: 30, unit: "Bộ" }
-        ],
-        budgetSections: [
-          {
-            id: 'III',
-            title: 'Dàn dựng và trang trí',
-            total: 450000000,
-            subSections: [
-              {
-                id: 'A',
-                title: 'Khu vực đón khách',
-                items: [
-                  { stt: 1, item: 'Cổng chào', unit: 'chiếc', qty: 1, unitPrice: 25000000, remarks: 'Thiết kế theo theme sự kiện' },
-                  { stt: 2, item: 'Standee', unit: 'chiếc', qty: 10, unitPrice: 500000, remarks: 'Thiết kế theo theme sự kiện' },
-                  { stt: 3, item: 'Banner dọc', unit: 'chiếc', qty: 10, unitPrice: 300000, remarks: 'Thiết kế theo theme sự kiện' },
-                  { stt: 4, item: 'Backdrop chụp hình', unit: 'chiếc', qty: 1, unitPrice: 15000000, remarks: 'Thiết kế theo theme sự kiện, platform và đèn trang trí' },
-                  { stt: 5, item: 'Cánh cửa thần kỳ', unit: 'bộ', qty: 5, unitPrice: 20000000, remarks: 'Cánh cửa lớn thiết kế kiểu hightech và màn hình' },
-                ]
-              },
-              {
-                id: 'B',
-                title: 'Khu vực phòng tiệc',
-                items: [
-                  { stt: 6, item: 'Sân khấu', unit: 'gói', qty: 1, unitPrice: 250000000, remarks: 'Sân khấu lớn và hoàn thiện bề mặt. Bậc lên xuống sân khấu. Thiết kế trang trí vách sân khấu' },
-                  { stt: 7, item: 'Hệ thống giàn Truss', unit: 'gói', qty: 1, unitPrice: 50000000, remarks: 'Cho sân khấu, màn LED nhiều lớp, hệ thống ATAS' },
-                  { stt: 8, item: 'Bục phát biểu và logo', unit: 'gói', qty: 1, unitPrice: 2000000, remarks: '' },
-                ]
-              }
-            ]
-          },
-          {
-            id: 'IV',
-            title: 'Thiết bị',
-            total: 320000000,
-            subSections: [
-              {
-                id: 'A',
-                title: 'Hệ thống âm thanh ánh sáng',
-                items: [
-                  { stt: 1, item: 'Hệ thống ATAS', unit: 'gói', qty: 1, unitPrice: 60000000, remarks: '' },
-                  { stt: 2, item: 'Màn LED', unit: 'gói', qty: 1, unitPrice: 180000000, remarks: 'Hệ thống màn LED lớn nhiều lớp' },
-                  { stt: 3, item: 'Hệ thống trượt màn LED', unit: 'gói', qty: 1, unitPrice: 20000000, remarks: 'Có thể trượt để mở màn LED' },
-                ]
-              }
-            ]
-          }
-        ]
-      });
-      setIsGeneratingPlan(false);
-    }, 3500);
-  };
 
   useEffect(() => {
     if (stats) {
@@ -188,14 +142,17 @@ const AdminEventManage = () => {
     if (!id) return;
     setLoading(true);
     try {
-      const [eventData, statsData, attendeesData, seatsData, commentsData] = await Promise.all([
+      const [eventData, statsData, attendeesData, seatsData, commentsData, ticketTypesData, ordersData] = await Promise.all([
         EventService.getEventById(id),
         EventService.getEventManageStats(id),
         EventService.getEventAttendees(id),
         EventService.getEventSeats(id),
-        EventService.getEventComments(id)
+        EventService.getEventComments(id),
+        EventService.getEventTicketTypes(id),
+        EventService.getEventOrders(id)
       ]);
       setEvent(eventData);
+      setTicketTypes(ticketTypesData || []);
       if (eventData.seatMapLayout) {
         try {
           setShapes(JSON.parse(eventData.seatMapLayout));
@@ -207,6 +164,7 @@ const AdminEventManage = () => {
       setAttendees(attendeesData);
       setSeats(seatsData || []);
       setComments(commentsData || []);
+      setOrders(ordersData || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       setLoading(false);
@@ -242,7 +200,7 @@ const AdminEventManage = () => {
         hasAutoJumped.current = true; // Even if it has data, mark as jumped so we don't interfere with manual navigation later
       }
     }
-    
+
     // Reset jump flag if leaving the tab, so it can re-jump next time they enter
     if (activeTab !== 'finance') {
       hasAutoJumped.current = false;
@@ -259,14 +217,14 @@ const AdminEventManage = () => {
   const [editSchedules, setEditSchedules] = useState<any[]>([]);
 
   useEffect(() => {
-    const isModalOpen = !!selectedSeatInfo || isGeneratingPlan || !!activeEditType;
+    const isModalOpen = !!selectedSeatInfo || !!activeEditType || !!selectedZoneForModal || !!scanResult;
     if (isModalOpen) {
       document.body.classList.add('modal-open');
     } else {
       document.body.classList.remove('modal-open');
     }
     return () => document.body.classList.remove('modal-open');
-  }, [selectedSeatInfo, isGeneratingPlan, activeEditType]);
+  }, [selectedSeatInfo, activeEditType, selectedZoneForModal, scanResult]);
 
   useEffect(() => {
     if (event) {
@@ -288,23 +246,361 @@ const AdminEventManage = () => {
     try {
       await EventService.checkInTicket(ticketId, !isCheckedIn);
       toast.success(isCheckedIn ? 'Đã hủy check-in' : 'Check-in thành công');
-      // Update local state
-      setAttendees(prev => prev.map(a =>
-        a.ticketId === ticketId ? { ...a, status: isCheckedIn ? 'PAID' : 'CHECKED_IN' } : a
-      ));
-      // Refresh stats
-      const newStats = await EventService.getEventManageStats(id!);
-      setStats(newStats);
+      fetchData();
     } catch (error) {
       toast.error('Thao tác thất bại');
     }
   };
+
+  const handleQrSuccess = async (decodedText: string) => {
+    const loadingToast = toast.loading("Đang thực hiện check-in...");
+    try {
+      const orderInfo = await EventService.getOrderByQR(decodedText);
+      await EventService.checkInOrderByQR(decodedText);
+
+      setScanResult(orderInfo);
+      setIsScanning(false);
+      toast.success("Check-in thành công!", { id: loadingToast });
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Mã QR không hợp lệ hoặc đã được sử dụng", { id: loadingToast });
+    }
+  };
+
+  const handleManualCheckIn = async () => {
+    if (!manualCode.trim()) {
+      toast.error("Vui lòng nhập mã code");
+      return;
+    }
+    handleQrSuccess(manualCode.trim());
+  };
+
+  useEffect(() => {
+    let html5QrCode: Html5Qrcode | null = null;
+
+    if (isScanning && activeTab === 'guests') {
+      html5QrCode = new Html5Qrcode("qr-reader");
+
+      const config = { fps: 10, aspectRatio: 1.0 };
+
+      html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        handleQrSuccess,
+        (errorMessage) => {
+          // Ignored error
+        }
+      ).catch(err => {
+        console.error("Unable to start scanning", err);
+        setQrError("Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập hoặc sử dụng HTTPS.");
+      });
+    }
+
+    return () => {
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().then(() => {
+          html5QrCode?.clear();
+        }).catch(err => console.error("Failed to stop scanner", err));
+      }
+    };
+  }, [isScanning, activeTab]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const html5QrCode = new Html5Qrcode("qr-reader");
+    try {
+      const decodedText = await html5QrCode.scanFile(file, true);
+      handleQrSuccess(decodedText);
+    } catch (err) {
+      toast.error("Không thể nhận diện mã QR từ ảnh này");
+    } finally {
+      html5QrCode.clear();
+    }
+  };
+
+  const handleCheckInOrder = async (orderId: number) => {
+    try {
+      await EventService.checkInOrder(orderId);
+      toast.success('Đã check-in toàn bộ vé trong đơn hàng này');
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Thao tác thất bại');
+    }
+  };
+
+  const ticketSalesBreakdown = React.useMemo(() => {
+    if (!ticketTypes) return [];
+    return ticketTypes.map((tt: any) => {
+      const sold = attendees.filter((a: any) => a.ticketTypeName === tt.name).length;
+      const total = tt.totalQuantity || 0;
+      const percentage = total > 0 ? Math.round((sold / total) * 100) : 0;
+      return {
+        ...tt,
+        sold,
+        total,
+        percentage
+      };
+    }).filter((tt: any) => tt.name.toLowerCase().includes(zoneSearchQuery.toLowerCase()));
+  }, [ticketTypes, attendees, zoneSearchQuery]);
+
+  const groupedAttendees = React.useMemo(() => {
+    const groups: Record<number, any> = {};
+    attendees.forEach(a => {
+      if (!groups[a.orderId]) {
+        groups[a.orderId] = {
+          id: a.orderId,
+          fullName: a.userName,
+          email: a.userEmail,
+          ticketTypeName: a.ticketTypeName,
+          seats: [{ seatNumber: a.seatNumber, color: a.ticketTypeColor, typeName: a.ticketTypeName }],
+          ticketStatuses: [a.status],
+          checkInDate: a.checkInDate,
+          avatarUrl: a.userAvatar ? (a.userAvatar.startsWith('http') ? a.userAvatar : `${API_BASE_URL.replace('/api', '')}${a.userAvatar.startsWith('/') ? '' : '/'}${a.userAvatar}`) : null
+        };
+      } else {
+        groups[a.orderId].seats.push({ seatNumber: a.seatNumber, color: a.ticketTypeColor, typeName: a.ticketTypeName });
+        groups[a.orderId].ticketStatuses.push(a.status);
+        if (a.checkInDate && (!groups[a.orderId].checkInDate || new Date(a.checkInDate) > new Date(groups[a.orderId].checkInDate))) {
+          groups[a.orderId].checkInDate = a.checkInDate;
+        }
+      }
+    });
+
+    Object.values(groups).forEach((g: any) => {
+      g.checkInStatus = g.ticketStatuses.every((status: string) => status === 'CHECKED_IN');
+    });
+
+    return Object.values(groups).filter((a: any) => {
+      const matchesSearch = a.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        a.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        a.seats.some((s: any) => s.seatNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        String(a.id).includes(searchTerm);
+
+      if (statusFilter === 'ALL') return matchesSearch;
+      if (statusFilter === 'CHECKED_IN') return matchesSearch && a.checkInStatus;
+      if (statusFilter === 'PENDING') return matchesSearch && !a.checkInStatus;
+      return matchesSearch;
+    });
+  }, [attendees, searchTerm, statusFilter]);
+
+  useEffect(() => {
+    setGuestPage(1);
+  }, [searchTerm, statusFilter]);
+
+  const paginatedAttendees = React.useMemo(() => {
+    const startIndex = (guestPage - 1) * itemsPerPage;
+    return groupedAttendees.slice(startIndex, startIndex + itemsPerPage);
+  }, [groupedAttendees, guestPage]);
+
+  const totalGuestPages = Math.ceil(groupedAttendees.length / itemsPerPage);
+
+  const memoizedSeatMap = React.useMemo(() => {
+    if (seats.length === 0 && shapes.length === 0) {
+      return <div className="text-slate-400 py-20 italic text-sm">Đang tải sơ đồ sự kiện...</div>;
+    }
+
+    return (
+      <Stage
+        width={800}
+        height={500}
+        draggable
+        onMouseEnter={(e) => {
+          if (e.target === e.target.getStage()) {
+            const container = e.target.getStage()?.container();
+            if (container) container.style.cursor = 'grab';
+          }
+        }}
+        onMouseDown={(e) => {
+          if (e.target === e.target.getStage()) {
+            const container = e.target.getStage()?.container();
+            if (container) container.style.cursor = 'grabbing';
+          }
+        }}
+        onMouseUp={(e) => {
+          const container = e.target.getStage()?.container();
+          if (container) container.style.cursor = 'grab';
+        }}
+      >
+        <Layer>
+          {Array.from({ length: 21 }).map((_, i) => (
+            <Rect key={'v' + i} x={i * 40} y={0} width={1} height={500} fill="#1e293b" opacity={0.3} />
+          ))}
+          {Array.from({ length: 13 }).map((_, i) => (
+            <Rect key={'h' + i} x={0} y={i * 40} width={800} height={1} fill="#1e293b" opacity={0.3} />
+          ))}
+
+          {shapes.map((shape: any) => {
+            if (shape.type === 'rect') {
+              const isInteractive = !!shape.ticketTypeId;
+              let targetTt = ticketTypes?.find((t: any) => String(t.id) === String(shape.ticketTypeId));
+              if (!targetTt && ticketTypes && ticketTypes.length > 0 && !isNaN(Number(shape.ticketTypeId)) && Number(shape.ticketTypeId) <= 50) {
+                const sortedTypes = [...ticketTypes].sort((a: any, b: any) => a.id - b.id);
+                const ttIdx = Number(shape.ticketTypeId) - 1;
+                if (ttIdx >= 0 && ttIdx < sortedTypes.length) {
+                  targetTt = sortedTypes[ttIdx];
+                }
+              }
+
+              let isSoldOut = false;
+              let availableCount = 0;
+              if (isInteractive && targetTt) {
+                const sold = attendees.filter((a: any) => a.ticketTypeName === targetTt.name).length;
+                const total = targetTt.totalQuantity || 0;
+                availableCount = Math.max(0, total - sold);
+                isSoldOut = availableCount <= 0;
+              }
+
+              const zoneColor = targetTt?.color || shape.fill || '#cbd5e1';
+              const baseLabel = isInteractive && targetTt ? (shape.labelText || targetTt.name) : shape.labelText;
+              const displayText = isSoldOut ? `${baseLabel}\n🚫 ĐÃ BÁN HẾT` : baseLabel;
+
+              return (
+                <Group
+                  key={shape.id}
+                  x={shape.x}
+                  y={shape.y}
+                  rotation={shape.rotation || 0}
+                >
+                  <Rect
+                    x={0}
+                    y={0}
+                    width={shape.width}
+                    height={shape.height}
+                    fill={isSoldOut ? '#1e293b' : zoneColor}
+                    stroke={isInteractive ? (isSoldOut ? '#f43f5e' : zoneColor) : 'transparent'}
+                    strokeWidth={isInteractive ? (isSoldOut ? 2 : 1.5) : 0}
+                    dash={isInteractive ? [5, 3] : undefined}
+                    opacity={isSoldOut ? 0.5 : (shape.opacity !== undefined ? shape.opacity : (isInteractive ? 0.5 : 0.7))}
+                    cornerRadius={4}
+                  />
+
+                  {isSoldOut && (
+                    <>
+                      <Line
+                        points={[0, 0, shape.width, shape.height]}
+                        stroke="#f43f5e"
+                        strokeWidth={1.5}
+                        opacity={0.4}
+                        listening={false}
+                      />
+                      <Line
+                        points={[shape.width, 0, 0, shape.height]}
+                        stroke="#f43f5e"
+                        strokeWidth={1.5}
+                        opacity={0.4}
+                        listening={false}
+                      />
+                    </>
+                  )}
+
+                  {displayText && (
+                    <Text
+                      x={2}
+                      y={0}
+                      width={shape.width - 4}
+                      height={shape.height}
+                      text={displayText}
+                      fontSize={Math.max(8, Math.min(13, shape.height / 3.5))}
+                      fontStyle="bold"
+                      fill={isSoldOut ? '#94a3b8' : '#ffffff'}
+                      align="center"
+                      verticalAlign="middle"
+                      listening={false}
+                      wrap="word"
+                      ellipsis={true}
+                    />
+                  )}
+                </Group>
+              );
+            } else if (shape.type === 'text') {
+              return (
+                <Text
+                  key={shape.id}
+                  x={shape.x}
+                  y={shape.y}
+                  text={shape.text || ''}
+                  fontSize={shape.fontSize || 16}
+                  fill={shape.fill || '#94a3b8'}
+                  fontStyle="bold"
+                  rotation={shape.rotation || 0}
+                  listening={false}
+                />
+              );
+            }
+            return null;
+          })}
+
+          {seats.filter((s: any) => Number(s.x) > 0 && Number(s.y) > 0).map((seat: any) => {
+            const isOccupied = seat.status !== 'AVAILABLE';
+            const attendee = isOccupied ? attendees.find((a: any) => a.seatNumber === seat.seatNumber) : null;
+            const isCheckedIn = isOccupied && attendee?.status === 'CHECKED_IN';
+
+            const baseColor = seat.color || '#3b82f6';
+            const circleFill = isCheckedIn ? '#10b981' : (isOccupied ? baseColor : 'rgba(15, 23, 42, 0.8)');
+            const circleStroke = isCheckedIn ? '#fff' : baseColor;
+            const shadowColor = isCheckedIn ? '#10b981' : baseColor;
+            const textColor = isOccupied ? '#fff' : baseColor;
+
+            return (
+              <Group
+                key={seat.id}
+                x={Number(seat.x) || 0}
+                y={Number(seat.y) || 0}
+                onClick={() => {
+                  if (attendee) {
+                    setSelectedSeatInfo(attendee);
+                  } else {
+                    toast.dismiss();
+                    toast(`${seat.seatNumber} - ${seat.ticketTypeName} (Đang trống)`, { icon: '🎫' });
+                  }
+                }}
+                onMouseEnter={(e) => {
+                  const container = e.target.getStage()?.container();
+                  if (container) container.style.cursor = attendee ? 'pointer' : 'help';
+                }}
+                onMouseLeave={(e) => {
+                  const container = e.target.getStage()?.container();
+                  if (container) container.style.cursor = 'default';
+                }}
+              >
+                <Circle
+                  radius={14}
+                  fill={circleFill}
+                  shadowBlur={isOccupied ? 12 : 4}
+                  shadowColor={shadowColor}
+                  shadowOpacity={isOccupied ? 0.5 : 0.2}
+                  stroke={circleStroke}
+                  strokeWidth={isOccupied ? 1.5 : 2}
+                />
+                <Text
+                  text={seat.seatNumber}
+                  fontSize={seat.seatNumber.length > 2 ? 8 : 10}
+                  fontStyle="bold"
+                  fill={textColor}
+                  align="center"
+                  verticalAlign="middle"
+                  offsetX={seat.seatNumber.length > 2 ? 7 : 5}
+                  offsetY={5}
+                />
+              </Group>
+            );
+          })}
+        </Layer>
+      </Stage>
+    );
+  }, [shapes, ticketTypes, seats, attendees, setSelectedSeatInfo]);
 
   const filteredAttendees = attendees.filter(a =>
     a.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     a.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
     a.seatNumber.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const totalPlatformFee = React.useMemo(() => {
+    return orders.reduce((sum: number, o: any) => sum + (o.platformFee || 0), 0);
+  }, [orders]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -368,7 +664,7 @@ const AdminEventManage = () => {
       <div className="min-h-screen bg-slate-50/50" style={{ scrollbarGutter: 'stable' }}>
         <PageHeader
           title={event?.title || 'Quản lý sự kiện'}
-          subtitle="Theo dõi và quản lý chi tiết sự kiện của bạn"
+          subtitle="Theo dõi và quản lý chi tiết sự kiện"
         />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 pb-10">
@@ -579,404 +875,461 @@ const AdminEventManage = () => {
             )}
 
             {activeTab === 'guests' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                    <p className="text-xs font-bold text-slate-400 uppercase mb-1">Tổng khách mời</p>
-                    <p className="text-2xl font-black text-slate-900">{stats?.soldSeats}</p>
-                  </div>
-                  <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
-                    <p className="text-xs font-bold text-slate-400 uppercase mb-1">Đã check-in</p>
-                    <p className="text-2xl font-black text-emerald-600">{stats?.checkedInSeats}</p>
-                  </div>
-                  <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm border-l-4 border-l-orange-500">
-                    <p className="text-xs font-bold text-slate-400 uppercase mb-1">Chưa đến</p>
-                    <p className="text-2xl font-black text-orange-600">{(stats?.soldSeats || 0) - (stats?.checkedInSeats || 0)}</p>
-                  </div>
-                  <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm border-l-4 border-l-purple-500">
-                    <p className="text-xs font-bold text-slate-400 uppercase mb-1">Tỷ lệ tham gia</p>
-                    <p className="text-2xl font-black text-purple-600">{Math.round(((stats?.checkedInSeats || 0) / (stats?.soldSeats || 1)) * 100)}%</p>
-                  </div>
+              <div className="space-y-8">
+                <div className="flex flex-wrap items-center justify-between gap-6 animate-fade-in">
+                  {event?.seatMapLayout && (
+                    <div className="flex bg-slate-100 p-1 rounded-2xl w-fit">
+                      <button
+                        onClick={() => setGuestViewMode('list')}
+                        className={`px-6 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${guestViewMode === 'list' ? 'bg-white shadow-sm text-primary' : 'text-slate-500'}`}
+                      >
+                        <Icon name="list" size="sm" /> Danh sách
+                      </button>
+                      <button
+                        onClick={() => setGuestViewMode('seats')}
+                        className={`px-6 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${guestViewMode === 'seats' ? 'bg-white shadow-sm text-primary' : 'text-slate-500'}`}
+                      >
+                        <Icon name="grid_view" size="sm" /> Sơ đồ ghế
+                      </button>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => setIsScanning(!isScanning)}
+                    className={`ml-auto px-6 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all duration-500 flex items-center gap-3 shadow-xl active:scale-95 group relative overflow-hidden ${isScanning
+                      ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-rose-500/30 hover:shadow-rose-500/50'
+                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-blue-600/30 hover:shadow-blue-600/50'
+                      }`}
+                  >
+                    <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-500 shadow-sm ${isScanning
+                      ? 'bg-white/20 rotate-180'
+                      : 'bg-white/15 group-hover:rotate-12 group-hover:scale-110 group-hover:bg-white/20'
+                      }`}>
+                      <Icon name={isScanning ? "close" : "qr_code_scanner"} size="xs" />
+                    </div>
+                    <span className="relative z-10">{isScanning ? "Đóng Scanner" : "Quét mã QR"}</span>
+                  </button>
                 </div>
 
-                <div className="flex bg-slate-100 p-1 rounded-2xl w-fit">
-                  <button
-                    onClick={() => setGuestViewMode('list')}
-                    className={`px-6 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${guestViewMode === 'list' ? 'bg-white shadow-sm text-primary' : 'text-slate-500'}`}
-                  >
-                    <Icon name="list" size="sm" /> Danh sách
-                  </button>
-                  <button
-                    onClick={() => setGuestViewMode('seats')}
-                    className={`px-6 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${guestViewMode === 'seats' ? 'bg-white shadow-sm text-primary' : 'text-slate-500'}`}
-                  >
-                    <Icon name="grid_view" size="sm" /> Sơ đồ ghế
-                  </button>
-                </div>
+                {isScanning ? (
+                  <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl animate-scale-in max-w-4xl mx-auto w-full relative overflow-hidden">
+                    <div className="flex flex-col lg:flex-row gap-8 items-start">
+                      <div className="w-full lg:w-1/2 space-y-4 opacity-0 animate-fade-in-up [animation-delay:200ms] [animation-fill-mode:forwards]">
+                        <div className="relative bg-slate-950 rounded-3xl overflow-hidden aspect-video max-h-[300px] flex items-center justify-center">
+                          <div className="absolute top-0 left-0 w-full h-[1px] bg-primary/40 animate-scan z-20" />
+                          <div id="qr-reader" className="w-full h-full object-cover relative z-10 [&_*]:border-none [&_img]:hidden [&_button]:hidden [&_a]:hidden [&_span]:hidden">
+                            {qrError && (
+                              <div className="absolute inset-0 z-30 bg-rose-500/90 backdrop-blur-sm flex flex-col items-center justify-center text-white p-6 text-center">
+                                <Icon name="error" size="sm" className="mb-2" />
+                                <p className="text-[10px] font-black uppercase tracking-widest">{qrError}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
 
-                {guestViewMode === 'list' ? (
-                    <div className="lg:col-span-2 space-y-4">
-                      {/* Redesigned Table/List */}
-                      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl shadow-slate-200/50 overflow-hidden relative">
-                        <div className="overflow-x-auto">
-                          <table className="w-full border-separate border-spacing-0">
-                            <thead>
-                              <tr className="bg-slate-50/80 backdrop-blur-md">
-                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">Khách mời</th>
-                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">Thông tin vé</th>
-                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">Trạng thái</th>
-                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100 text-center">Check-in</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50/80">
-                              {Object.values(filteredAttendees.reduce((acc, current) => {
-                                const key = current.userEmail;
-                                if (!acc[key]) acc[key] = { ...current, tickets: [] };
-                                acc[key].tickets.push(current);
-                                return acc;
-                              }, {} as Record<string, Attendee & { tickets: Attendee[] }>)).map((group, idx) => (
-                                <tr 
-                                  key={group.userEmail} 
-                                  className="group hover:bg-slate-50/50 transition-all duration-300 relative"
-                                  style={{ animationDelay: `${idx * 50}ms` }}
-                                >
-                                  <td className="px-8 py-6 relative">
-                                    {/* Subtle hover accent */}
-                                    <div className="absolute left-0 top-4 bottom-4 w-1 bg-primary scale-y-0 group-hover:scale-y-100 transition-transform duration-300 rounded-r-full" />
-                                    <div className="flex items-center gap-4">
-                                      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-black text-sm shadow-sm border border-white">
-                                        {group.userName.substring(0, 1).toUpperCase()}
-                                      </div>
-                                      <div className="flex flex-col">
-                                        <span className="font-black text-slate-900 text-sm tracking-tight group-hover:text-primary transition-colors">{group.userName}</span>
-                                        <span className="text-[10px] text-slate-400 font-bold tracking-tight mt-0.5">{group.userEmail}</span>
-                                      </div>
-                                    </div>
-                                  </td>
-                                  <td className="px-8 py-6">
-                                    <div className="flex flex-wrap gap-1.5 mb-2">
-                                      {group.tickets.map((t, tidx) => (
-                                        <div key={tidx} className={`px-2.5 py-1 rounded-xl text-[10px] font-black shadow-sm border ${t.ticketTypeName.toUpperCase().includes('VIP') 
-                                          ? 'bg-amber-500 text-white border-amber-400 shadow-amber-200/50' 
-                                          : 'bg-primary text-white border-primary/20 shadow-primary/20'}`}>
-                                          {t.seatNumber}
-                                        </div>
-                                      ))}
-                                    </div>
-                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter flex items-center gap-1.5">
-                                      <span className="w-1 h-1 bg-slate-300 rounded-full" />
-                                      {group.tickets.length} vé • {group.tickets[0].ticketTypeName}
-                                    </p>
-                                  </td>
-                                  <td className="px-8 py-6">
-                                    {group.tickets.every(t => t.status === 'CHECKED_IN') ? (
-                                      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-emerald-100">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                                        Hoàn tất ({group.tickets.length})
-                                      </div>
-                                    ) : group.tickets.some(t => t.status === 'CHECKED_IN') ? (
-                                      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-amber-100">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-                                        {group.tickets.filter(t => t.status === 'CHECKED_IN').length}/{group.tickets.length} Đã đến
-                                      </div>
-                                    ) : (
-                                      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-wider border border-slate-100">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                                        Chưa đến
-                                      </div>
-                                    )}
-                                  </td>
-                                  <td className="px-8 py-6 text-center">
-                                    <div className="flex items-center justify-center gap-2.5">
-                                      {group.tickets.map((t, tidx) => (
-                                        <button
-                                          key={tidx}
-                                          onClick={() => handleCheckIn(t.ticketId, t.status)}
-                                          className={`w-10 h-10 rounded-[1.15rem] flex items-center justify-center transition-all shadow-sm font-black text-[11px] relative overflow-hidden group/btn ${t.status === 'CHECKED_IN'
-                                            ? 'bg-emerald-600 text-white shadow-emerald-200 ring-4 ring-emerald-50 border-emerald-500'
-                                            : 'bg-white text-slate-600 border border-slate-200 hover:border-primary hover:text-primary hover:scale-110 active:scale-95 shadow-slate-100'}`}
-                                        >
-                                          {t.status === 'CHECKED_IN' ? <Icon name="done" size="xs" /> : t.seatNumber}
-                                          <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                              {filteredAttendees.length === 0 && (
-                                <tr>
-                                  <td colSpan={4} className="py-20 text-center">
-                                    <div className="flex flex-col items-center gap-3">
-                                      <div className="w-20 h-20 bg-slate-50 rounded-[2.5rem] flex items-center justify-center text-slate-200 mb-2">
-                                        <Icon name="search_off" size="xl" />
-                                      </div>
-                                      <h5 className="font-black text-slate-900">Không tìm thấy khách mời</h5>
-                                      <p className="text-xs text-slate-400 font-bold max-w-[200px] leading-relaxed">Hãy thử tìm kiếm bằng một từ khóa khác</p>
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
+                      <div className="flex-1 w-full space-y-6 self-center opacity-0 animate-fade-in-up [animation-delay:400ms] [animation-fill-mode:forwards]">
+                        <div className="space-y-1">
+                          <h4 className="text-lg font-black text-slate-900 tracking-tight">Quét mã QR</h4>
+                          <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">Tự động nhận diện và check-in</p>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="relative group/input">
+                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                              <Icon name="tag" size="xs" />
+                            </div>
+                            <input
+                              type="text"
+                              value={manualCode}
+                              onChange={(e) => setManualCode(e.target.value)}
+                              placeholder="Nhập mã vé thủ công..."
+                              className="w-full pl-11 pr-24 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold focus:border-primary/30 outline-none transition-all placeholder:text-slate-300 uppercase tracking-widest"
+                              onKeyDown={(e) => e.key === 'Enter' && handleManualCheckIn()}
+                            />
+                            <button
+                              onClick={handleManualCheckIn}
+                              className="absolute right-1.5 top-1.5 bottom-1.5 px-5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary transition-all active:scale-95 shadow-lg"
+                            >
+                              Xác nhận
+                            </button>
+                          </div>
+
+                          <label className="flex items-center gap-5 p-5 bg-gradient-to-br from-blue-50 to-indigo-50 hover:from-white hover:to-white rounded-[2rem] border-2 border-dashed border-blue-200 hover:border-blue-400 cursor-pointer transition-all duration-300 active:scale-[0.98] group/upload shadow-sm hover:shadow-xl hover:shadow-blue-500/10">
+                            <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center shadow-lg border border-blue-50 group-hover/upload:bg-blue-600 group-hover/upload:text-white group-hover/upload:scale-110 transition-all duration-500">
+                              <Icon name="add_photo_alternate" size="sm" className="group-hover/upload:rotate-12 transition-transform" />
+                            </div>
+                            <div className="flex-1">
+                              <span className="block text-[12px] font-black text-slate-800 uppercase tracking-widest group-hover/upload:text-blue-600 transition-colors">Tải ảnh QR từ máy</span>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Hỗ trợ PNG, JPG • Tối đa 5MB</span>
+                            </div>
+                            <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-white/50 text-slate-300 group-hover/upload:bg-blue-50 group-hover/upload:text-blue-600 transition-all">
+                              <Icon name="chevron_right" size="xs" className="group-hover/upload:translate-x-1 transition-transform" />
+                            </div>
+                          </label>
                         </div>
                       </div>
                     </div>
+                  </div>
                 ) : (
-                  <div className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
-                    {/* Dynamic Premium Legend */}
-                    <div className="flex flex-wrap justify-center gap-x-8 gap-y-5 mb-12 text-[11px] font-black uppercase tracking-[0.15em] border-b border-slate-100 pb-10">
-                      <div className="flex items-center gap-3 group bg-emerald-50/50 px-4 py-2 rounded-full border border-emerald-100/50 transition-all hover:bg-emerald-50">
-                        <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-transform group-hover:scale-110" />
-                        <span className="text-emerald-700">Đã Check-in</span>
-                      </div>
-
-                      {uniqueTicketTypes.map((tt: any) => (
-                        <React.Fragment key={tt.name}>
-                          <div className="flex items-center gap-3 group px-4 py-2 rounded-full transition-all hover:bg-slate-50" title={`${tt.name} - Đã thanh toán`}>
-                            <div className="w-3.5 h-3.5 rounded-full shadow-sm transition-transform group-hover:scale-110" style={{ backgroundColor: tt.color || '#3b82f6', boxShadow: `0 0 10px ${(tt.color || '#3b82f6')}50` }} />
-                            <span className="text-slate-600">{tt.name} <span className="opacity-50 ml-1">(Đã bán)</span></span>
+                  <>
+                    {guestViewMode === 'list' ? (
+                      <div className="space-y-6">
+                        <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
+                          <div className="xl:col-span-6 relative group">
+                            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-primary transition-colors">
+                              <Icon name="search" size="xs" />
+                            </div>
+                            <input
+                              type="text"
+                              placeholder="Tìm tên khách, email, số ghế..."
+                              className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 focus:border-primary focus:bg-white rounded-2xl font-bold outline-none transition-all placeholder:text-slate-400 shadow-sm"
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                            />
                           </div>
-                          <div className="flex items-center gap-3 group px-4 py-2 rounded-full transition-all hover:bg-slate-50" title={`${tt.name} - Còn trống`}>
-                            <div className="w-3.5 h-3.5 rounded-full border-2 transition-transform group-hover:scale-110" style={{ borderColor: tt.color || '#3b82f6', backgroundColor: 'transparent' }} />
-                            <span className="text-slate-400">Trống <span className="opacity-50 ml-1">({tt.name})</span></span>
-                          </div>
-                        </React.Fragment>
-                      ))}
-                    </div>
 
-                    {/* The Premium Seat Map Canvas Stage */}
-                    <div className="relative w-full bg-slate-900 rounded-[3rem] overflow-hidden flex flex-col items-center shadow-2xl border-8 border-slate-800 animate-in zoom-in-95 duration-500">
-                      {/* STAGE OVERLAY */}
-                      <div className="w-full py-4 bg-slate-800/60 backdrop-blur-md flex justify-center relative z-10 border-b border-slate-700/50 shadow-lg">
-                        <div className="relative bg-slate-700 text-slate-300 px-16 py-2 rounded-full text-xs font-black uppercase tracking-[0.4em] border border-slate-600/50 shadow-inner overflow-hidden">
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-30" />
-                          Sân Khấu / Stage
-                        </div>
-                      </div>
+                          <div className="xl:col-span-3 relative">
+                            <button
+                              onClick={() => setIsFilterOpen(!isFilterOpen)}
+                              className="w-full flex items-center justify-between px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl font-black text-[10px] uppercase tracking-widest text-slate-700 hover:bg-white hover:border-primary/30 transition-all shadow-sm group"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Icon name={
+                                  statusFilter === 'ALL' ? 'apps' :
+                                    statusFilter === 'CHECKED_IN' ? 'check_circle' : 'hourglass_empty'
+                                } size="xs" className={
+                                  statusFilter === 'ALL' ? 'text-blue-600' :
+                                    statusFilter === 'CHECKED_IN' ? 'text-emerald-500' : 'text-amber-500'
+                                } />
+                                <span className="truncate">{
+                                  statusFilter === 'ALL' ? 'Tất cả' :
+                                    statusFilter === 'CHECKED_IN' ? 'Đã đến' : 'Chưa đến'
+                                }</span>
+                              </div>
+                              <Icon name="expand_more" size="xs" className={`text-slate-400 transition-transform duration-300 ${isFilterOpen ? 'rotate-180' : ''}`} />
+                            </button>
 
-                      {/* CANVAS VIEWPORT CONTAINER */}
-                      <div className="relative w-full bg-[#0f172a] overflow-auto py-8 custom-scrollbar">
-                        <div className="w-fit mx-auto min-w-[800px] flex justify-center">
-                          <Stage width={800} height={500}>
-                            <Layer>
-                              {/* Sophisticated Grid System */}
-                              {Array.from({ length: 21 }).map((_, i) => (
-                                <Rect key={'v' + i} x={i * 40} y={0} width={1} height={500} fill="#1e293b" opacity={0.3} />
-                              ))}
-                              {Array.from({ length: 13 }).map((_, i) => (
-                                <Rect key={'h' + i} x={0} y={i * 40} width={800} height={1} fill="#1e293b" opacity={0.3} />
-                              ))}
-
-                              {/* Render custom layout shapes */}
-                              {shapes.map((shape) => {
-                                if (shape.type === 'rect') {
-                                  const isInteractive = !!shape.ticketTypeId;
-                                  const targetTt = event?.ticketTypes?.find((t: any) => t.id === shape.ticketTypeId);
-                                  const displayText = shape.labelText || (isInteractive && targetTt ? `${targetTt.name} (VÙNG)` : '');
-
-                                  return (
-                                    <Group 
-                                      key={shape.id}
-                                      x={shape.x}
-                                      y={shape.y}
-                                      rotation={shape.rotation || 0}
+                            {isFilterOpen && (
+                              <>
+                                <div className="fixed inset-0 z-[40]" onClick={() => setIsFilterOpen(false)} />
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl z-[50] py-2 animate-in zoom-in-95 fade-in duration-200 overflow-hidden">
+                                  {[
+                                    { id: 'ALL', label: 'Tất cả trạng thái', icon: 'apps', color: 'text-blue-600' },
+                                    { id: 'CHECKED_IN', label: 'Đã check-in', icon: 'check_circle', color: 'text-emerald-500' },
+                                    { id: 'PENDING', label: 'Chưa check-in', icon: 'hourglass_empty', color: 'text-amber-500' }
+                                  ].map((opt) => (
+                                    <button
+                                      key={opt.id}
+                                      onClick={() => {
+                                        setStatusFilter(opt.id);
+                                        setIsFilterOpen(false);
+                                      }}
+                                      className={`w-full flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-wider transition-all hover:bg-slate-50 ${statusFilter === opt.id ? 'bg-slate-50' : 'text-slate-600'}`}
                                     >
-                                      <Rect
-                                        x={0}
-                                        y={0}
-                                        width={shape.width}
-                                        height={shape.height}
-                                        fill={shape.fill || '#cbd5e1'}
-                                        stroke={isInteractive ? '#6366f1' : 'transparent'}
-                                        strokeWidth={isInteractive ? 1.5 : 0}
-                                        dash={isInteractive ? [5, 3] : undefined}
-                                        opacity={shape.opacity !== undefined ? shape.opacity : (isInteractive ? 0.5 : 0.7)}
-                                        cornerRadius={4}
-                                      />
-                                      {displayText && (
-                                        <Text
-                                          x={2}
-                                          y={0}
-                                          width={shape.width - 4}
-                                          height={shape.height}
-                                          text={displayText}
-                                          fontSize={Math.max(8, Math.min(13, shape.height / 3.5))}
-                                          fontStyle="bold"
-                                          fill="#ffffff"
-                                          align="center"
-                                          verticalAlign="middle"
-                                          listening={false}
-                                          wrap="word"
-                                          ellipsis={true}
-                                        />
-                                      )}
-                                    </Group>
-                                  );
-                                } else if (shape.type === 'text') {
-                                  return (
-                                    <Text
-                                      key={shape.id}
-                                      x={shape.x}
-                                      y={shape.y}
-                                      text={shape.text || ''}
-                                      fontSize={shape.fontSize || 16}
-                                      fill={shape.fill || '#94a3b8'}
-                                      fontStyle="bold"
-                                      rotation={shape.rotation || 0}
-                                      listening={false}
-                                    />
-                                  );
-                                }
-                                return null;
-                              })}
-
-                              {/* Render Interactive Seats */}
-                              {seats.map((seat: any) => {
-                                const isOccupied = seat.status !== 'AVAILABLE';
-                                const attendee = isOccupied ? attendees.find(a => a.seatNumber === seat.seatNumber) : null;
-                                const isCheckedIn = isOccupied && attendee?.status === 'CHECKED_IN';
-
-                                const baseColor = seat.color || '#3b82f6';
-                                const circleFill = isCheckedIn ? '#10b981' : (isOccupied ? baseColor : 'rgba(15, 23, 42, 0.8)');
-                                const circleStroke = isCheckedIn ? '#fff' : baseColor;
-                                const shadowColor = isCheckedIn ? '#10b981' : baseColor;
-                                const textColor = isOccupied ? '#fff' : baseColor;
-
-                                return (
-                                  <Group
-                                    key={seat.id}
-                                    x={Number(seat.x) || 0}
-                                    y={Number(seat.y) || 0}
-                                    onClick={() => {
-                                      if (attendee) {
-                                        setSelectedSeatInfo(attendee);
-                                      } else {
-                                        toast.dismiss();
-                                        toast(`${seat.seatNumber} - ${seat.ticketTypeName} (Đang trống)`, { icon: '🎫' });
-                                      }
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      const container = e.target.getStage()?.container();
-                                      if (container) container.style.cursor = attendee ? 'pointer' : 'help';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      const container = e.target.getStage()?.container();
-                                      if (container) container.style.cursor = 'default';
-                                    }}
-                                  >
-                                    <Circle
-                                      radius={14}
-                                      fill={circleFill}
-                                      shadowBlur={isOccupied ? 12 : 4}
-                                      shadowColor={shadowColor}
-                                      shadowOpacity={isOccupied ? 0.5 : 0.2}
-                                      stroke={circleStroke}
-                                      strokeWidth={isOccupied ? 1.5 : 2}
-                                    />
-                                    <Text
-                                      text={seat.seatNumber}
-                                      fontSize={seat.seatNumber.length > 2 ? 8 : 10}
-                                      fontStyle="bold"
-                                      fill={textColor}
-                                      align="center"
-                                      verticalAlign="middle"
-                                      offsetX={seat.seatNumber.length > 2 ? 7 : 5}
-                                      offsetY={5}
-                                    />
-                                  </Group>
-                                );
-                              })}
-                            </Layer>
-                          </Stage>
-                        </div>
-                      </div>
-
-                      {/* HINT FOOTER */}
-                      <div className="w-full py-3 bg-slate-800/30 border-t border-slate-800/50 px-6 flex justify-between items-center text-[10px] text-slate-500 font-medium uppercase tracking-wider">
-                        <div className="flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          Live Seating View
-                        </div>
-                        <div>
-                          Click on occupied seats to view details
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Attendee Detail Modal for Seat Map */}
-                    {selectedSeatInfo && (
-                      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-                        <div className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 border border-slate-100">
-                          <div className="p-8 space-y-6">
-                            <div className="flex justify-between items-start">
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-black uppercase rounded-lg">Ghế {selectedSeatInfo.seatNumber}</span>
-                                  <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-black uppercase rounded-lg">{selectedSeatInfo.ticketTypeName}</span>
+                                      <Icon name={opt.icon} size="xs" className={opt.color} />
+                                      {opt.label}
+                                    </button>
+                                  ))}
                                 </div>
-                                <h3 className="text-2xl font-black text-slate-900">{selectedSeatInfo.userName}</h3>
+                              </>
+                            )}
+                          </div>
+
+                          <div className="xl:col-span-3 flex items-center gap-2">
+                            <div className="flex-1 bg-emerald-50 border border-emerald-100 p-2 rounded-2xl flex items-center gap-3 shadow-sm">
+                              <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-white shadow-md shadow-emerald-100 shrink-0">
+                                <Icon name="check_circle" size="xs" />
                               </div>
-                              <button
-                                onClick={() => setSelectedSeatInfo(null)}
-                                className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400"
-                              >
-                                <Icon name="close" size="sm" />
-                              </button>
-                            </div>
-
-                            <div className="space-y-4 bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                              <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 border border-slate-100">
-                                  <Icon name="mail" size="xs" />
-                                </div>
-                                <div>
-                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email</p>
-                                  <p className="text-sm font-bold text-slate-700">{selectedSeatInfo.userEmail}</p>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 border border-slate-100">
-                                  <Icon name="calendar_today" size="xs" />
-                                </div>
-                                <div>
-                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ngày mua</p>
-                                  <p className="text-sm font-bold text-slate-700">
-                                    {new Date(selectedSeatInfo.purchaseDate).toLocaleDateString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric' })}
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-4">
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${selectedSeatInfo.status === 'CHECKED_IN' ? 'bg-emerald-50 text-emerald-500 border-emerald-100' : 'bg-white text-slate-400 border-slate-100'}`}>
-                                  <Icon name={selectedSeatInfo.status === 'CHECKED_IN' ? 'check_circle' : 'pending'} size="xs" />
-                                </div>
-                                <div>
-                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Trạng thái</p>
-                                  <p className={`text-sm font-black uppercase ${selectedSeatInfo.status === 'CHECKED_IN' ? 'text-emerald-600' : 'text-slate-500'}`}>
-                                    {selectedSeatInfo.status === 'CHECKED_IN' ? 'Đã check-in' : 'Chưa đến'}
-                                  </p>
-                                </div>
+                              <div className="min-w-0">
+                                <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">Đã đến</p>
+                                <p className="text-sm font-black text-emerald-900 leading-none">{stats?.checkedInSeats || 0}</p>
                               </div>
                             </div>
-
-                            <div className="flex gap-3 pt-2">
-                              <button
-                                onClick={() => {
-                                  handleCheckIn(selectedSeatInfo.ticketId, selectedSeatInfo.status);
-                                  setSelectedSeatInfo(null);
-                                }}
-                                className={`flex-1 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${selectedSeatInfo.status === 'CHECKED_IN' ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-primary text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:scale-[1.02]'}`}
-                              >
-                                {selectedSeatInfo.status === 'CHECKED_IN' ? 'Hủy Check-in' : 'Check-in ngay'}
-                              </button>
+                            <div className="flex-1 bg-indigo-50 border border-indigo-100 p-2 rounded-2xl flex items-center gap-3 shadow-sm">
+                              <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-white shadow-md shadow-indigo-100 shrink-0">
+                                <Icon name="groups" size="xs" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-[8px] font-black text-indigo-600 uppercase tracking-widest leading-none mb-1">Tổng vé</p>
+                                <p className="text-sm font-black text-indigo-900 leading-none">{stats?.soldSeats || 0}</p>
+                              </div>
                             </div>
                           </div>
                         </div>
+
+                        <div className="bg-white rounded-[1.5rem] border border-slate-200 shadow-sm overflow-hidden">
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                              <thead>
+                                <tr className="bg-slate-50/50">
+                                  <th className="px-8 py-4 text-[14px] font-black uppercase">Khách mời</th>
+                                  <th className="px-8 py-4 text-[14px] font-black uppercase">Thông tin vé</th>
+                                  <th className="px-8 py-4 text-[14px] font-black uppercase">Check-in Date</th>
+                                  <th className="px-8 py-4 text-[14px] font-black uppercase text-center">Trạng thái</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-50">
+                                {paginatedAttendees.map((attendee) => (
+                                  <tr key={attendee.id} className="hover:bg-slate-50/50 transition-colors">
+                                    <td className="px-8 py-6">
+                                      <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-black text-lg shadow-inner overflow-hidden border border-slate-200">
+                                          {attendee.avatarUrl ? (
+                                            <img
+                                              src={attendee.avatarUrl}
+                                              alt={attendee.fullName}
+                                              className="w-full h-full object-cover"
+                                              onError={(e) => {
+                                                e.target.style.display = 'none';
+                                                e.target.parentElement.innerText = attendee.fullName.charAt(0);
+                                              }}
+                                            />
+                                          ) : (
+                                            attendee.fullName.charAt(0)
+                                          )}
+                                        </div>
+                                        <div>
+                                          <div className="text-base font-black text-slate-900 leading-tight">{attendee.fullName}</div>
+                                          <div className="text-xs font-bold text-slate-500">{attendee.email}</div>
+                                          <div className="text-[10px] font-black text-primary mt-1">ID: #{attendee.id}</div>
+                                        </div>
+                                      </div>
+                                    </td>
+                                    <td className="px-8 py-6">
+                                      <div className="space-y-1">
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {attendee.seats.map((seat, seatIdx) => (
+                                            <span
+                                              key={`${seat.seatNumber}-${seatIdx}`}
+                                              className="px-2.5 py-1 rounded-lg text-[10px] font-black shadow-sm text-white"
+                                              style={{ backgroundColor: seat.color || '#3b82f6' }}
+                                              title={seat.typeName}
+                                            >
+                                              {seat.seatNumber}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </td>
+                                    <td className="px-8 py-6">
+                                      {attendee.checkInDate ? (
+                                        <div className="flex flex-row items-baseline gap-3">
+                                          <span className="text-lg font-black text-primary">
+                                            {new Date(attendee.checkInDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                          </span>
+                                          <span className="text-base font-black text-slate-400">
+                                            {new Date(attendee.checkInDate).toLocaleDateString('vi-VN')}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <span className="text-xs font-bold text-slate-400 italic whitespace-nowrap">Chưa check-in</span>
+                                      )}
+                                    </td>
+                                    <td className="px-8 py-6 text-center">
+                                      {attendee.checkInStatus ? (
+                                        <div className="flex items-center justify-center">
+                                          <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-100">
+                                            <Icon name="done" size="sm" />
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <button
+                                          onClick={() => handleCheckInOrder(attendee.id)}
+                                          className="px-6 py-2.5 bg-slate-100 hover:bg-primary hover:text-white text-slate-900 rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-95 border border-slate-200 hover:border-primary"
+                                        >
+                                          Check-in
+                                        </button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        {totalGuestPages > 1 && (
+                          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 animate-fade-in">
+                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                              Trang <span className="text-primary">{guestPage}</span> / {totalGuestPages}
+                              <span className="mx-2 text-slate-200">•</span>
+                              Tổng <span className="text-slate-900">{groupedAttendees.length}</span> khách mời
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setGuestPage(p => Math.max(1, p - 1))}
+                                disabled={guestPage === 1}
+                                className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed group"
+                              >
+                                <Icon name="chevron_left" size="sm" className="group-hover:-translate-x-0.5 transition-transform" />
+                              </button>
+
+                              <div className="flex items-center gap-1.5 px-2">
+                                {[...Array(totalGuestPages)].map((_, i) => {
+                                  const pageNum = i + 1;
+                                  if (totalGuestPages > 5) {
+                                    if (pageNum !== 1 && pageNum !== totalGuestPages && Math.abs(pageNum - guestPage) > 1) {
+                                      if (pageNum === 2 || pageNum === totalGuestPages - 1) return <span key={pageNum} className="text-slate-300">...</span>;
+                                      return null;
+                                    }
+                                  }
+                                  return (
+                                    <button
+                                      key={pageNum}
+                                      onClick={() => setGuestPage(pageNum)}
+                                      className={`min-w-[40px] h-10 rounded-xl text-[11px] font-black transition-all ${guestPage === pageNum
+                                        ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-110'
+                                        : 'bg-white text-slate-500 border border-slate-200 hover:border-primary/30'
+                                        }`}
+                                    >
+                                      {pageNum}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              <button
+                                onClick={() => setGuestPage(p => Math.min(totalGuestPages, p + 1))}
+                                disabled={guestPage === totalGuestPages}
+                                className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed group"
+                              >
+                                <Icon name="chevron_right" size="sm" className="group-hover:translate-x-0.5 transition-transform" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
+                        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-4 mb-10 text-[10px] font-black uppercase tracking-wider border-b border-slate-100 pb-8">
+                          <div className="flex items-center flex-wrap gap-4 border-r border-slate-200 pr-6">
+                            <div className="flex items-center gap-2 bg-emerald-50/80 text-emerald-700 px-3 py-1.5 rounded-full border border-emerald-100">
+                              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
+                              <span className="tracking-wide">Đã Check-In</span>
+                            </div>
+                            <div className="flex items-center gap-2 bg-slate-50 text-slate-600 px-3 py-1.5 rounded-full border border-slate-200">
+                              <div className="w-2.5 h-2.5 rounded-full bg-slate-500" />
+                              <span className="tracking-wide">Đã bán</span>
+                            </div>
+                            <div className="flex items-center gap-2 bg-slate-50 text-slate-400 px-3 py-1.5 rounded-full border border-slate-200">
+                              <div className="w-2.5 h-2.5 rounded-full border-2 border-slate-400 bg-transparent" />
+                              <span className="tracking-wide">Trống</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center flex-wrap gap-3">
+                            {uniqueTicketTypes.map((tt) => (
+                              <div key={tt.name} className="flex items-center gap-2.5 px-3.5 py-1.5 bg-slate-50/50 border border-slate-100 rounded-full transition-all hover:bg-white hover:shadow-sm hover:border-slate-200/70 cursor-default group">
+                                <div className="w-2 h-2 rounded-full transition-transform group-hover:scale-110" style={{ backgroundColor: tt.color || '#3b82f6', boxShadow: `0 0 8px ${(tt.color || '#3b82f6')}40` }} />
+                                <span className="text-slate-700 font-extrabold tracking-tight leading-none mt-[1px]">{tt.name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 xl:grid-cols-4 gap-8 items-start">
+                          <div className="xl:col-span-3 relative w-full bg-slate-900 rounded-[3rem] overflow-hidden flex flex-col items-center shadow-2xl border-8 border-slate-800 animate-in zoom-in-95 duration-500">
+                            <div className="w-full py-4 bg-slate-800/60 backdrop-blur-md flex justify-center relative z-10 border-b border-slate-700/50 shadow-lg">
+                              <div className="relative bg-slate-700 text-slate-300 px-16 py-2 rounded-full text-xs font-black uppercase tracking-[0.4em] border border-slate-600/50 shadow-inner overflow-hidden">
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-30" />
+                                Sân Khấu / Stage
+                              </div>
+                            </div>
+
+                            <div className="relative w-full bg-[#0f172a] overflow-auto py-8 custom-scrollbar">
+                              <div className="w-fit mx-auto min-w-[800px] flex justify-center">
+                                {memoizedSeatMap}
+                              </div>
+                            </div>
+
+                            <div className="w-full py-3 bg-slate-800/30 border-t border-slate-800/50 px-6 flex justify-between items-center text-[10px] text-slate-500 font-medium uppercase tracking-wider">
+                              <div className="flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                Live Seating View
+                              </div>
+                              <div>
+                                Click on occupied seats to view details
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="xl:col-span-1 bg-white border border-slate-200 rounded-[2.5rem] p-6 shadow-sm flex flex-col gap-5 min-w-0 overflow-hidden animate-in slide-in-from-right-6 duration-500 self-stretch">
+                            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center shadow-xs">
+                                  <Icon name="grid_view" size="sm" />
+                                </div>
+                                <h3 className="font-black text-slate-800 text-[15px] tracking-tight">Chi tiết</h3>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col gap-3.5 max-h-[420px] xl:max-h-[480px] overflow-y-auto pr-1.5 custom-scrollbar">
+                              {ticketSalesBreakdown.length === 0 ? (
+                                <div className="p-8 text-center italic text-slate-400 text-xs border border-dashed border-slate-200 rounded-2xl">
+                                  Không tìm thấy phân khu nào.
+                                </div>
+                              ) : (
+                                ticketSalesBreakdown.map((tt) => {
+                                  const percentColor = tt.percentage >= 80 ? 'text-emerald-600 bg-emerald-50 border-emerald-100/40' : tt.percentage >= 30 ? 'text-amber-600 bg-amber-50 border-amber-100/40' : 'text-red-500 bg-red-50 border-red-100/40';
+
+                                  return (
+                                    <div
+                                      key={tt.id || tt.name}
+                                      onClick={() => setSelectedZoneForModal(tt)}
+                                      className="rounded-[1.5rem] p-4 shadow-[0_4px_20px_rgba(0,0,0,0.01)] flex flex-col gap-3 transition-all hover:shadow-md hover:-translate-y-0.5 group cursor-pointer relative overflow-hidden shrink-0 border-l-4"
+                                      style={{
+                                        borderLeftColor: tt.color || '#3b82f6',
+                                        backgroundColor: `${tt.color || '#3b82f6'}08`,
+                                        borderTop: '1px solid #e2e8f020',
+                                        borderRight: '1px solid #e2e8f020',
+                                        borderBottom: '1px solid #e2e8f020',
+                                      }}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                          <div className="w-3 h-3 rounded-full shrink-0 shadow-sm" style={{ backgroundColor: tt.color || '#3b82f6', boxShadow: `0 0 8px ${tt.color || '#3b82f6'}40` }} />
+                                          <div className="min-w-0">
+                                            <h4 className="font-black text-slate-800 text-xs truncate leading-tight group-hover:text-primary transition-colors">{tt.name}</h4>
+                                            <p className="text-[9px] text-slate-400 font-bold tracking-wide mt-0.5 truncate">{new Intl.NumberFormat('vi-VN').format(tt.price)} đ • Vé {tt.type === 'SEATED' ? 'Đầu' : 'Thường'}</p>
+                                          </div>
+                                        </div>
+                                        <Icon name="chevron_right" size="xs" className="text-slate-300 transition-all group-hover:text-slate-500 group-hover:translate-x-0.5 shrink-0" />
+                                      </div>
+
+                                      <div className="grid grid-cols-2 gap-2.5 mt-1">
+                                        <div className="bg-white/60 p-2.5 rounded-xl border border-slate-100/50 flex flex-col justify-center">
+                                          <span className="text-[8.5px] text-slate-400 font-bold uppercase tracking-wider leading-none mb-1.5">Đã bán</span>
+                                          <span className="text-[11px] font-black text-slate-700 tracking-tight leading-none">{tt.sold} / {tt.total}</span>
+                                        </div>
+                                        <div className="bg-white/60 p-2.5 rounded-xl border border-slate-100/50 flex flex-col justify-center">
+                                          <span className="text-[8.5px] text-slate-400 font-bold uppercase tracking-wider leading-none mb-1.5">Tỷ lệ</span>
+                                          <span className={`text-[11px] font-black tracking-tight leading-none ${percentColor.split(' ')[0]}`}>{tt.percentage}%</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <SeatAttendeeModal
+                          attendee={selectedSeatInfo}
+                          onClose={() => setSelectedSeatInfo(null)}
+                          onCheckIn={handleCheckIn}
+                        />
+                        <ZoneAttendeesModal
+                          zone={selectedZoneForModal}
+                          attendees={attendees}
+                          onClose={() => setSelectedZoneForModal(null)}
+                          onCheckIn={handleCheckIn}
+                        />
                       </div>
                     )}
-                  </div>
+                  </>
                 )}
               </div>
             )}
@@ -1139,32 +1492,19 @@ const AdminEventManage = () => {
                       </div>
                     </div>
 
-                    {/* Cost Card (Mockup) */}
-                    <div className="bg-gradient-to-br from-rose-600 to-rose-950 p-6 rounded-3xl text-white shadow-xl flex flex-col justify-between relative overflow-hidden h-[210px] border border-rose-500/20">
+                    {/* Cost Card */}
+                    <div className="bg-gradient-to-br from-rose-600 to-rose-900 p-6 rounded-3xl text-white shadow-xl flex flex-col justify-center relative overflow-hidden h-[210px] border border-rose-500/20">
                       <div className="absolute -right-6 -bottom-6 opacity-10 text-white">
                         <Icon name="payments" className="text-[100px]" />
                       </div>
                       <div className="relative z-10">
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="text-rose-200 text-[10px] font-bold uppercase tracking-widest">Chi phí sự kiện</p>
+                          <p className="text-rose-200 text-[10px] font-bold uppercase tracking-widest">Phí hệ thống đã thu</p>
                         </div>
                         <h4 className="text-3xl font-black mb-1">
-                          {aiPlanResult ? formatCurrency(aiPlanResult.budgetSections.reduce((acc: number, cur: any) => acc + cur.total, 0)) : '770.000.000 ₫'}
+                          {formatCurrency(totalPlatformFee)}
                         </h4>
-                        <p className="text-[9px] text-rose-200/40 italic">Tổng ngân sách dự toán</p>
-                      </div>
-                      <div className="relative z-10">
-                        <div className="flex items-center justify-between p-3 bg-black/20 rounded-2xl border border-white/10 backdrop-blur-md">
-                          <div className="text-center transition-transform hover:scale-105">
-                            <p className="text-[8px] text-rose-200/60 font-bold uppercase mb-1">Cần thanh toán</p>
-                            <p className="text-xs font-black text-white">215.000K</p>
-                          </div>
-                          <div className="w-px h-6 bg-white/10"></div>
-                          <div className="text-center transition-transform hover:scale-105">
-                            <p className="text-[8px] text-rose-200/60 font-bold uppercase mb-1">Đã chi trả</p>
-                            <p className="text-xs font-black text-rose-300">555.000K</p>
-                          </div>
-                        </div>
+                        <p className="text-[9px] text-rose-100/40 italic">Khấu trừ từ các giao dịch mua vé</p>
                       </div>
                     </div>
                   </div>
@@ -1189,279 +1529,100 @@ const AdminEventManage = () => {
                       >
                         <Icon name="chevron_left" size="xs" />
                       </button>
-                      <span className="text-[10px] font-black text-white/90 min-w-[32px] text-center">{transactionPage} / {Math.ceil(filteredAttendees.length / transactionsPerPage) || 1}</span>
+                      <span className="text-[10px] font-black text-white/90 min-w-[32px] text-center">{transactionPage} / {Math.ceil(orders.length / transactionsPerPage) || 1}</span>
                       <button
-                        onClick={() => setTransactionPage(p => Math.min(Math.ceil(filteredAttendees.length / transactionsPerPage), p + 1))}
-                        disabled={transactionPage >= Math.ceil(filteredAttendees.length / transactionsPerPage)}
+                        onClick={() => setTransactionPage(p => Math.min(Math.ceil(orders.length / transactionsPerPage), p + 1))}
+                        disabled={transactionPage >= Math.ceil(orders.length / transactionsPerPage)}
                         className="w-7 h-7 flex items-center justify-center hover:bg-white hover:text-primary rounded-lg disabled:opacity-20 transition-all active:scale-90"
                       >
                         <Icon name="chevron_right" size="xs" />
                       </button>
                     </div>
                   </div>
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="bg-blue-50 text-[10px] font-black text-blue-400 uppercase tracking-[0.15em] border-b border-blue-100">
-                        <th className="p-5">Mã GD</th>
-                        <th className="p-5">Khách hàng</th>
-                        <th className="p-5">Thời gian</th>
-                        <th className="p-5">Số tiền</th>
-                        <th className="p-5">Trạng thái</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50 font-medium">
-                      {filteredAttendees
-                        .slice((transactionPage - 1) * transactionsPerPage, transactionPage * transactionsPerPage)
-                        .map((a, i) => (
-                          <tr key={i} className="text-sm hover:bg-blue-50/30 transition-all group animate-in fade-in slide-in-from-left duration-500" style={{ animationDelay: `${i * 100}ms` }}>
-                            <td className="p-5" >
-                              <span className="font-mono text-xs text-blue-400 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 group-hover:bg-white transition-colors">TX-{1000 + (transactionPage - 1) * transactionsPerPage + i}</span>
-                            </td>
-                            <td className="p-5" >
-                              <p className="font-black text-slate-900 group-hover:text-primary transition-colors">{a.userName}</p>
-                              <p className="text-[10px] text-slate-400 font-bold">{a.userEmail}</p>
-                            </td>
-                            <td className="p-5 text-xs text-slate-500 font-bold">
-                              {new Date(a.purchaseDate).toLocaleString('vi-VN', {
-                                day: '2-digit', month: '2-digit', year: 'numeric',
-                                hour: '2-digit', minute: '2-digit'
-                              })}
-                            </td>
-                            <td className="p-5" >
-                              <span className="font-black text-emerald-600 text-base">+{formatCurrency(250000)}</span>
-                            </td>
-                            <td className="p-5" >
-                              <span className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-emerald-100 shadow-sm">Thành công</span>
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* AI Planning Section */}
-                <div className="relative group">
-                  <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-[2rem] blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
-                  <div className="relative bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden min-h-[400px]">
-                    {!aiPlanResult && !isGeneratingPlan && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-10 space-y-6">
-                        <div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-indigo-200 group-hover:scale-110 transition-transform duration-500">
-                          <Icon name="auto_awesome" className="text-white text-4xl" />
-                        </div>
-                        <div className="space-y-2">
-                          <h4 className="text-2xl font-black text-slate-900 tracking-tight">Kế hoạch & Dự toán AI</h4>
-                          <p className="text-slate-500 text-sm max-w-md mx-auto leading-relaxed">Sử dụng trí tuệ nhân tạo để tự động hóa danh sách công việc, dụng cụ cần thiết và dự toán ngân sách chi tiết cho sự kiện này.</p>
-                        </div>
-                        <button
-                          onClick={generateAIPlan}
-                          className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs tracking-widest hover:bg-slate-800 transition-all shadow-xl hover:shadow-2xl hover:translate-y-[-2px] flex items-center gap-3"
-                        >
-                          <Icon name="bolt" size="sm" />
-                          BẮT ĐẦU TẠO NGAY
-                        </button>
-                      </div>
-                    )}
-
-                    {isGeneratingPlan && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center space-y-8 bg-slate-50/50 backdrop-blur-sm">
-                        <div className="relative w-32 h-32">
-                          <div className="absolute inset-0 border-4 border-purple-100 rounded-full"></div>
-                          <div className="absolute inset-0 border-4 border-t-purple-600 rounded-full animate-spin"></div>
-                          <div className="absolute inset-4 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-full flex items-center justify-center animate-pulse shadow-lg">
-                            <Icon name="psychology" className="text-white text-3xl" />
-                          </div>
-                          {/* Floating particles simulation */}
-                          <div className="absolute -top-4 -right-4 w-4 h-4 bg-pink-400 rounded-full animate-ping"></div>
-                          <div className="absolute -bottom-2 -left-2 w-3 h-3 bg-blue-400 rounded-full animate-bounce delay-150"></div>
-                        </div>
-                        <div className="space-y-2 text-center">
-                          <h4 className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600 animate-pulse">ĐANG PHÂN TÍCH SỰ KIỆN...</h4>
-                          <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">AI đang thiết lập công việc & ngân sách</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {aiPlanResult && (
-                      <div className="p-8 space-y-10 animate-in fade-in slide-in-from-bottom-5 duration-700">
-                        <div className="flex justify-between items-center bg-slate-50 p-6 rounded-[2rem] border border-slate-100 shadow-sm transition-all group/header hover:border-purple-200">
-                          <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl group-hover/header:rotate-12 transition-transform duration-500">
-                              <Icon name="auto_awesome" size="md" />
-                            </div>
-                            <div>
-                              <h4 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                                Kế hoạch & Dự toán AI
-                                <span className="px-2 py-0.5 bg-purple-100 text-purple-600 rounded text-[8px] font-black uppercase tracking-tighter">Premium Gen</span>
-                              </h4>
-                              <p className="text-[10px] text-slate-500 font-bold tracking-widest uppercase mt-1">Tối ưu hóa ngân sách dựa trên loại hình sự kiện & mục tiêu</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <button className="px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2">
-                              <Icon name="download" size="xs" /> PDF Report
-                            </button>
-                            <button
-                              onClick={generateAIPlan}
-                              className="p-3 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl transition-all"
-                              title="Tạo lại kế hoạch"
-                            >
-                              <Icon name="refresh" size="sm" />
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                          {/* Column 1: Tasks */}
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between mb-4">
-                              <div className="flex items-center gap-2">
-                                <div className="w-1.5 h-6 bg-purple-500 rounded-full" />
-                                <h5 className="font-black text-xs uppercase tracking-widest text-slate-700">Công việc trọng tâm</h5>
-                              </div>
-                              <span className="text-[10px] font-bold text-slate-400">{aiPlanResult.tasks.length} nhiệm vụ</span>
-                            </div>
-                            <div className="grid grid-cols-1 gap-2">
-                              {aiPlanResult.tasks.map((task: any, idx: number) => (
-                                <div key={idx} className="flex items-center gap-4 p-4 bg-slate-50/70 rounded-2xl border border-slate-100 group hover:bg-white hover:shadow-md hover:border-purple-200 transition-all">
-                                  <div className="w-6 h-6 rounded-lg bg-white border-2 border-slate-200 flex items-center justify-center group-hover:border-purple-500 transition-colors">
-                                    <div className="w-2 h-2 bg-purple-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-                                  </div>
-                                  <div className="flex-1">
-                                    <p className="text-sm font-bold text-slate-700 leading-tight">{task.text}</p>
-                                  </div>
-                                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${task.priority === 'High' ? 'bg-red-50 text-red-500 border border-red-100' :
-                                    task.priority === 'Medium' ? 'bg-amber-50 text-amber-500 border border-amber-100' : 'bg-slate-100 text-slate-400'
-                                    }`}>{task.priority}</span>
+                  <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left whitespace-nowrap">
+                      <thead>
+                        <tr className="bg-blue-50 text-[10px] font-black text-blue-400 uppercase tracking-[0.15em] border-b border-blue-100">
+                          <th className="p-5">Mã GD</th>
+                          <th className="p-5">Khách hàng</th>
+                          <th className="p-5">Số ghế</th>
+                          <th className="p-5">Thời gian</th>
+                          <th className="p-5">Số tiền</th>
+                          <th className="p-5">Thuế hệ thống</th>
+                          <th className="p-5">Thực nhận</th>
+                          <th className="p-5">Phương thức</th>
+                          <th className="p-5">Trạng thái</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50 font-medium">
+                        {orders
+                          .slice((transactionPage - 1) * transactionsPerPage, transactionPage * transactionsPerPage)
+                          .map((order: any, i: number) => (
+                            <tr key={order.id} className="text-sm hover:bg-blue-50/30 transition-all group animate-in fade-in slide-in-from-left duration-500" style={{ animationDelay: `${i * 100}ms` }}>
+                              <td className="p-5" >
+                                <span className="font-mono text-xs text-blue-400 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 group-hover:bg-white transition-colors">#{order.id}</span>
+                              </td>
+                              <td className="p-5" >
+                                <p className="font-black text-slate-900 group-hover:text-primary transition-colors">{order.userName}</p>
+                                <p className="text-[10px] text-slate-400 font-bold">{order.userEmail}</p>
+                              </td>
+                              <td className="p-5">
+                                <div className="flex flex-wrap gap-1 max-w-[200px]">
+                                  {(order.tickets || []).map((ticket: any) => {
+                                    const isVip = ticket.ticketTypeName?.toLowerCase().includes('vip');
+                                    const baseColor = ticket.ticketTypeColor || '#475569';
+                                    return (
+                                      <span 
+                                        key={ticket.id} 
+                                        className="px-2 py-0.5 rounded text-xs font-bold border transition-all hover:brightness-95"
+                                        style={{
+                                          backgroundColor: ticket.ticketTypeColor ? `${ticket.ticketTypeColor}1A` : '#f1f5f9',
+                                          color: baseColor,
+                                          borderColor: ticket.ticketTypeColor ? `${ticket.ticketTypeColor}4D` : '#e2e8f0'
+                                        }}
+                                        title={ticket.ticketTypeName}
+                                      >
+                                        {isVip && <span className="mr-0.5">⭐</span>}{ticket.seatNumber}
+                                      </span>
+                                    );
+                                  })}
                                 </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Column 2: Tools */}
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between mb-4">
-                              <div className="flex items-center gap-2">
-                                <div className="w-1.5 h-6 bg-pink-500 rounded-full" />
-                                <h5 className="font-black text-xs uppercase tracking-widest text-slate-700">Tài liệu & Thiết bị</h5>
-                              </div>
-                              <span className="text-[10px] font-bold text-slate-400">{aiPlanResult.tools.length} loại</span>
-                            </div>
-                            <div className="bg-slate-50/50 rounded-2xl border border-slate-100 overflow-hidden divide-y divide-slate-100">
-                              {aiPlanResult.tools.map((tool: any, idx: number) => (
-                                <div key={idx} className="p-4 flex justify-between items-center hover:bg-white group transition-all">
-                                  <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 bg-white border border-slate-200 text-pink-500 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:bg-pink-50 transition-all">
-                                      <Icon name="inventory_2" size="xs" />
-                                    </div>
-                                    <span className="text-sm font-bold text-slate-700">{tool.name}</span>
-                                  </div>
-                                  <div className="text-right">
-                                    <span className="text-[10px] font-black text-slate-600 bg-white px-3 py-1.5 rounded-xl shadow-sm border border-slate-100">{tool.qty} {tool.unit}</span>
-                                  </div>
+                              </td>
+                              <td className="p-5 text-xs text-slate-500 font-bold">
+                                {new Date(order.purchaseDate).toLocaleString('vi-VN', {
+                                  day: '2-digit', month: '2-digit', year: 'numeric',
+                                  hour: '2-digit', minute: '2-digit'
+                                })}
+                              </td>
+                              <td className="p-5" >
+                                <span className="font-black text-slate-800 text-sm">{formatCurrency(order.totalAmount)}</span>
+                              </td>
+                              <td className="p-5" >
+                                <span className="font-bold text-red-500 text-xs">-{formatCurrency(order.platformFee || 0)}</span>
+                              </td>
+                              <td className="p-5" >
+                                <span className="font-black text-emerald-600 text-base">+{formatCurrency((order.totalAmount || 0) - (order.platformFee || 0))}</span>
+                              </td>
+                              <td className="p-5">
+                                <div className="flex items-center gap-2">
+                                  {order.paymentMethod?.toLowerCase().includes('momo') ? (
+                                    <img src="https://developers.momo.vn/v3/assets/images/MOMO-Logo-App-6262c3743a290ef02396a24ea2b66c35.png" alt="MoMo" className="w-5 h-5 rounded-md object-cover" />
+                                  ) : (
+                                    <Icon name="credit_card" className="text-slate-400" size="xs" />
+                                  )}
+                                  <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">{order.paymentMethod || 'COD'}</span>
                                 </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Full Width Spreadsheet Section */}
-                        <div className="space-y-6">
-                          <div className="flex items-center justify-between bg-slate-900 p-5 rounded-3xl text-white shadow-xl relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -mr-16 -mt-16" />
-                            <div className="flex items-center gap-3 relative z-10">
-                              <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/20">
-                                <Icon name="table_chart" size="sm" />
-                              </div>
-                              <div>
-                                <h5 className="font-black text-sm uppercase tracking-widest">DỰ TOÁN NGÂN SÁCH CHI TIẾT</h5>
-                                <p className="text-[9px] text-white/50 font-bold uppercase tracking-tighter">Dựa trên khối lượng và đơn giá thực tế</p>
-                              </div>
-                            </div>
-                            <div className="text-right relative z-10">
-                              <p className="text-[9px] text-white/50 font-bold uppercase mb-1">Tổng cộng dự toán</p>
-                              <p className="text-2xl font-black text-primary">
-                                {formatCurrency(aiPlanResult.budgetSections.reduce((acc: number, cur: any) => acc + cur.total, 0))}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
-                            <div className="overflow-x-auto custom-scrollbar">
-                              <table className="w-full text-xs font-bold border-collapse">
-                                <thead>
-                                  <tr className="bg-orange-500 text-white text-[10px] uppercase tracking-widest shadow-lg">
-                                    <th className="p-4 border border-orange-600 w-12 text-center first:rounded-tl-[2rem]">STT</th>
-                                    <th className="p-4 border border-orange-600 text-left min-w-[300px]">Mục</th>
-                                    <th className="p-4 border border-orange-600 text-center w-28">Đơn vị</th>
-                                    <th className="p-4 border border-orange-600 text-center w-28">Số lượng</th>
-                                    <th className="p-4 border border-orange-600 text-right min-w-[130px]">Đơn giá</th>
-                                    <th className="p-4 border border-orange-600 text-right min-w-[160px]">Thành tiền (VND)</th>
-                                    <th className="p-4 border border-orange-600 text-left min-w-[280px] last:rounded-tr-[2rem]">Chú thích</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {aiPlanResult.budgetSections.map((section: any) => (
-                                    <React.Fragment key={section.id}>
-                                      {/* Main Section Header */}
-                                      <tr className="bg-[#a6ce39] text-white leading-loose shadow-sm">
-                                        <td className="p-4 border border-emerald-600 text-center uppercase font-black">{section.id}</td>
-                                        <td className="p-4 border border-emerald-600 uppercase tracking-widest font-black" colSpan={4}>{section.title}</td>
-                                        <td className="p-4 border border-emerald-600 text-right font-black text-sm">{formatCurrency(section.total).replace('₫', '')}</td>
-                                        <td className="p-4 border border-emerald-600"></td>
-                                      </tr>
-
-                                      {section.subSections.map((sub: any) => (
-                                        <React.Fragment key={sub.id}>
-                                          {/* Sub-section Header */}
-                                          <tr className="bg-slate-50 text-slate-900 border-b border-slate-200">
-                                            <td className="p-4 border-x border-slate-100 text-center font-black">{sub.id}</td>
-                                            <td className="p-4 border-x border-slate-100 font-black pl-8" colSpan={6}>{sub.title}</td>
-                                          </tr>
-
-                                          {sub.items.map((item: any) => (
-                                            <tr key={`${section.id}-${sub.id}-${item.stt}`} className="text-slate-600 hover:bg-slate-50/50 transition-colors border-b border-slate-100 group">
-                                              <td className="p-4 border-x border-slate-100 text-center font-medium">{item.stt}</td>
-                                              <td className="p-4 border-x border-slate-100 pl-10 font-bold text-slate-800">{item.item}</td>
-                                              <td className="p-4 border-x border-slate-100 text-center font-medium italic text-slate-400">{item.unit}</td>
-                                              <td className="p-4 border-x border-slate-100 text-center font-black text-slate-700">{item.qty}</td>
-                                              <td className="p-4 border-x border-slate-100 text-right font-medium">{formatCurrency(item.unitPrice).replace('₫', '')}</td>
-                                              <td className="p-4 border-x border-slate-100 text-right font-black text-slate-900">{formatCurrency(item.qty * item.unitPrice).replace('₫', '')}</td>
-                                              <td className="p-4 border-x border-slate-100 text-xs font-normal italic leading-relaxed text-slate-400 group-hover:text-slate-600 transition-colors">
-                                                {item.remarks}
-                                              </td>
-                                            </tr>
-                                          ))}
-                                        </React.Fragment>
-                                      ))}
-                                    </React.Fragment>
-                                  ))}
-                                  {/* Final Total Row */}
-                                  <tr className="bg-slate-900 text-white">
-                                    <td colSpan={5} className="p-6 border border-slate-900 text-right uppercase tracking-[0.2em] font-black text-[10px] text-white/50">TỔNG CỘNG HỆ THỐNG DỰ TOÁN</td>
-                                    <td className="p-6 border border-slate-900 text-right font-black text-2xl text-primary">
-                                      {formatCurrency(aiPlanResult.budgetSections.reduce((acc: number, cur: any) => acc + cur.total, 0))}
-                                    </td>
-                                    <td className="p-6 border border-slate-900"></td>
-                                  </tr>
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-4 bg-amber-50 p-6 rounded-[2rem] border border-amber-100">
-                            <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center shadow-lg">
-                              <Icon name="info" size="sm" />
-                            </div>
-                            <div>
-                              <h6 className="text-[11px] font-black text-amber-900 uppercase">Lưu ý quan trọng</h6>
-                              <p className="text-[10px] text-amber-700 font-medium leading-relaxed italic">Dự toán này mang tính chất tham khảo dựa trên dữ liệu thị trường hiện tại. Chi phí thực tế có thể thay đổi tùy thuộc vào nhà cung cấp và thời điểm đặt hàng.</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                              </td>
+                              <td className="p-5" >
+                                <span className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-emerald-100 shadow-sm inline-block">Thành công</span>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
+
               </div>
             )}
 
@@ -1602,7 +1763,7 @@ const AdminEventManage = () => {
         </div>
 
         {/* Edit Event Modal - Localized & Dynamic */}
-        {activeEditType && (
+        {activeEditType && createPortal(
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setActiveEditType(null)} />
             <div className="relative bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 border border-white/20">
@@ -1767,7 +1928,112 @@ const AdminEventManage = () => {
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
+        )}
+
+        {scanResult && createPortal(
+          <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setScanResult(null)} />
+            <div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+              <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 text-white relative shrink-0">
+                <div className="absolute top-0 right-0 p-8 opacity-10">
+                  <Icon name="qr_code_2" size="xl" />
+                </div>
+                <div className="flex items-center gap-4 relative z-10">
+                  <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md">
+                    <Icon name="fact_check" size="md" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xl font-black tracking-tight">Check-in Thành công</h3>
+                      <div className="px-2 py-0.5 bg-emerald-500 text-white text-[8px] font-black rounded-full animate-bounce">SUCCESS</div>
+                    </div>
+                    <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Đơn hàng #{scanResult.id}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setScanResult(null)}
+                  className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 transition-all"
+                >
+                  <Icon name="close" size="sm" />
+                </button>
+              </div>
+
+              <div className="p-8 space-y-6 overflow-y-auto custom-scrollbar">
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-primary">
+                        <Icon name="person" size="sm" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Người mua</p>
+                        <p className="text-sm font-black text-slate-900">{scanResult.userName}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-black text-slate-500 uppercase tracking-widest">Email</p>
+                      <p className="text-sm font-bold text-slate-700">{scanResult.userEmail}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <p className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                      <Icon name="confirmation_number" size="xs" />
+                      Danh sách vé ({scanResult.tickets?.length || 0})
+                    </p>
+                    <div className="grid gap-3">
+                      {scanResult.tickets?.map((ticket: any) => {
+                        const isVIP = ticket.ticketTypeName?.toLowerCase().includes('vip');
+                        return (
+                          <div
+                            key={ticket.id}
+                            className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${isVIP
+                              ? 'bg-amber-50/50 border-amber-200/50 shadow-sm shadow-amber-100/20'
+                              : 'bg-primary/5 border-primary/10 shadow-sm shadow-primary/5'
+                              }`}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${isVIP ? 'bg-amber-500 text-white' : 'bg-primary text-white'
+                                }`}>
+                                <Icon name={isVIP ? "stars" : "confirmation_number"} size="xs" />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-xs font-black uppercase tracking-widest px-2 py-0.5 rounded-lg ${isVIP ? 'bg-amber-100 text-amber-700' : 'bg-primary/10 text-primary'
+                                    }`}>
+                                    {ticket.ticketTypeName}
+                                  </span>
+                                  <span className="text-xs font-black text-slate-400">|</span>
+                                  <span className="text-sm font-black text-slate-900">Ghế {ticket.seatNumber}</span>
+                                </div>
+                                <p className="text-xs font-bold text-slate-600 mt-0.5 truncate max-w-[200px]">{ticket.sessionName}</p>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-base font-black text-slate-900">{formatCurrency(ticket.price)}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-8 bg-slate-50 border-t border-slate-100 shrink-0 text-center">
+                <button
+                  onClick={() => setScanResult(null)}
+                  className="w-full py-4 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:shadow-xl hover:shadow-slate-900/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <Icon name="done_all" size="sm" />
+                  Hoàn tất
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
         )}
       </div>
     </DashboardLayout>

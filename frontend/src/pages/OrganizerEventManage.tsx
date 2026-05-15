@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 import { EditEventModal, ImagePreviewModal, SeatAttendeeModal, ZoneAttendeesModal } from './OrganizerEventModals';
 import { Html5Qrcode } from 'html5-qrcode';
 import { API_BASE_URL } from '../constants';
-import { Stage, Layer, Circle, Text, Group, Rect } from 'react-konva';
+import { Stage, Layer, Circle, Text, Group, Rect, Line } from 'react-konva';
 
 interface ManageStats {
     totalSeats: number;
@@ -109,6 +109,10 @@ const OrganizerEventManage = () => {
         }).filter((tt: any) => tt.name.toLowerCase().includes(zoneSearchQuery.toLowerCase()));
     }, [ticketTypes, attendees, zoneSearchQuery]);
 
+    const totalPlatformFee = React.useMemo(() => {
+        return eventOrders.reduce((sum: number, o: any) => sum + (o.platformFee || 0), 0);
+    }, [eventOrders]);
+
     const uniqueTicketTypes = React.useMemo(() => {
         const map = new Map();
         seats.forEach((s: any) => {
@@ -169,8 +173,20 @@ const OrganizerEventManage = () => {
                                     targetTt = sortedTypes[ttIdx];
                                 }
                             }
+
+                            let isSoldOut = false;
+                            let availableCount = 0;
+                            if (isInteractive && targetTt) {
+                                const sold = attendees.filter((a: any) => a.ticketTypeName === targetTt.name).length;
+                                const total = targetTt.totalQuantity || 0;
+                                availableCount = Math.max(0, total - sold);
+                                isSoldOut = availableCount <= 0;
+                            }
+
                             const zoneColor = targetTt?.color || shape.fill || '#cbd5e1';
-                            const displayText = isInteractive && targetTt ? (shape.labelText || targetTt.name) : shape.labelText;
+                            const baseLabel = isInteractive && targetTt ? (shape.labelText || targetTt.name) : shape.labelText;
+                            const displayText = isSoldOut ? `${baseLabel}\n🚫 ĐÃ BÁN HẾT` : baseLabel;
+
                             return (
                                 <Group
                                     key={shape.id}
@@ -183,13 +199,33 @@ const OrganizerEventManage = () => {
                                         y={0}
                                         width={shape.width}
                                         height={shape.height}
-                                        fill={zoneColor}
-                                        stroke={isInteractive ? zoneColor : 'transparent'}
-                                        strokeWidth={isInteractive ? 1.5 : 0}
+                                        fill={isSoldOut ? '#1e293b' : zoneColor}
+                                        stroke={isInteractive ? (isSoldOut ? '#f43f5e' : zoneColor) : 'transparent'}
+                                        strokeWidth={isInteractive ? (isSoldOut ? 2 : 1.5) : 0}
                                         dash={isInteractive ? [5, 3] : undefined}
-                                        opacity={shape.opacity !== undefined ? shape.opacity : (isInteractive ? 0.5 : 0.7)}
+                                        opacity={isSoldOut ? 0.5 : (shape.opacity !== undefined ? shape.opacity : (isInteractive ? 0.5 : 0.7))}
                                         cornerRadius={4}
                                     />
+
+                                    {isSoldOut && (
+                                        <>
+                                            <Line
+                                                points={[0, 0, shape.width, shape.height]}
+                                                stroke="#f43f5e"
+                                                strokeWidth={1.5}
+                                                opacity={0.4}
+                                                listening={false}
+                                            />
+                                            <Line
+                                                points={[shape.width, 0, 0, shape.height]}
+                                                stroke="#f43f5e"
+                                                strokeWidth={1.5}
+                                                opacity={0.4}
+                                                listening={false}
+                                            />
+                                        </>
+                                    )}
+
                                     {displayText && (
                                         <Text
                                             x={2}
@@ -199,7 +235,7 @@ const OrganizerEventManage = () => {
                                             text={displayText}
                                             fontSize={Math.max(8, Math.min(13, shape.height / 3.5))}
                                             fontStyle="bold"
-                                            fill="#ffffff"
+                                            fill={isSoldOut ? '#94a3b8' : '#ffffff'}
                                             align="center"
                                             verticalAlign="middle"
                                             listening={false}
@@ -355,75 +391,7 @@ const OrganizerEventManage = () => {
         { day: 'CN', val: 110 },
     ];
 
-    const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
-    const [aiPlanResult, setAiPlanResult] = useState<any>(null);
 
-    const generateAIPlan = () => {
-        setIsGeneratingPlan(true);
-        setTimeout(() => {
-            setAiPlanResult({
-                tasks: [
-                    { id: 1, text: "Chốt danh sách nhà cung cấp F&B", priority: 'High' },
-                    { id: 2, text: "Gửi thư mời điện tử & QR Code cho khách", priority: 'High' },
-                    { id: 3, text: "Kiểm duyệt kịch bản âm thanh ánh sáng", priority: 'Medium' },
-                    { id: 4, text: "Chuẩn bị quà tặng lưu niệm (Gift box)", priority: 'Low' },
-                    { id: 5, text: "Xây dựng layout mặt bằng bố trí", priority: 'Medium' }
-                ],
-                tools: [
-                    { name: "Màn hình LED P2.5", qty: 1, unit: "Bộ" },
-                    { name: "Hệ thống Mic không dây", qty: 6, unit: "Cái" },
-                    { name: "Standee đón khách", qty: 12, unit: "Tấm" },
-                    { name: "Thẻ đeo nhân sự", qty: 30, unit: "Bộ" }
-                ],
-                budgetSections: [
-                    {
-                        id: 'III',
-                        title: 'Dàn dựng và trang trí',
-                        total: 450000000,
-                        subSections: [
-                            {
-                                id: 'A',
-                                title: 'Khu vực đón khách',
-                                items: [
-                                    { stt: 1, item: 'Cổng chào', unit: 'chiếc', qty: 1, unitPrice: 25000000, remarks: 'Thiết kế theo theme sự kiện' },
-                                    { stt: 2, item: 'Standee', unit: 'chiếc', qty: 10, unitPrice: 500000, remarks: 'Thiết kế theo theme sự kiện' },
-                                    { stt: 3, item: 'Banner dọc', unit: 'chiếc', qty: 10, unitPrice: 300000, remarks: 'Thiết kế theo theme sự kiện' },
-                                    { stt: 4, item: 'Backdrop chụp hình', unit: 'chiếc', qty: 1, unitPrice: 15000000, remarks: 'Thiết kế theo theme sự kiện, platform và đèn trang trí' },
-                                    { stt: 5, item: 'Cánh cửa thần kỳ', unit: 'bộ', qty: 5, unitPrice: 20000000, remarks: 'Cánh cửa lớn thiết kế kiểu hightech và màn hình' },
-                                ]
-                            },
-                            {
-                                id: 'B',
-                                title: 'Khu vực phòng tiệc',
-                                items: [
-                                    { stt: 6, item: 'Sân khấu', unit: 'gói', qty: 1, unitPrice: 250000000, remarks: 'Sân khấu lớn và hoàn thiện bề mặt. Bậc lên xuống sân khấu. Thiết kế trang trí vách sân khấu' },
-                                    { stt: 7, item: 'Hệ thống giàn Truss', unit: 'gói', qty: 1, unitPrice: 50000000, remarks: 'Cho sân khấu, màn LED nhiều lớp, hệ thống ATAS' },
-                                    { stt: 8, item: 'Bục phát biểu và logo', unit: 'gói', qty: 1, unitPrice: 2000000, remarks: '' },
-                                ]
-                            }
-                        ]
-                    },
-                    {
-                        id: 'IV',
-                        title: 'Thiết bị',
-                        total: 320000000,
-                        subSections: [
-                            {
-                                id: 'A',
-                                title: 'Hệ thống âm thanh ánh sáng',
-                                items: [
-                                    { stt: 1, item: 'Hệ thống ATAS', unit: 'gói', qty: 1, unitPrice: 60000000, remarks: '' },
-                                    { stt: 2, item: 'Màn LED', unit: 'gói', qty: 1, unitPrice: 180000000, remarks: 'Hệ thống màn LED lớn nhiều lớp' },
-                                    { stt: 3, item: 'Hệ thống trượt màn LED', unit: 'gói', qty: 1, unitPrice: 20000000, remarks: 'Có thể trượt để mở màn LED' },
-                                ]
-                            }
-                        ]
-                    }
-                ]
-            });
-            setIsGeneratingPlan(false);
-        }, 3500);
-    };
 
     useEffect(() => {
         if (stats) {
@@ -622,7 +590,7 @@ const OrganizerEventManage = () => {
         }
     };
 
-    const isAnyModalOpen = !!selectedSeatInfo || !!selectedZoneForModal || isGeneratingPlan || !!activeEditType || !!scanResult || !!selectedImageUrl;
+    const isAnyModalOpen = !!selectedSeatInfo || !!selectedZoneForModal || !!activeEditType || !!scanResult || !!selectedImageUrl;
 
     useEffect(() => {
         if (isAnyModalOpen) {
@@ -1671,17 +1639,17 @@ const OrganizerEventManage = () => {
                                             </div>
                                         </div>
 
-                                        {/* Cost Card (Mockup) */}
-                                        <div className="bg-gradient-to-br from-rose-600 to-rose-950 p-6 rounded-3xl text-white shadow-xl flex flex-col justify-between relative overflow-hidden h-[210px] border border-rose-500/20">
+                                        {/* Cost Card */}
+                                        <div className="bg-gradient-to-br from-rose-600 to-rose-900 p-6 rounded-3xl text-white shadow-xl flex flex-col justify-center relative overflow-hidden h-[210px] border border-rose-500/20">
                                             <div className="absolute -right-6 -bottom-6 opacity-10 text-white">
                                                 <Icon name="payments" className="text-[100px]" />
                                             </div>
                                             <div className="relative z-10">
                                                 <div className="flex items-center gap-2 mb-1">
-                                                    <p className="text-rose-200 text-[10px] font-bold uppercase tracking-widest">Chi phí sự kiện</p>
+                                                    <p className="text-rose-200 text-[10px] font-bold uppercase tracking-widest">Phí hệ thống đã thu</p>
                                                 </div>
-                                                <h4 className="text-3xl font-black mb-1">{formatCurrency(0)}</h4>
-                                                <p className="text-[9px] text-rose-100/40 italic">Ước tính phí vận hành & Quảng cáo</p>
+                                                <h4 className="text-3xl font-black mb-1">{formatCurrency(totalPlatformFee)}</h4>
+                                                <p className="text-[9px] text-rose-100/40 italic">Khấu trừ từ các giao dịch mua vé</p>
                                             </div>
                                         </div>
                                     </div>
@@ -1806,229 +1774,6 @@ const OrganizerEventManage = () => {
                                     </div>
                                 </div>
 
-                                {/* AI Planning Section */}
-                                <div className="relative group">
-                                    <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-[2rem] blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
-                                    <div className="relative bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden min-h-[400px]">
-                                        {!aiPlanResult && !isGeneratingPlan && (
-                                            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-10 space-y-6">
-                                                <div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-indigo-200 group-hover:scale-110 transition-transform duration-500">
-                                                    <Icon name="auto_awesome" className="text-white text-4xl" />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <h4 className="text-2xl font-black text-slate-900 tracking-tight">Kế hoạch & Dự toán AI</h4>
-                                                    <p className="text-slate-500 text-sm max-w-md mx-auto leading-relaxed">Sử dụng trí tuệ nhân tạo để tự động hóa danh sách công việc, dụng cụ cần thiết và dự toán ngân sách chi tiết cho sự kiện này.</p>
-                                                </div>
-                                                <button
-                                                    onClick={generateAIPlan}
-                                                    className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs tracking-widest hover:bg-slate-800 transition-all shadow-xl hover:shadow-2xl hover:translate-y-[-2px] flex items-center gap-3"
-                                                >
-                                                    <Icon name="bolt" size="sm" />
-                                                    BẮT ĐẦU TẠO NGAY
-                                                </button>
-                                            </div>
-                                        )}
-
-                                        {isGeneratingPlan && (
-                                            <div className="absolute inset-0 flex flex-col items-center justify-center space-y-8 bg-slate-50/80">
-                                                <div className="relative w-32 h-32">
-                                                    <div className="absolute inset-0 border-4 border-purple-100 rounded-full"></div>
-                                                    <div className="absolute inset-0 border-4 border-t-purple-600 rounded-full animate-spin"></div>
-                                                    <div className="absolute inset-4 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-full flex items-center justify-center animate-pulse shadow-lg">
-                                                        <Icon name="psychology" className="text-white text-3xl" />
-                                                    </div>
-                                                    {/* Floating particles simulation */}
-                                                    <div className="absolute -top-4 -right-4 w-4 h-4 bg-pink-400 rounded-full animate-ping"></div>
-                                                    <div className="absolute -bottom-2 -left-2 w-3 h-3 bg-blue-400 rounded-full animate-bounce delay-150"></div>
-                                                </div>
-                                                <div className="space-y-2 text-center">
-                                                    <h4 className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600 animate-pulse">ĐANG PHÂN TÍCH SỰ KIỆN...</h4>
-                                                    <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">AI đang thiết lập công việc & ngân sách</p>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {aiPlanResult && (
-                                            <div className="p-8 space-y-10 animate-in fade-in slide-in-from-bottom-5 duration-700">
-                                                <div className="flex justify-between items-center bg-slate-50 p-6 rounded-[2rem] border border-slate-100 shadow-sm transition-all group/header hover:border-purple-200">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="w-14 h-14 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl group-hover/header:rotate-12 transition-transform duration-500">
-                                                            <Icon name="auto_awesome" size="md" />
-                                                        </div>
-                                                        <div>
-                                                            <h4 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                                                                Kế hoạch & Dự toán AI
-                                                                <span className="px-2 py-0.5 bg-purple-100 text-purple-600 rounded text-[8px] font-black uppercase tracking-tighter">Premium Gen</span>
-                                                            </h4>
-                                                            <p className="text-[10px] text-slate-500 font-bold tracking-widest uppercase mt-1">Tối ưu hóa ngân sách dựa trên loại hình sự kiện & mục tiêu</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-3">
-                                                        <button className="px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2">
-                                                            <Icon name="download" size="xs" /> PDF Report
-                                                        </button>
-                                                        <button
-                                                            onClick={generateAIPlan}
-                                                            className="p-3 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl transition-all"
-                                                            title="Tạo lại kế hoạch"
-                                                        >
-                                                            <Icon name="refresh" size="sm" />
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                                    {/* Column 1: Tasks */}
-                                                    <div className="space-y-4">
-                                                        <div className="flex items-center justify-between mb-4">
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="w-1.5 h-6 bg-purple-500 rounded-full" />
-                                                                <h5 className="font-black text-xs uppercase tracking-widest text-slate-700">Công việc trọng tâm</h5>
-                                                            </div>
-                                                            <span className="text-[10px] font-bold text-slate-400">{aiPlanResult.tasks.length} nhiệm vụ</span>
-                                                        </div>
-                                                        <div className="grid grid-cols-1 gap-2">
-                                                            {aiPlanResult.tasks.map((task: any, idx: number) => (
-                                                                <div key={idx} className="flex items-center gap-4 p-4 bg-slate-50/70 rounded-2xl border border-slate-100 group hover:bg-white hover:shadow-md hover:border-purple-200 transition-all">
-                                                                    <div className="w-6 h-6 rounded-lg bg-white border-2 border-slate-200 flex items-center justify-center group-hover:border-purple-500 transition-colors">
-                                                                        <div className="w-2 h-2 bg-purple-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-                                                                    </div>
-                                                                    <div className="flex-1">
-                                                                        <p className="text-sm font-bold text-slate-700 leading-tight">{task.text}</p>
-                                                                    </div>
-                                                                    <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${task.priority === 'High' ? 'bg-red-50 text-red-500 border border-red-100' :
-                                                                        task.priority === 'Medium' ? 'bg-amber-50 text-amber-500 border border-amber-100' : 'bg-slate-100 text-slate-400'
-                                                                        }`}>{task.priority}</span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Column 2: Tools */}
-                                                    <div className="space-y-4">
-                                                        <div className="flex items-center justify-between mb-4">
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="w-1.5 h-6 bg-pink-500 rounded-full" />
-                                                                <h5 className="font-black text-xs uppercase tracking-widest text-slate-700">Tài liệu & Thiết bị</h5>
-                                                            </div>
-                                                            <span className="text-[10px] font-bold text-slate-400">{aiPlanResult.tools.length} loại</span>
-                                                        </div>
-                                                        <div className="bg-slate-50/50 rounded-2xl border border-slate-100 overflow-hidden divide-y divide-slate-100">
-                                                            {aiPlanResult.tools.map((tool: any, idx: number) => (
-                                                                <div key={idx} className="p-4 flex justify-between items-center hover:bg-white group transition-all">
-                                                                    <div className="flex items-center gap-4">
-                                                                        <div className="w-10 h-10 bg-white border border-slate-200 text-pink-500 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:bg-pink-50 transition-all">
-                                                                            <Icon name="inventory_2" size="xs" />
-                                                                        </div>
-                                                                        <span className="text-sm font-bold text-slate-700">{tool.name}</span>
-                                                                    </div>
-                                                                    <div className="text-right">
-                                                                        <span className="text-[10px] font-black text-slate-600 bg-white px-3 py-1.5 rounded-xl shadow-sm border border-slate-100">{tool.qty} {tool.unit}</span>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Full Width Spreadsheet Section */}
-                                                <div className="space-y-6">
-                                                    <div className="flex items-center justify-between bg-slate-900 p-5 rounded-3xl text-white shadow-xl relative overflow-hidden">
-                                                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -mr-16 -mt-16" />
-                                                        <div className="flex items-center gap-3 relative z-10">
-                                                            <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/20">
-                                                                <Icon name="table_chart" size="sm" />
-                                                            </div>
-                                                            <div>
-                                                                <h5 className="font-black text-sm uppercase tracking-widest">DỰ TOÁN NGÂN SÁCH CHI TIẾT</h5>
-                                                                <p className="text-[9px] text-white/50 font-bold uppercase tracking-tighter">Dựa trên khối lượng và đơn giá thực tế</p>
-                                                            </div>
-                                                        </div>
-                                                        <div className="text-right relative z-10">
-                                                            <p className="text-[9px] text-white/50 font-bold uppercase mb-1">Tổng cộng dự toán</p>
-                                                            <p className="text-2xl font-black text-primary">
-                                                                {formatCurrency(aiPlanResult.budgetSections.reduce((acc: number, cur: any) => acc + cur.total, 0))}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
-                                                        <div className="overflow-x-auto custom-scrollbar">
-                                                            <table className="w-full text-xs font-bold border-collapse">
-                                                                <thead>
-                                                                    <tr className="bg-orange-500 text-white text-[10px] uppercase tracking-widest shadow-lg">
-                                                                        <th className="p-4 border border-orange-600 w-12 text-center first:rounded-tl-[2rem]">STT</th>
-                                                                        <th className="p-4 border border-orange-600 text-left min-w-[300px]">Mục</th>
-                                                                        <th className="p-4 border border-orange-600 text-center w-28">Đơn vị</th>
-                                                                        <th className="p-4 border border-orange-600 text-center w-28">Số lượng</th>
-                                                                        <th className="p-4 border border-orange-600 text-right min-w-[130px]">Đơn giá</th>
-                                                                        <th className="p-4 border border-orange-600 text-right min-w-[160px]">Thành tiền (VND)</th>
-                                                                        <th className="p-4 border border-orange-600 text-left min-w-[280px] last:rounded-tr-[2rem]">Chú thích</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    {aiPlanResult.budgetSections.map((section: any) => (
-                                                                        <React.Fragment key={section.id}>
-                                                                            {/* Main Section Header */}
-                                                                            <tr className="bg-[#a6ce39] text-white leading-loose shadow-sm">
-                                                                                <td className="p-4 border border-emerald-600 text-center uppercase font-black">{section.id}</td>
-                                                                                <td className="p-4 border border-emerald-600 uppercase tracking-widest font-black" colSpan={4}>{section.title}</td>
-                                                                                <td className="p-4 border border-emerald-600 text-right font-black text-sm">{formatCurrency(section.total).replace('₫', '')}</td>
-                                                                                <td className="p-4 border border-emerald-600"></td>
-                                                                            </tr>
-
-                                                                            {section.subSections.map((sub: any) => (
-                                                                                <React.Fragment key={sub.id}>
-                                                                                    {/* Sub-section Header */}
-                                                                                    <tr className="bg-slate-50 text-slate-900 border-b border-slate-200">
-                                                                                        <td className="p-4 border-x border-slate-100 text-center font-black">{sub.id}</td>
-                                                                                        <td className="p-4 border-x border-slate-100 font-black pl-8" colSpan={6}>{sub.title}</td>
-                                                                                    </tr>
-
-                                                                                    {sub.items.map((item: any) => (
-                                                                                        <tr key={`${section.id}-${sub.id}-${item.stt}`} className="text-slate-600 hover:bg-slate-50/50 transition-colors border-b border-slate-100 group">
-                                                                                            <td className="p-4 border-x border-slate-100 text-center font-medium">{item.stt}</td>
-                                                                                            <td className="p-4 border-x border-slate-100 pl-10 font-bold text-slate-800">{item.item}</td>
-                                                                                            <td className="p-4 border-x border-slate-100 text-center font-medium italic text-slate-400">{item.unit}</td>
-                                                                                            <td className="p-4 border-x border-slate-100 text-center font-black text-slate-700">{item.qty}</td>
-                                                                                            <td className="p-4 border-x border-slate-100 text-right font-medium">{formatCurrency(item.unitPrice).replace('₫', '')}</td>
-                                                                                            <td className="p-4 border-x border-slate-100 text-right font-black text-slate-900">{formatCurrency(item.qty * item.unitPrice).replace('₫', '')}</td>
-                                                                                            <td className="p-4 border-x border-slate-100 text-xs font-normal italic leading-relaxed text-slate-400 group-hover:text-slate-600 transition-colors">
-                                                                                                {item.remarks}
-                                                                                            </td>
-                                                                                        </tr>
-                                                                                    ))}
-                                                                                </React.Fragment>
-                                                                            ))}
-                                                                        </React.Fragment>
-                                                                    ))}
-                                                                    {/* Final Total Row */}
-                                                                    <tr className="bg-slate-900 text-white">
-                                                                        <td colSpan={5} className="p-6 border border-slate-900 text-right uppercase tracking-[0.2em] font-black text-[10px] text-white/50">TỔNG CỘNG HỆ THỐNG DỰ TOÁN</td>
-                                                                        <td className="p-6 border border-slate-900 text-right font-black text-2xl text-primary">
-                                                                            {formatCurrency(aiPlanResult.budgetSections.reduce((acc: number, cur: any) => acc + cur.total, 0))}
-                                                                        </td>
-                                                                        <td className="p-6 border border-slate-900"></td>
-                                                                    </tr>
-                                                                </tbody>
-                                                            </table>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex items-center gap-4 bg-amber-50 p-6 rounded-[2rem] border border-amber-100">
-                                                        <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center shadow-lg">
-                                                            <Icon name="info" size="sm" />
-                                                        </div>
-                                                        <div>
-                                                            <h6 className="text-[11px] font-black text-amber-900 uppercase">Lưu ý quan trọng</h6>
-                                                            <p className="text-[10px] text-amber-700 font-medium leading-relaxed italic">Dự toán này mang tính chất tham khảo dựa trên dữ liệu thị trường hiện tại. Chi phí thực tế có thể thay đổi tùy thuộc vào nhà cung cấp và thời điểm đặt hàng.</p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
                             </div>
                         )}
 
