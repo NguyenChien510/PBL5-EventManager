@@ -39,7 +39,6 @@ public class EmailService {
         this.notificationService = notificationService;
     }
 
-    @Async
     public void sendTicketEmail(Order order) {
         try {
             if (order.getTickets() == null || order.getTickets().isEmpty()) {
@@ -117,18 +116,24 @@ public class EmailService {
                     "</html>";
 
             helper.setText(content, true);
-            mailSender.send(message);
             
-            // Create in-app notification
+            // Delegate blocking network call safely to an async background thread
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                try {
+                    mailSender.send(message);
+                    log.info("Successfully sent ticket confirmation email for order {}", order.getId());
+                } catch (Exception e) {
+                    log.error("Failed to deliver ticket confirmation email for order {} via async runner", order.getId(), e);
+                }
+            });
+            
+            // Create in-app notification safely on caller thread
             notificationService.createNotification("Đặt vé thành công cho sự kiện \"" + event.getTitle() + "\". Hãy kiểm tra chi tiết trong phần vé của bạn!", user);
-            
-            log.info("Successfully sent ticket confirmation email for order {} to {}", order.getId(), user.getEmail());
         } catch (Exception e) {
-            log.error("Failed to send ticket confirmation email for order {}", order.getId(), e);
+            log.error("Failed to process ticket confirmation email logic for order {}", order.getId(), e);
         }
     }
 
-    @Async
     public void sendEventApprovedEmail(Event event) {
         try {
             User organizer = event.getOrganizer();
@@ -165,18 +170,24 @@ public class EmailService {
                     "</html>";
 
             helper.setText(content, true);
-            mailSender.send(message);
             
-            // Create in-app notification for organizer
+            // Execute blocking network call in an isolated async task
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                try {
+                    mailSender.send(message);
+                    log.info("Successfully delivered event approval email to organizer {}", organizer.getEmail());
+                } catch (Exception e) {
+                    log.error("Failed to deliver event approval email via async runner", e);
+                }
+            });
+            
+            // Create in-app notification securely on calling thread
             notificationService.createNotification("🚀 Sự kiện \"" + event.getTitle() + "\" của bạn đã được phê duyệt thành công!", organizer);
-            
-            log.info("Successfully sent event approved email to organizer {}", organizer.getEmail());
         } catch (Exception e) {
-            log.error("Failed to send event approved email for event id {}", event.getId(), e);
+            log.error("Failed to compile and process event approval email for event id {}", event.getId(), e);
         }
     }
 
-    @Async
     public void sendNewCommentEmail(Comment comment) {
         try {
             Event event = comment.getEvent();
@@ -219,18 +230,24 @@ public class EmailService {
                     "</html>";
 
             helper.setText(content, true);
-            mailSender.send(message);
             
-            // Create in-app notification for organizer
+            // Offload SMTP payload delivery asynchronously
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                try {
+                    mailSender.send(message);
+                    log.info("Successfully delivered feedback alert email to organizer {}", organizer.getEmail());
+                } catch (Exception e) {
+                    log.error("Failed to deliver feedback email via async runner", e);
+                }
+            });
+            
+            // In-app notification securely on local thread
             notificationService.createNotification("💬 Nhận xét mới cho \"" + event.getTitle() + "\": " + commenter.getFullName() + " đã đánh giá " + comment.getRating() + "⭐", organizer);
-            
-            log.info("Successfully sent feedback notification email to organizer {}", organizer.getEmail());
         } catch (Exception e) {
-            log.error("Failed to send feedback notification email for organizer", e);
+            log.error("Failed to process and deliver feedback notification email", e);
         }
     }
 
-    @Async
     public void sendEventPendingReview(Event event, java.util.List<User> admins) {
         try {
             if (admins == null || admins.isEmpty()) {
@@ -239,8 +256,10 @@ public class EmailService {
             }
 
             User organizer = event.getOrganizer();
-            String adminUrl = frontendUrl + "/admin/events"; // Or wherever the admin panel is located
+            String adminUrl = frontendUrl + "/admin/events";
 
+            // 1. Construct the FULL set of MimeMessage envelopes securely on the caller's thread
+            java.util.List<MimeMessage> messages = new java.util.ArrayList<>();
             for (User admin : admins) {
                 try {
                     MimeMessage message = mailSender.createMimeMessage();
@@ -279,17 +298,29 @@ public class EmailService {
                             "</html>";
 
                     helper.setText(content, true);
-                    mailSender.send(message);
+                    messages.add(message);
                     
-                    // Create in-app notification for each admin
+                    // 2. Create in-app notification securely on local thread
                     notificationService.createNotification("🔔 [KIỂM DUYỆT] Yêu cầu duyệt sự kiện \"" + event.getTitle() + "\" từ " + organizer.getFullName(), admin);
                 } catch (Exception e) {
-                    log.error("Failed to send pending event email to individual admin {}", admin.getEmail(), e);
+                    log.error("Failed to build pending review email for admin {}", admin.getEmail(), e);
                 }
             }
-            log.info("Finished processing email alerts to admin pool for event {}", event.getId());
+            
+            // 3. Securely iterate and execute network SMTP deliveries in isolated background tasks
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                for (MimeMessage msg : messages) {
+                    try {
+                        mailSender.send(msg);
+                    } catch (Exception smtpEx) {
+                        log.error("Async failure during individual admin SMTP delivery", smtpEx);
+                    }
+                }
+                log.info("Finished processing admin mail deliveries asynchronously for event {}", event.getId());
+            });
+
         } catch (Exception e) {
-            log.error("General failure in sending pending event admin emails", e);
+            log.error("General failure compiling review alerts for event {}", event.getId(), e);
         }
     }
 }

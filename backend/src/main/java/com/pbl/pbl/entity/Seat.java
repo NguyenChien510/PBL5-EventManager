@@ -37,7 +37,7 @@ public class Seat {
     @JoinColumn(name = "ticket_type_id", nullable = false)
     private TicketType ticketType;
 
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 255)
     private String seatNumber;
 
     @Enumerated(EnumType.STRING)

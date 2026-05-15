@@ -64,6 +64,7 @@ public class EventService {
     private final com.pbl.pbl.repository.UserRepository userRepository;
     private final com.pbl.pbl.repository.OrderRepository orderRepository;
     private final EmailService emailService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     @Transactional(readOnly = true)
     public List<EventResponseDTO> getUpcomingEvents() {
@@ -448,6 +449,7 @@ public class EventService {
             }
         }
 
+        List<Seat> seatsToSave = new ArrayList<>();
         for (EventSessionRequestDTO sessionReq : request.getSessions()) {
             EventSession session = EventSession.builder()
                     .event(event)
@@ -490,7 +492,7 @@ public class EventService {
                                 .x(seatReq.getX())
                                 .y(seatReq.getY())
                                 .build();
-                        seatRepository.save(seat);
+                        seatsToSave.add(seat);
                         generatedCountMap.put(tt.getName(), generatedCountMap.getOrDefault(tt.getName(), 0) + 1);
                     }
                 }
@@ -509,10 +511,34 @@ public class EventService {
                                 .seatNumber(tt.getName() + " - GA" + i)
                                 .status(SeatStatus.AVAILABLE)
                                 .build();
-                        seatRepository.save(seat);
+                        seatsToSave.add(seat);
                     }
                 }
             }
+        }
+
+        // Bulk save all accumulated seats across all sessions
+        // Bulk save all accumulated seats using lightning-fast native JDBC batch updates
+        if (!seatsToSave.isEmpty()) {
+            jdbcTemplate.batchUpdate(
+                "INSERT INTO seats (event_session_id, ticket_type_id, seat_number, status, x, y) VALUES (?, ?, ?, ?, ?, ?)",
+                new org.springframework.jdbc.core.BatchPreparedStatementSetter() {
+                    @Override
+                    public void setValues(java.sql.PreparedStatement ps, int i) throws java.sql.SQLException {
+                        Seat seat = seatsToSave.get(i);
+                        ps.setLong(1, seat.getEventSession().getId());
+                        ps.setLong(2, seat.getTicketType().getId());
+                        ps.setString(3, seat.getSeatNumber());
+                        ps.setString(4, seat.getStatus().name());
+                        if (seat.getX() != null) ps.setDouble(5, seat.getX()); else ps.setNull(5, java.sql.Types.DOUBLE);
+                        if (seat.getY() != null) ps.setDouble(6, seat.getY()); else ps.setNull(6, java.sql.Types.DOUBLE);
+                    }
+                    @Override
+                    public int getBatchSize() {
+                        return seatsToSave.size();
+                    }
+                }
+            );
         }
 
         // Finalize event summaries

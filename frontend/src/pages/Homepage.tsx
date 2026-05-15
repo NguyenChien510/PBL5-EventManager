@@ -58,6 +58,40 @@ const provinceFallbackCoords: Record<string, { lat: number; lng: number }> = {
   'Đắk Lắk': { lat: 12.6713, lng: 108.0383 },
 }
 
+const EventCardSkeleton = () => {
+  return (
+    <div className="bg-white rounded-[24px] border border-slate-100 shadow-[0_8px_30px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col animate-pulse h-full">
+      {/* Image area */}
+      <div className="aspect-[4/3] bg-slate-200 w-full relative flex-shrink-0" />
+      
+      {/* Content area */}
+      <div className="p-4 flex-1 flex flex-col gap-3">
+        <div className="h-4 bg-slate-200 rounded w-3/4 mb-1" />
+        
+        <div className="space-y-2 mt-1">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-slate-100 rounded-full flex-shrink-0" />
+            <div className="h-2.5 bg-slate-100 rounded w-2/3" />
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-slate-100 rounded-full flex-shrink-0" />
+            <div className="h-2.5 bg-slate-100 rounded w-1/2" />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between pt-4 border-t border-slate-50 mt-auto">
+          <div className="space-y-1">
+            <div className="h-2 bg-slate-100 rounded w-6" />
+            <div className="h-3.5 bg-slate-200 rounded w-16" />
+          </div>
+          <div className="h-8 bg-slate-200 rounded-xl w-20 shadow-sm shadow-slate-200/50" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const Homepage = () => {
   const { categories, fetchCategories } = useCategoryStore()
   const { provinces, fetchProvinces } = useLocationStore()
@@ -71,6 +105,7 @@ const Homepage = () => {
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([])
   const [nearbyMapEvents, setNearbyMapEvents] = useState<NearbyMapEvent[]>([])
   const [isMapLoading, setIsMapLoading] = useState(false)
+  const [isFeaturedLoading, setIsFeaturedLoading] = useState(true)
   const [searchKeyword, setSearchKeyword] = useState('')
   const navigate = useNavigate()
 
@@ -102,6 +137,8 @@ const Homepage = () => {
       } catch (error) {
         console.error('Failed to load upcoming events for homepage map:', error)
         if (isMounted) setUpcomingEvents([])
+      } finally {
+        if (isMounted) setIsFeaturedLoading(false)
       }
     }
 
@@ -445,15 +482,18 @@ const Homepage = () => {
           </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {visibleFeaturedEvents.length > 0 ? (
+          {isFeaturedLoading ? (
+            [...Array(4)].map((_, i) => <EventCardSkeleton key={i} />)
+          ) : visibleFeaturedEvents.length > 0 ? (
             visibleFeaturedEvents.map((event, i) => (
               <Link key={event.id || i} to={`/event/${event.id}`}>
                 <EventCard {...event} />
               </Link>
             ))
           ) : (
-            <div className="col-span-1 md:col-span-2 lg:col-span-3 h-48 flex items-center justify-center text-slate-500 bg-white rounded-3xl border border-slate-100 italic">
-              Đang tải danh sách sự kiện nổi bật...
+            <div className="col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4 h-48 flex flex-col items-center justify-center gap-2 text-slate-400 bg-white rounded-3xl border border-slate-100 border-dashed italic">
+              <Icon name="event_busy" size="lg" className="text-slate-300" />
+              <span className="font-bold text-sm">Chưa có sự kiện nổi bật nào sắp diễn ra.</span>
             </div>
           )}
         </div>
@@ -468,8 +508,12 @@ const Homepage = () => {
             </div>
           </div>
           {isMapLoading ? (
-            <div className="w-full h-[400px] md:h-[500px] rounded-3xl border border-slate-200 bg-white flex items-center justify-center text-slate-500 font-semibold">
-              Đang tải vị trí sự kiện...
+            <div className="w-full h-[450px] md:h-[550px] rounded-[2.5rem] border border-slate-200 bg-slate-50 relative overflow-hidden shadow-2xl shadow-slate-200 flex flex-col items-center justify-center gap-4 animate-pulse">
+              <div className="absolute inset-0 opacity-30 bg-[radial-gradient(#cbd5e1_2px,transparent_2px)] [background-size:24px_24px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_80%)]" />
+              <div className="w-16 h-16 bg-white rounded-[20px] border border-slate-200 flex items-center justify-center text-primary/40 shadow-lg scale-105 relative z-10 animate-bounce">
+                <Icon name="location_on" size="lg" />
+              </div>
+              <span className="text-slate-500 font-extrabold text-[13px] tracking-tight relative z-10 bg-white/90 border border-slate-200 px-5 py-2 rounded-full shadow-md">Đang chuẩn bị bản đồ sự kiện...</span>
             </div>
           ) : filteredNearbyEvents.length > 0 ? (
             <EventMap events={filteredNearbyEvents} />

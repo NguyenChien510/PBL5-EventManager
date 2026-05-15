@@ -5,7 +5,7 @@ export const TOKEN_STORAGE_KEY = "accessToken";
 export const REFRESH_TOKEN_STORAGE_KEY = "refreshToken";
 export const USER_STORAGE_KEY = "user";
 
-export const API_TIMEOUT = 10000;
+export const API_TIMEOUT = 60000;
 export const MAX_RETRY_COUNT = 3;
 
 export const ROUTES = {

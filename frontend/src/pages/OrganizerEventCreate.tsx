@@ -137,6 +137,7 @@ const OrganizerEventCreate = () => {
 
   // Graphics Drawing Engine State
   const [shapes, setShapes] = useState<any[]>([]);
+  const [activeTemplate, setActiveTemplate] = useState<number | null>(null);
   const [activeTool, setActiveTool] = useState<'cursor' | 'seat' | 'rect' | 'text'>('cursor');
   const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
   const selectedShapeId = selectedShapeIds.length === 1 ? selectedShapeIds[0] : null;
@@ -212,7 +213,7 @@ const OrganizerEventCreate = () => {
         if (parsed.shapes) {
           setShapes(parsed.shapes);
           if (parsed.seats) setSeats(parsed.seats);
-          toast.success(`✨ Đã áp dụng Mẫu sơ đồ ${templateIndex} (Bao gồm Khối hình & Ghế)!`);
+          setActiveTemplate(templateIndex);
           return;
         }
       } catch (err) {
@@ -234,99 +235,37 @@ const OrganizerEventCreate = () => {
     if (templateIndex === 1) {
       // --- Template 1: TRUNG QUÂN 1589 (15 Years Live Concert) ---
       newShapes = [
-        // Trót Yêu (Cyan) - Linked automatically to first ticket type
-        { id: 'ty-l-' + uuidv4().slice(0, 8), type: 'rect', x: 270, y: 130, width: 125, height: 75, fill: '#06b6d4', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(0), labelText: 'TRÓT YÊU' },
-        { id: 'ty-r-' + uuidv4().slice(0, 8), type: 'rect', x: 405, y: 130, width: 125, height: 75, fill: '#06b6d4', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(0), labelText: 'TRÓT YÊU' },
-
-        // Dấu Mưa (Purple) - Second ticket type
-        { id: 'dm-l-' + uuidv4().slice(0, 8), type: 'rect', x: 270, y: 220, width: 125, height: 75, fill: '#a855f7', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(1), labelText: 'DẤU MƯA' },
-        { id: 'dm-r-' + uuidv4().slice(0, 8), type: 'rect', x: 405, y: 220, width: 125, height: 75, fill: '#a855f7', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(1), labelText: 'DẤU MƯA' },
-
-        // Tự Tình (Green) - Third ticket type
-        { id: 'tt-' + uuidv4().slice(0, 8), type: 'rect', x: 315, y: 315, width: 170, height: 75, fill: '#22c55e', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(2), labelText: 'TỰ TÌNH' },
-
-        // Chưa Bao Giờ (Large Orange Wings) - Fourth ticket type
-        { id: 'cbg-wl-' + uuidv4().slice(0, 8), type: 'rect', x: 130, y: 130, width: 120, height: 165, fill: '#f97316', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(3), labelText: 'CHƯA BAO GIỜ' },
-        { id: 'cbg-wr-' + uuidv4().slice(0, 8), type: 'rect', x: 550, y: 130, width: 120, height: 165, fill: '#f97316', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(3), labelText: 'CHƯA BAO GIỜ' },
-
-        // Chuyện Mưa (Yellow)
-        { id: 'cm-l-' + uuidv4().slice(0, 8), type: 'rect', x: 260, y: 315, width: 45, height: 75, fill: '#eab308', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(4), labelText: 'CHUYỆN MƯA' },
-        { id: 'cm-r-' + uuidv4().slice(0, 8), type: 'rect', x: 495, y: 315, width: 45, height: 75, fill: '#eab308', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(4), labelText: 'CHUYỆN MƯA' },
-
-        // Bottom Corner Wings (Orange Back)
-        { id: 'cbg-bl-' + uuidv4().slice(0, 8), type: 'rect', x: 130, y: 315, width: 120, height: 75, fill: '#f97316', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(3), labelText: 'CHƯA BAO GIỜ (BACK)' },
-        { id: 'cbg-br-' + uuidv4().slice(0, 8), type: 'rect', x: 550, y: 315, width: 120, height: 75, fill: '#f97316', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(3), labelText: 'CHƯA BAO GIỜ (BACK)' },
+        { id: 'ty-l-' + uuidv4().slice(0, 8), type: 'rect', x: 434, y: 52, width: 125, height: 75, fill: '#06b6d4', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(0), labelText: 'ÁNH NẮNG' },
+        { id: 'dm-l-' + uuidv4().slice(0, 8), type: 'rect', x: 435, y: 141, width: 125, height: 75, fill: '#a855f7', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(1), labelText: 'DẤU MƯA' },
+        { id: 'tt-' + uuidv4().slice(0, 8), type: 'rect', x: 418, y: 227, width: 170, height: 75, fill: '#22c55e', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(0), labelText: 'TỰ TÌNH' },
+        { id: 'cbg-wl-' + uuidv4().slice(0, 8), type: 'rect', x: 291, y: 138, width: 120, height: 165, fill: '#f97316', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(1), labelText: 'CHƯA BAO GIỜ' }
       ];
-      toast.success("✨ Đã áp dụng thành công mẫu sơ đồ: Live Concert 1589!");
+      setSeats([]);
     } else if (templateIndex === 2) {
       // --- Template 2: QUỐC THIÊN CHÂN DUNG NGƯỜI LẠ ---
       newShapes = [
-        // Chân Dung Người Lạ (Red Top PIT)
-        { id: 'cdnl-l-' + uuidv4().slice(0, 8), type: 'rect', x: 260, y: 90, width: 135, height: 45, fill: '#dc2626', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(0), labelText: 'CHÂN DUNG NGƯỜI LẠ' },
-        { id: 'cdnl-r-' + uuidv4().slice(0, 8), type: 'rect', x: 405, y: 90, width: 135, height: 45, fill: '#dc2626', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(0), labelText: 'CHÂN DUNG NGƯỜI LẠ' },
-
-        // Mong Manh Tình Về (Amber Gold VIP Center)
-        { id: 'mmtv-l-' + uuidv4().slice(0, 8), type: 'rect', x: 260, y: 140, width: 135, height: 45, fill: '#d97706', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(1), labelText: 'MONG MANH TÌNH VỀ' },
-        { id: 'mmtv-r-' + uuidv4().slice(0, 8), type: 'rect', x: 405, y: 140, width: 135, height: 45, fill: '#d97706', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(1), labelText: 'MONG MANH TÌNH VỀ' },
-
-        // Vội Vàng / Chia Cách Bình Yên Wings (Slate Grey Blue)
-        { id: 'w-l-' + uuidv4().slice(0, 8), type: 'rect', x: 90, y: 90, width: 160, height: 95, fill: '#475569', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(2), labelText: 'CHIA CÁCH BÌNH YÊN' },
-        { id: 'w-r-' + uuidv4().slice(0, 8), type: 'rect', x: 550, y: 90, width: 160, height: 95, fill: '#475569', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(2), labelText: 'CHIA CÁCH BÌNH YÊN' },
-
-        // Hoa Và Váy (Darker Gold)
-        { id: 'hvv-l-' + uuidv4().slice(0, 8), type: 'rect', x: 260, y: 200, width: 135, height: 45, fill: '#ca8a04', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(3), labelText: 'HOA VÀ VÁY' },
-        { id: 'hvv-r-' + uuidv4().slice(0, 8), type: 'rect', x: 405, y: 200, width: 135, height: 45, fill: '#ca8a04', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(3), labelText: 'HOA VÀ VÁY' },
-
-        // Kẻ Say Tình (Emerald Green Center)
-        { id: 'kst-l-' + uuidv4().slice(0, 8), type: 'rect', x: 260, y: 250, width: 135, height: 45, fill: '#16a34a', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(4), labelText: 'KẺ SAY TÌNH' },
-        { id: 'kst-r-' + uuidv4().slice(0, 8), type: 'rect', x: 405, y: 250, width: 135, height: 45, fill: '#16a34a', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(4), labelText: 'KẺ SAY TÌNH' },
-
-        // Cánh Hồng Phai (Deep Pink outer sections)
-        { id: 'chp-l-' + uuidv4().slice(0, 8), type: 'rect', x: 70, y: 200, width: 180, height: 95, fill: '#db2777', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(5), labelText: 'CÁNH HỒNG PHAI' },
-        { id: 'chp-r-' + uuidv4().slice(0, 8), type: 'rect', x: 550, y: 200, width: 180, height: 95, fill: '#db2777', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(5), labelText: 'CÁNH HỒNG PHAI' },
-
-        // UPPER BALCONY SECTION (Khu Vực Trên Lầu)
-        { id: 'lau-border-' + uuidv4().slice(0, 8), type: 'rect', x: 50, y: 310, width: 700, height: 170, fill: '#f8fafc', opacity: 0.5, rotation: 0, labelText: 'KHU VỰC TRÊN LẦU' },
-
-        { id: 'lau-l-' + uuidv4().slice(0, 8), type: 'rect', x: 70, y: 350, width: 320, height: 50, fill: '#2563eb', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(6), labelText: 'LẦU TRÁI' },
-        { id: 'lau-r-' + uuidv4().slice(0, 8), type: 'rect', x: 410, y: 350, width: 320, height: 50, fill: '#2563eb', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(6), labelText: 'LẦU PHẢI' },
-
-        { id: 'vty-l-' + uuidv4().slice(0, 8), type: 'rect', x: 230, y: 415, width: 160, height: 50, fill: '#7c3aed', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(7), labelText: 'VÌ TA QUÁ YÊU' },
-        { id: 'vty-r-' + uuidv4().slice(0, 8), type: 'rect', x: 410, y: 415, width: 160, height: 50, fill: '#7c3aed', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(7), labelText: 'VÌ TA QUÁ YÊU' },
+        { id: 'cdnl-r-' + uuidv4().slice(0, 8), type: 'rect', x: 490, y: 37, width: 135, height: 45, fill: '#dc2626', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(0), labelText: 'CHÂN DUNG NGƯỜI LẠ' },
+        { id: 'mmtv-r-' + uuidv4().slice(0, 8), type: 'rect', x: 490, y: 87, width: 135, height: 45, fill: '#d97706', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(1), labelText: 'MONG MANH TÌNH VỀ' },
+        { id: 'w-l-' + uuidv4().slice(0, 8), type: 'rect', x: 320, y: 37, width: 160, height: 95, fill: '#475569', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(0), labelText: 'CHIA CÁCH BÌNH YÊN' },
+        { id: 'hvv-r-' + uuidv4().slice(0, 8), type: 'rect', x: 490, y: 147, width: 135, height: 45, fill: '#ca8a04', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(1), labelText: 'HOA VÀ VÁY' },
+        { id: 'kst-r-' + uuidv4().slice(0, 8), type: 'rect', x: 490, y: 197, width: 135, height: 45, fill: '#16a34a', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(0), labelText: 'KẺ SAY TÌNH' },
+        { id: 'chp-l-' + uuidv4().slice(0, 8), type: 'rect', x: 303, y: 144, width: 180, height: 95, fill: '#db2777', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(1), labelText: 'CÁNH HỒNG PHAI' }
       ];
-      toast.success("✨ Đã áp dụng thành công mẫu sơ đồ: Chân Dung Người Lạ!");
+      setSeats([]);
     } else if (templateIndex === 3) {
       // --- Template 3: V CONCERT (Modern Stadium Layout with diagonal structures) ---
       newShapes = [
-        // Main PIT (Khát Vọng 1 & 2 - Vibrant Teal Center)
-        { id: 'kv-1-' + uuidv4().slice(0, 8), type: 'rect', x: 300, y: 95, width: 95, height: 80, fill: '#0ea5e9', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(0), labelText: 'KHÁT VỌNG 1' },
-        { id: 'kv-2-' + uuidv4().slice(0, 8), type: 'rect', x: 405, y: 95, width: 95, height: 80, fill: '#0ea5e9', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(0), labelText: 'KHÁT VỌNG 2' },
-
-        // Top Sides (Chia Sẻ 1 & 2 - Angled Deep Blue / Indigo)
-        { id: 'cs-1-' + uuidv4().slice(0, 8), type: 'rect', x: 150, y: 70, width: 130, height: 75, fill: '#3f51b5', opacity: 0.85, rotation: -18, ticketTypeId: getTicketId(1), labelText: 'CHIA SẺ 1' },
-        { id: 'cs-2-' + uuidv4().slice(0, 8), type: 'rect', x: 515, y: 70, width: 130, height: 75, fill: '#3f51b5', opacity: 0.85, rotation: 18, ticketTypeId: getTicketId(1), labelText: 'CHIA SẺ 2' },
-
-        // VIP Diagonal Strips (Yêu Thương & Tự Hào - Bright Magenta)
-        { id: 'ytth-1-' + uuidv4().slice(0, 8), type: 'rect', x: 120, y: 170, width: 160, height: 90, fill: '#e91e63', opacity: 0.85, rotation: -38, ticketTypeId: getTicketId(2), labelText: 'YÊU THƯƠNG' },
-        { id: 'ytth-2-' + uuidv4().slice(0, 8), type: 'rect', x: 520, y: 170, width: 160, height: 90, fill: '#e91e63', opacity: 0.85, rotation: 38, ticketTypeId: getTicketId(2), labelText: 'TỰ HÀO' },
-
-        // Center Main Audience 1 (Hạnh Phúc 1 - Bright Orange)
-        { id: 'hp-1-' + uuidv4().slice(0, 8), type: 'rect', x: 320, y: 190, width: 160, height: 90, fill: '#ff9800', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(3), labelText: 'HẠNH PHÚC 1' },
-
-        // Center Main Audience 2 (Tự Hào - Deep Royal Red)
-        { id: 'th-' + uuidv4().slice(0, 8), type: 'rect', x: 320, y: 290, width: 160, height: 100, fill: '#b71c1c', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(4), labelText: 'TỰ HÀO VIP' },
-
-        // Far Outer Blocks (Kết Nối - Vivid Purple)
-        { id: 'kn-1-' + uuidv4().slice(0, 8), type: 'rect', x: 40, y: 70, width: 100, height: 95, fill: '#9c27b0', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(5), labelText: 'KẾT NỐI 1' },
-        { id: 'kn-2-' + uuidv4().slice(0, 8), type: 'rect', x: 660, y: 70, width: 100, height: 95, fill: '#9c27b0', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(5), labelText: 'KẾT NỐI 2' },
-
-        // Far Outer Diagonal (Diagonal extended purples)
-        { id: 'ext-1-' + uuidv4().slice(0, 8), type: 'rect', x: 50, y: 240, width: 140, height: 80, fill: '#8e24aa', opacity: 0.8, rotation: -38, ticketTypeId: getTicketId(5), labelText: 'MỞ RỘNG 1' },
-        { id: 'ext-2-' + uuidv4().slice(0, 8), type: 'rect', x: 610, y: 240, width: 140, height: 80, fill: '#8e24aa', opacity: 0.8, rotation: 38, ticketTypeId: getTicketId(5), labelText: 'MỞ RỘNG 2' },
+        { id: 'kv-2-' + uuidv4().slice(0, 8), type: 'rect', x: 298, y: 67, width: 95, height: 80, fill: '#0ea5e9', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(0), labelText: 'KHÁT VỌNG ' },
+        { id: 'cs-2-' + uuidv4().slice(0, 8), type: 'rect', x: 593, y: 178, width: 130, height: 75, fill: '#3f51b5', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(1), labelText: 'CHIA SẺ ' },
+        { id: 'ytth-1-' + uuidv4().slice(0, 8), type: 'rect', x: 419, y: 173, width: 160, height: 90, fill: '#e91e63', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(0), labelText: 'YÊU THƯƠNG' },
+        { id: 'hp-1-' + uuidv4().slice(0, 8), type: 'rect', x: 585, y: 58, width: 160, height: 90, fill: '#ff9800', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(1), labelText: 'HẠNH PHÚC ' },
+        { id: 'th-' + uuidv4().slice(0, 8), type: 'rect', x: 418, y: 56, width: 160, height: 100, fill: '#b71c1c', opacity: 0.85, rotation: 0, ticketTypeId: getTicketId(0), labelText: 'TỰ HÀO VIP' },
+        { id: 'ext-1-' + uuidv4().slice(0, 8), type: 'rect', x: 262, y: 176, width: 140, height: 80, fill: '#8e24aa', opacity: 0.8, rotation: 0, ticketTypeId: getTicketId(1), labelText: 'MỞ RỘNG ' }
       ];
-      toast.success("✨ Đã áp dụng thành công mẫu sơ đồ: V Concert Rạng Rỡ Việt Nam!");
+      setSeats([]);
     }
 
+    setActiveTemplate(templateIndex);
     setShapes(newShapes);
   }
 
@@ -1172,42 +1111,46 @@ const OrganizerEventCreate = () => {
                 <div className="space-y-10 animate-in fade-in slide-in-from-right-8 duration-500 ease-out fill-mode-both">
 
                   {/* EVENT TYPE SELECTION */}
-                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 shadow-inner shadow-blue-200/50">
-                        <Icon name="settings" />
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 shadow-inner shadow-blue-200/50">
+                        <Icon name="settings" size="sm" />
                       </div>
                       <div>
-                        <h3 className={`text-xl font-extrabold ${stepColor.text}`}>Loại Hình Sự Kiện</h3>
-                        <p className="text-sm font-medium text-slate-500">Lựa chọn hình thức bán vé cho sự kiện của bạn</p>
+                        <h3 className={`text-base font-black tracking-tight ${stepColor.text}`}>Loại Hình Sự Kiện</h3>
+                        <p className="text-xs font-semibold text-slate-400">Lựa chọn hình thức bán vé cho sự kiện của bạn</p>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <button
                         type="button"
                         onClick={() => { setHasSeatMap(false); setActivePaintTicketId(null); }}
-                        className={`relative overflow-hidden p-6 rounded-2xl border-2 text-left transition-all duration-300 group ${!hasSeatMap ? 'border-blue-600 bg-blue-50/30 shadow-lg shadow-blue-500/10 ring-4 ring-blue-500/10' : 'border-slate-200 bg-white hover:border-blue-300 hover:shadow-md'}`}
+                        className={`relative overflow-hidden p-3.5 rounded-xl border text-left transition-all duration-300 flex items-center gap-3 group ${!hasSeatMap ? 'border-blue-600 bg-blue-50/50 ring-1 ring-blue-500 shadow-sm' : 'border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm'}`}
                       >
-                        {!hasSeatMap && <div className="absolute top-3 right-3 text-blue-600"><Icon name="check_circle" /></div>}
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-all duration-300 ${!hasSeatMap ? 'bg-blue-600 text-white rotate-6' : 'bg-slate-100 text-slate-500 group-hover:scale-110'}`}>
-                          <Icon name="confirmation_number" size="md" />
+                        {!hasSeatMap && <div className="absolute top-2 right-2 text-blue-600"><Icon name="check_circle" size="sm" /></div>}
+                        <div className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-300 ${!hasSeatMap ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200 group-hover:text-slate-600'}`}>
+                          <Icon name="confirmation_number" size="sm" />
                         </div>
-                        <h4 className={`font-bold text-lg mb-2 ${!hasSeatMap ? 'text-slate-900' : 'text-slate-700'}`}>Vào cửa tự do (General Admission)</h4>
-                        <p className="text-sm font-medium text-slate-500 leading-relaxed">Phù hợp cho Workshop, Đêm nhạc, Triển lãm... Khách mua vé theo số lượng, không cần chọn ghế trước.</p>
+                        <div className="pr-5">
+                          <h4 className={`font-bold text-sm leading-snug ${!hasSeatMap ? 'text-blue-900' : 'text-slate-700'}`}>Vào cửa tự do (General Admission)</h4>
+                          <p className="text-[11px] font-medium text-slate-400 leading-snug mt-0.5">Phù hợp cho Workshop, Đêm nhạc... Khách mua vé theo số lượng.</p>
+                        </div>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => { setHasSeatMap(true); if (ticketTypes.length > 0) setActivePaintTicketId(ticketTypes[0].id); }}
-                        className={`relative overflow-hidden p-6 rounded-2xl border-2 text-left transition-all duration-300 group ${hasSeatMap ? 'border-blue-600 bg-blue-50/30 shadow-lg shadow-blue-500/10 ring-4 ring-blue-500/10' : 'border-slate-200 bg-white hover:border-blue-300 hover:shadow-md'}`}
+                        className={`relative overflow-hidden p-3.5 rounded-xl border text-left transition-all duration-300 flex items-center gap-3 group ${hasSeatMap ? 'border-blue-600 bg-blue-50/50 ring-1 ring-blue-500 shadow-sm' : 'border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm'}`}
                       >
-                        {hasSeatMap && <div className="absolute top-3 right-3 text-blue-600"><Icon name="check_circle" /></div>}
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-all duration-300 ${hasSeatMap ? 'bg-blue-600 text-white rotate-6' : 'bg-slate-100 text-slate-500 group-hover:scale-110'}`}>
-                          <Icon name="event_seat" size="md" />
+                        {hasSeatMap && <div className="absolute top-2 right-2 text-blue-600"><Icon name="check_circle" size="sm" /></div>}
+                        <div className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-300 ${hasSeatMap ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200 group-hover:text-slate-600'}`}>
+                          <Icon name="event_seat" size="sm" />
                         </div>
-                        <h4 className={`font-bold text-lg mb-2 ${hasSeatMap ? 'text-slate-900' : 'text-slate-700'}`}>Sắp xếp chỗ ngồi (Seat Map)</h4>
-                        <p className="text-sm font-medium text-slate-500 leading-relaxed">Phù hợp cho Nhà hát, Liveshow, Hội trường lớn... Tự tay thiết kế sơ đồ để khách chọn chính xác ghế ngồi.</p>
+                        <div className="pr-5">
+                          <h4 className={`font-bold text-sm leading-snug ${hasSeatMap ? 'text-blue-900' : 'text-slate-700'}`}>Sắp xếp chỗ ngồi (Seat Map)</h4>
+                          <p className="text-[11px] font-medium text-slate-400 leading-snug mt-0.5">Phù hợp Liveshow, Hội trường... Tự thiết kế sơ đồ chọn ghế.</p>
+                        </div>
                       </button>
                     </div>
                   </div>
@@ -1290,7 +1233,7 @@ const OrganizerEventCreate = () => {
                               />
                             </div>
                             <div>
-                             <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">
+                              <label className="text-[10px] font-black text-slate-400 mb-1 block uppercase tracking-wider">
                                 {(hasSeatMap && seats.some(s => s.ticketTypeId === ticket.id)) ? 'Số lượng (Tự đếm trên sơ đồ)' : 'Tổng số lượng bán'}
                               </label>
                               {(hasSeatMap && seats.some(s => s.ticketTypeId === ticket.id)) ? (
@@ -1331,22 +1274,22 @@ const OrganizerEventCreate = () => {
                           </div>
 
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider mr-1">🚀 Mẫu Sơ Đồ Nhanh:</span>
+                            <span className="text-[12px] font-black uppercase tracking-wider mr-1">🚀 Mẫu Sơ Đồ Nhanh:</span>
                             {/* Template 1 */}
-                            <div className="flex items-center bg-white border border-slate-200 rounded-xl shadow-sm hover:border-cyan-500 transition-all overflow-hidden">
+                            <div className={`flex items-center border transition-all overflow-hidden rounded-xl shadow-sm ${activeTemplate === 1 ? 'border-cyan-500 bg-cyan-50 ring-2 ring-cyan-500/10 shadow-cyan-100' : 'bg-white border-slate-200 hover:border-cyan-500'}`}>
                               <button
                                 type="button"
                                 onClick={() => applyLayoutTemplate(1)}
-                                className="px-3 py-2 text-slate-700 hover:bg-slate-50 text-xs font-extrabold flex items-center gap-2 active:bg-slate-100"
+                                className={`px-3 py-2 text-xs font-extrabold flex items-center gap-2 transition-all active:scale-[0.98] ${activeTemplate === 1 ? 'text-cyan-700 bg-cyan-50' : 'text-slate-700 hover:bg-slate-50 active:bg-slate-100'}`}
                                 title="Áp dụng Mẫu 1"
                               >
-                                <div className="w-2 h-2 rounded-full bg-cyan-500" />
-                                Concert 1589
+                                <div className={`w-2 h-2 rounded-full bg-cyan-500 transition-transform ${activeTemplate === 1 ? 'scale-125 animate-pulse' : ''}`} />
+                                Template 1
                               </button>
                               <button
                                 type="button"
                                 onClick={() => saveLayoutToTemplateSlot(1)}
-                                className="p-2 border-l border-slate-100 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
+                                className={`p-2 border-l transition-all ${activeTemplate === 1 ? 'border-cyan-200/60 text-cyan-600 hover:bg-cyan-100' : 'border-slate-100 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`}
                                 title="Lưu đè thiết kế hiện tại vào Mẫu 1"
                               >
                                 <Icon name="save" size="xs" />
@@ -1354,20 +1297,20 @@ const OrganizerEventCreate = () => {
                             </div>
 
                             {/* Template 2 */}
-                            <div className="flex items-center bg-white border border-slate-200 rounded-xl shadow-sm hover:border-red-500 transition-all overflow-hidden">
+                            <div className={`flex items-center border transition-all overflow-hidden rounded-xl shadow-sm ${activeTemplate === 2 ? 'border-red-500 bg-red-50 ring-2 ring-red-500/10 shadow-red-100' : 'bg-white border-slate-200 hover:border-red-500'}`}>
                               <button
                                 type="button"
                                 onClick={() => applyLayoutTemplate(2)}
-                                className="px-3 py-2 text-slate-700 hover:bg-slate-50 text-xs font-extrabold flex items-center gap-2 active:bg-slate-100"
+                                className={`px-3 py-2 text-xs font-extrabold flex items-center gap-2 transition-all active:scale-[0.98] ${activeTemplate === 2 ? 'text-red-700 bg-red-50' : 'text-slate-700 hover:bg-slate-50 active:bg-slate-100'}`}
                                 title="Áp dụng Mẫu 2"
                               >
-                                <div className="w-2 h-2 rounded-full bg-red-500" />
-                                Chân Dung Người Lạ
+                                <div className={`w-2 h-2 rounded-full bg-red-500 transition-transform ${activeTemplate === 2 ? 'scale-125 animate-pulse' : ''}`} />
+                                Template 2
                               </button>
                               <button
                                 type="button"
                                 onClick={() => saveLayoutToTemplateSlot(2)}
-                                className="p-2 border-l border-slate-100 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
+                                className={`p-2 border-l transition-all ${activeTemplate === 2 ? 'border-red-200/60 text-red-600 hover:bg-red-100' : 'border-slate-100 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`}
                                 title="Lưu đè thiết kế hiện tại vào Mẫu 2"
                               >
                                 <Icon name="save" size="xs" />
@@ -1375,20 +1318,20 @@ const OrganizerEventCreate = () => {
                             </div>
 
                             {/* Template 3 */}
-                            <div className="flex items-center bg-white border border-slate-200 rounded-xl shadow-sm hover:border-indigo-500 transition-all overflow-hidden">
+                            <div className={`flex items-center border transition-all overflow-hidden rounded-xl shadow-sm ${activeTemplate === 3 ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/10 shadow-indigo-100' : 'bg-white border-slate-200 hover:border-indigo-500'}`}>
                               <button
                                 type="button"
                                 onClick={() => applyLayoutTemplate(3)}
-                                className="px-3 py-2 text-slate-700 hover:bg-slate-50 text-xs font-extrabold flex items-center gap-2 active:bg-slate-100"
+                                className={`px-3 py-2 text-xs font-extrabold flex items-center gap-2 transition-all active:scale-[0.98] ${activeTemplate === 3 ? 'text-indigo-700 bg-indigo-50' : 'text-slate-700 hover:bg-slate-50 active:bg-slate-100'}`}
                                 title="Áp dụng Mẫu 3"
                               >
-                                <div className="w-2 h-2 rounded-full bg-indigo-500" />
-                                V Concert
+                                <div className={`w-2 h-2 rounded-full bg-indigo-500 transition-transform ${activeTemplate === 3 ? 'scale-125 animate-pulse' : ''}`} />
+                                Template 3
                               </button>
                               <button
                                 type="button"
                                 onClick={() => saveLayoutToTemplateSlot(3)}
-                                className="p-2 border-l border-slate-100 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
+                                className={`p-2 border-l transition-all ${activeTemplate === 3 ? 'border-indigo-200/60 text-indigo-600 hover:bg-indigo-100' : 'border-slate-100 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`}
                                 title="Lưu đè thiết kế hiện tại vào Mẫu 3"
                               >
                                 <Icon name="save" size="xs" />
@@ -1549,7 +1492,7 @@ const OrganizerEventCreate = () => {
                                     <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-3.5 space-y-3 mb-3">
                                       <div className="space-y-1.5">
                                         <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1.5 tracking-wider">
-                                          <Icon name="title" size="xs" className="scale-75 text-slate-400" /> 
+                                          <Icon name="title" size="xs" className="scale-75 text-slate-400" />
                                           Nhãn hiển thị
                                         </label>
                                         <div className="relative flex items-center">
@@ -1601,8 +1544,8 @@ const OrganizerEventCreate = () => {
                                               const currentShape = shapes.find(s => s.id === selectedShapeId);
                                               const matchedTt = ticketTypes.find(t => t.id === currentShape?.ticketTypeId);
                                               return (
-                                                <span 
-                                                  className="w-2.5 h-2.5 rounded-full border-2 border-white ring-1 ring-slate-300 transition-all duration-300" 
+                                                <span
+                                                  className="w-2.5 h-2.5 rounded-full border-2 border-white ring-1 ring-slate-300 transition-all duration-300"
                                                   style={{ backgroundColor: matchedTt ? matchedTt.color : '#94a3b8' }}
                                                 />
                                               );

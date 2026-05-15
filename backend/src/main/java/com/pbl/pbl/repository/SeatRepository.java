@@ -7,8 +7,11 @@ import com.pbl.pbl.entity.Seat;
 
 @Repository
 public interface SeatRepository extends JpaRepository<Seat, Long> {
-    java.util.List<Seat> findByEventSession_Event_Id(Long eventId);
-    java.util.List<Seat> findByEventSessionId(Long sessionId);
+    @org.springframework.data.jpa.repository.Query("SELECT s FROM Seat s JOIN FETCH s.ticketType WHERE s.eventSession.event.id = :eventId")
+    java.util.List<Seat> findByEventSession_Event_Id(@org.springframework.data.repository.query.Param("eventId") Long eventId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT s FROM Seat s JOIN FETCH s.ticketType WHERE s.eventSession.id = :sessionId")
+    java.util.List<Seat> findByEventSessionId(@org.springframework.data.repository.query.Param("sessionId") Long sessionId);
     long countByEventSession_Event_IdAndStatus(Long eventId, com.pbl.pbl.entity.SeatStatus status);
     long countByEventSession_Event_Id(Long eventId);
 
