@@ -43,7 +43,8 @@ const VouchersRewards = () => {
   const fetchRewards = async () => {
     try {
       const res = await apiClient.get('/coupons/available')
-      setAvailableRewards(res.data)
+      const sortedRewards = (res.data || []).sort((a: any, b: any) => a.pointCost - b.pointCost)
+      setAvailableRewards(sortedRewards)
     } catch (err) {
       console.error(err)
     }
