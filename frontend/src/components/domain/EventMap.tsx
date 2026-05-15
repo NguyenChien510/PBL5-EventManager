@@ -92,10 +92,10 @@ const EventMap = ({ events }: EventMapProps) => {
 
   return (
     <div className="w-full h-[450px] md:h-[550px] rounded-[2.5rem] overflow-hidden shadow-2xl shadow-slate-200 border border-slate-200 z-0 relative group/map">
-      <MapContainer 
-        center={[10.762622, 106.660172]} 
-        zoom={13} 
-        scrollWheelZoom={false} 
+      <MapContainer
+        center={[10.762622, 106.660172]}
+        zoom={13}
+        scrollWheelZoom={false}
         className="h-full w-full z-0"
         ref={setMapInstance}
       >
@@ -105,9 +105,9 @@ const EventMap = ({ events }: EventMapProps) => {
         />
         <LocationMarker />
         {events.map((event) => (
-          <Marker 
-            key={event.id} 
-            position={[event.lat, event.lng]} 
+          <Marker
+            key={event.id}
+            position={[event.lat, event.lng]}
             icon={customIcon}
             eventHandlers={{
               mouseover: (e) => {
@@ -119,14 +119,14 @@ const EventMap = ({ events }: EventMapProps) => {
             }}
           >
             <Popup closeButton={false} className="custom-event-popup">
-              <div 
+              <div
                 className="w-[220px] bg-white rounded-2xl overflow-hidden cursor-pointer group/popup"
                 onClick={() => navigate(`/event/${event.id}`)}
               >
                 <div className="h-24 w-full relative overflow-hidden">
-                  <img 
-                    src={event.image || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&auto=format&fit=crop'} 
-                    alt={event.title} 
+                  <img
+                    src={event.image || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&auto=format&fit=crop'}
+                    alt={event.title}
                     className="w-full h-full object-cover group-hover/popup:scale-110 transition-transform duration-500"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
@@ -138,10 +138,10 @@ const EventMap = ({ events }: EventMapProps) => {
                   <h3 className="font-black text-slate-900 text-sm leading-tight mb-1 line-clamp-2 group-hover/popup:text-primary transition-colors">
                     {event.title}
                   </h3>
-                  
+
                   <div className="flex items-center gap-1.5 text-slate-500 mb-1">
                     <svg xmlns="http://www.w3.org/2000/svg" height="14" viewBox="0 -960 960 960" width="14" fill="currentColor">
-                      <path d="M480-480q33 0 56.5-23.5T560-560q0-33-23.5-56.5T480-640q-33 0-56.5 23.5T400-560q0 33 23.5 56.5T480-480Zm0 400Q319-215 239.5-334.5T160-552q0-150 96.5-239T480-880q127 0 223.5 89T800-552q0 113-79.5 232.5T480-80Z"/>
+                      <path d="M480-480q33 0 56.5-23.5T560-560q0-33-23.5-56.5T480-640q-33 0-56.5 23.5T400-560q0 33 23.5 56.5T480-480Zm0 400Q319-215 239.5-334.5T160-552q0-150 96.5-239T480-880q127 0 223.5 89T800-552q0 113-79.5 232.5T480-80Z" />
                     </svg>
                     <span className="text-[10px] font-bold line-clamp-1">{event.location}</span>
                   </div>
@@ -149,7 +149,7 @@ const EventMap = ({ events }: EventMapProps) => {
                   <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-50">
                     <div className="flex items-center gap-1.5 text-primary">
                       <svg xmlns="http://www.w3.org/2000/svg" height="14" viewBox="0 -960 960 960" width="14" fill="currentColor">
-                        <path d="M360-840v-80h240v80H360Zm80 440h80v-240h-80v240Zm40 320q-74 0-139.5-28.5T226-186q-49-49-77.5-114.5T120-440q0-74 28.5-139.5T226-694q49-49 114.5-77.5T480-800q62 0 119 20t107 58l56-56 56 56-56 56q38 50 58 107t20 119q0 74-28.5 139.5T734-186q-49 49-114.5 77.5T480-80Zm0-80q116 0 198-82t82-198q0-116-82-198t-198-82q-116 0-198 82t-82 198q0 116 82 198t198 82Zm0-280Z"/>
+                        <path d="M360-840v-80h240v80H360Zm80 440h80v-240h-80v240Zm40 320q-74 0-139.5-28.5T226-186q-49-49-77.5-114.5T120-440q0-74 28.5-139.5T226-694q49-49 114.5-77.5T480-800q62 0 119 20t107 58l56-56 56 56-56 56q38 50 58 107t20 119q0 74-28.5 139.5T734-186q-49 49-114.5 77.5T480-80Zm0-80q116 0 198-82t82-198q0-116-82-198t-198-82q-116 0-198 82t-82 198q0 116 82 198t198 82Zm0-280Z" />
                       </svg>
                       <span className="text-[11px] font-black">{event.date} • {event.time}</span>
                     </div>
@@ -160,15 +160,15 @@ const EventMap = ({ events }: EventMapProps) => {
           </Marker>
         ))}
       </MapContainer>
-      
+
       {/* Locate Me Button */}
-      <button 
+      <button
         onClick={handleLocateMe}
         className="absolute bottom-6 right-6 z-[1000] w-12 h-12 bg-white rounded-2xl shadow-2xl border border-slate-200 flex items-center justify-center text-primary hover:bg-slate-50 transition-all hover:scale-110 active:scale-95 group"
         title="Định vị của tôi"
       >
         <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="currentColor" class="group-hover:rotate-12 transition-transform">
-          <path d="M440-42l-80-249-249-80 691-282-282 691Zm44-188 126-308-308 126 130 42 52 140Z"/>
+          <path d="M440-42l-80-249-249-80 691-282-282 691Zm44-188 126-308-308 126 130 42 52 140Z" />
         </svg>
       </button>
     </div>

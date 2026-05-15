@@ -23,6 +23,8 @@ public class EventResponseDTO {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private String posterUrl;
+    private Double latitude;
+    private Double longitude;
     private EventStatus status;
     private String rejectReason;
     private LocalDateTime createdAt;

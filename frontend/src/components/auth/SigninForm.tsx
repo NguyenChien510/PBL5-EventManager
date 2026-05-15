@@ -10,6 +10,7 @@ import { getRedirectPathByRole } from "@/utils/redirect";
 const signInSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
+  remember: z.boolean().optional(),
 });
 
 type SignInFormData = z.infer<typeof signInSchema>;
@@ -24,11 +25,14 @@ export const SigninForm = () => {
     formState: { errors },
   } = useForm<SignInFormData>({
     resolver: zodResolver(signInSchema),
+    defaultValues: {
+      remember: true,
+    }
   });
 
   const onSubmit = async (data: SignInFormData) => {
     try {
-      const user = await signIn(data);
+      const user = await signIn(data, !!data.remember);
       navigate(getRedirectPathByRole(user?.role?.name));
     } catch (err) {
       console.error(err);
@@ -139,13 +143,17 @@ export const SigninForm = () => {
                 <div className="flex items-center justify-between py-1">
                   <label className="flex items-center gap-2 cursor-pointer group">
                     <div className="relative flex items-center justify-center w-5 h-5">
-                      <input className="peer appearance-none w-5 h-5 border-2 border-slate-300 dark:border-slate-600 rounded cursor-pointer bg-white dark:bg-slate-900 checked:bg-primary checked:border-primary focus:ring-2 focus:ring-primary/20 transition-all" id="remember" type="checkbox" />
+                      <input 
+                        {...register("remember")}
+                        className="peer appearance-none w-5 h-5 border-2 border-slate-300 dark:border-slate-600 rounded cursor-pointer bg-white dark:bg-slate-900 checked:bg-primary checked:border-primary focus:ring-2 focus:ring-primary/20 transition-all" 
+                        id="remember" 
+                        type="checkbox" 
+                      />
                       <svg className="absolute w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity" viewBox="0 0 14 10" fill="none">
                         <path d="M1 5L4.5 8.5L13 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </div>
                     <span className="text-sm font-medium text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 transition-colors">Keep me signed in</span>
-                    
                   </label>
                   <a className="text-sm font-semibold text-primary hover:text-electric transition-colors" href="#">Forgot password?</a>
                 </div>

@@ -13,6 +13,8 @@ public class EventRequestDTO {
     private String location;
     private Long provinceId;
     private Long wardId;
+    private Double latitude;
+    private Double longitude;
     private String posterUrl;
     private List<EventSessionRequestDTO> sessions;
     private SeatMapConfigRequestDTO seatMapConfig;

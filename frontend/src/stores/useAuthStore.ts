@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 import type {
@@ -12,8 +12,28 @@ import type {
 import { AuthService } from "@/services/authService";
 import { REFRESH_TOKEN_STORAGE_KEY, USER_STORAGE_KEY } from "@/constants";
 
+const dynamicStorage: StateStorage = {
+  getItem: (name: string): string | null => {
+    return localStorage.getItem(name) || sessionStorage.getItem(name);
+  },
+  setItem: (name: string, value: string): void => {
+    const remember = localStorage.getItem("remember-me") === "true";
+    if (remember) {
+      localStorage.setItem(name, value);
+      sessionStorage.removeItem(name);
+    } else {
+      sessionStorage.setItem(name, value);
+      localStorage.removeItem(name);
+    }
+  },
+  removeItem: (name: string): void => {
+    localStorage.removeItem(name);
+    sessionStorage.removeItem(name);
+  }
+};
+
 interface AuthStore extends AuthState {
-  signIn: (payload: SignInPayload) => Promise<User>;
+  signIn: (payload: SignInPayload, remember?: boolean) => Promise<User>;
   googleSignIn: (credential: string) => Promise<User>;
   signUp: (payload: SignUpPayload) => Promise<User>;
   signOut: () => Promise<void>;
@@ -49,12 +69,18 @@ export const useAuthStore = create<AuthStore>()(
       isLoading: false,
       error: null,
 
-      signIn: async (payload: SignInPayload): Promise<User> => {
+      signIn: async (payload: SignInPayload, remember: boolean = false): Promise<User> => {
         set({ isLoading: true, error: null });
+        localStorage.setItem("remember-me", remember ? "true" : "false");
         try {
           const response = await AuthService.signIn(payload);
+          
+          localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+          sessionStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+
           if (response.refreshToken) {
-            localStorage.setItem(
+            const storage = remember ? localStorage : sessionStorage;
+            storage.setItem(
               REFRESH_TOKEN_STORAGE_KEY,
               response.refreshToken,
             );
@@ -74,8 +100,13 @@ export const useAuthStore = create<AuthStore>()(
 
       googleSignIn: async (credential: string): Promise<User> => {
         set({ isLoading: true, error: null });
+        localStorage.setItem("remember-me", "true");
         try {
           const response = await AuthService.googleSignIn(credential);
+          
+          localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+          sessionStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+
           if (response.refreshToken) {
             localStorage.setItem(
               REFRESH_TOKEN_STORAGE_KEY,
@@ -97,8 +128,13 @@ export const useAuthStore = create<AuthStore>()(
 
       signUp: async (payload: SignUpPayload): Promise<User> => {
         set({ isLoading: true, error: null });
+        localStorage.setItem("remember-me", "true");
         try {
           const response = await AuthService.signUp(payload);
+          
+          localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+          sessionStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+
           if (response.refreshToken) {
             localStorage.setItem(
               REFRESH_TOKEN_STORAGE_KEY,
@@ -119,21 +155,25 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       signOut: async () => {
-        set({ isLoading: true });
-        try {
-          await AuthService.logout();
-        } catch (error) {
-          console.error("Logout error:", error);
-        } finally {
-          localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
-          localStorage.removeItem(USER_STORAGE_KEY);
-          set({
-            user: null,
-            accessToken: null,
-            isLoading: false,
-            error: null,
-          });
-        }
+        // 1. Instantly clear all storages and reset global store state
+        localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+        sessionStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+        localStorage.removeItem(USER_STORAGE_KEY);
+        localStorage.removeItem("auth-storage");
+        sessionStorage.removeItem("auth-storage");
+        localStorage.removeItem("remember-me");
+
+        set({
+          user: null,
+          accessToken: null,
+          isLoading: false,
+          error: null,
+        });
+
+        // 2. Trigger backend sign-out in the background asynchronously
+        AuthService.logout().catch((error) => {
+          console.error("Background logout error:", error);
+        });
       },
 
       clearError: () => {
@@ -161,6 +201,7 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: "auth-storage",
+      storage: createJSONStorage(() => dynamicStorage),
       partialize: (state) => ({
         accessToken: state.accessToken,
         user: state.user,

@@ -17,10 +17,15 @@ const createApiClient = (): AxiosInstance => {
     withCredentials: true,
   });
 
+  // Helper to get storage data dynamically from either provider
+  const getStoredAuth = (): string | null => {
+    return localStorage.getItem("auth-storage") || sessionStorage.getItem("auth-storage");
+  };
+
   // Request interceptor
   api.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
-      const rawAuth = localStorage.getItem("auth-storage");
+      const rawAuth = getStoredAuth();
       const token = rawAuth
         ? (JSON.parse(rawAuth) as { state?: { accessToken?: string } })?.state
             ?.accessToken
@@ -41,7 +46,7 @@ const createApiClient = (): AxiosInstance => {
         _retryCount?: number;
       };
 
-      // Skip refresh untuk auth endpoints
+      // Skip refresh for auth endpoints
       if (
         originalRequest.url?.includes("/auth/signin") ||
         originalRequest.url?.includes("/auth/signup") ||
@@ -69,7 +74,8 @@ const createApiClient = (): AxiosInstance => {
           if (!accessToken) {
             throw new Error("Refresh response missing accessToken");
           }
-          const rawAuth = localStorage.getItem("auth-storage");
+          
+          const rawAuth = getStoredAuth();
           const parsed = rawAuth
             ? (JSON.parse(rawAuth) as { state?: { accessToken?: string } })
             : { state: {} };
@@ -80,7 +86,11 @@ const createApiClient = (): AxiosInstance => {
               accessToken,
             },
           };
-          localStorage.setItem("auth-storage", JSON.stringify(nextState));
+          
+          // Write to the correct target storage
+          const remember = localStorage.getItem("remember-me") === "true";
+          const storageTarget = remember ? localStorage : sessionStorage;
+          storageTarget.setItem("auth-storage", JSON.stringify(nextState));
 
           if (originalRequest.headers) {
             originalRequest.headers.Authorization = `Bearer ${accessToken}`;
@@ -88,8 +98,11 @@ const createApiClient = (): AxiosInstance => {
 
           return api(originalRequest);
         } catch (err) {
+          // Clear everything
           localStorage.removeItem("auth-storage");
+          sessionStorage.removeItem("auth-storage");
           localStorage.removeItem("refreshToken");
+          sessionStorage.removeItem("refreshToken");
           window.location.href = "/signin";
           return Promise.reject(err);
         }

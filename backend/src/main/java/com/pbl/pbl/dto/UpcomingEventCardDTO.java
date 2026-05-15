@@ -24,5 +24,7 @@ public class UpcomingEventCardDTO {
     private String provinceName;
     private BigDecimal minPrice;
     private BigDecimal maxPrice;
+    private Double latitude;
+    private Double longitude;
 }
 

@@ -21,6 +21,8 @@ interface UpcomingEvent {
   maxPrice?: number
   ticketsLeft?: number
   totalTickets?: number
+  latitude?: number
+  longitude?: number
   status: 'pending' | 'sold_out' | 'ended' | 'upcoming'
 }
 
@@ -148,7 +150,7 @@ const Homepage = () => {
       return { lat: 10.7769, lng: 106.7009 }
     }
 
-    const buildNearbyMapEvents = async () => {
+    const buildNearbyMapEvents = () => {
       if (upcomingEvents.length === 0) {
         setNearbyMapEvents([])
         return
@@ -156,59 +158,38 @@ const Homepage = () => {
 
       setIsMapLoading(true)
       try {
-        const geocoded = await Promise.all(
-          upcomingEvents.slice(0, 20).map(async (event) => {
-            const query = [event.location, event.provinceName, 'Viet Nam'].filter(Boolean).join(', ')
-            let lat: number | null = null
-            let lng: number | null = null
-            try {
-              // Attempt 1: Full query
-              const query = [event.location, event.provinceName, 'Viet Nam'].filter(Boolean).join(', ')
-              const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`)
-              const data = await res.json()
+        const mapped = upcomingEvents.slice(0, 20).map((event) => {
+          let lat = event.latitude
+          let lng = event.longitude
 
-              if (Array.isArray(data) && data.length > 0) {
-                lat = Number(data[0].lat)
-                lng = Number(data[0].lon)
-              } else {
-                // Attempt 2: Province only
-                const provinceQuery = [event.provinceName, 'Viet Nam'].filter(Boolean).join(', ')
-                const resProv = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(provinceQuery)}`)
-                const dataProv = await resProv.json()
-                if (Array.isArray(dataProv) && dataProv.length > 0) {
-                  lat = Number(dataProv[0].lat)
-                  lng = Number(dataProv[0].lon)
-                }
-              }
-            } catch (err) {
-              console.warn(`Geocoding failed for ${event.title}:`, err)
-            }
+          // Fallback only if explicit coordinates are not stored in database
+          if (lat == null || lng == null) {
+            const fallback = getFallbackCoords(event.provinceName, event.location)
+            // Add subtle jitter to prevent perfectly overlapping pins in the same province
+            const latJitter = (Math.random() - 0.5) * 0.06
+            const lngJitter = (Math.random() - 0.5) * 0.06
+            lat = fallback.lat + latJitter
+            lng = fallback.lng + lngJitter
+          }
 
-            if (lat === null || lng === null || Number.isNaN(lat) || Number.isNaN(lng)) {
-              const fallback = getFallbackCoords(event.provinceName, event.location)
-              lat = fallback.lat
-              lng = fallback.lng
-            }
-
-            return {
-              id: String(event.id),
-              title: event.title,
-              lat,
-              lng,
-              location: event.location,
-              date: toDisplayDate(event.startTime),
-              time: toDisplayTime(event.startTime),
-              provinceName: event.provinceName || '',
-              image: event.posterUrl,
-            } as NearbyMapEvent
-          })
-        )
+          return {
+            id: String(event.id),
+            title: event.title,
+            lat,
+            lng,
+            location: event.location,
+            date: toDisplayDate(event.startTime),
+            time: toDisplayTime(event.startTime),
+            provinceName: event.provinceName || '',
+            image: event.posterUrl,
+          } as NearbyMapEvent
+        })
 
         if (isMounted) {
-          setNearbyMapEvents(geocoded.filter((e): e is NearbyMapEvent => !!e))
+          setNearbyMapEvents(mapped)
         }
       } catch (error) {
-        console.error('Failed to geocode upcoming event locations:', error)
+        console.error('Failed to process upcoming event locations:', error)
         if (isMounted) setNearbyMapEvents([])
       } finally {
         if (isMounted) setIsMapLoading(false)
@@ -518,24 +499,21 @@ const Homepage = () => {
               { icon: 'shopping_cart', title: 'Chọn vé', desc: 'Xem chi tiết, chỗ ngồi (nếu có) và số lượng vé còn lại.', color: 'purple' },
               { icon: 'qr_code_2', title: 'Nhận vé', desc: 'Nhận e-ticket nhanh chóng và check-in tiện lợi tại cổng.', color: 'emerald' },
             ].map((step, idx) => (
-              <div key={step.title} className={`rounded-3xl border border-transparent p-8 group hover:shadow-[0_20px_50px_rgba(0,0,0,0.08)] transition-all duration-500 hover:-translate-y-2 ${
-                step.color === 'blue' ? 'bg-blue-50/40 hover:bg-white hover:border-blue-100' : 
-                step.color === 'purple' ? 'bg-purple-50/40 hover:bg-white hover:border-purple-100' : 
-                'bg-emerald-50/40 hover:bg-white hover:border-emerald-100'
-              }`}>
+              <div key={step.title} className={`rounded-3xl border border-transparent p-8 group hover:shadow-[0_20px_50px_rgba(0,0,0,0.08)] transition-all duration-500 hover:-translate-y-2 ${step.color === 'blue' ? 'bg-blue-50/40 hover:bg-white hover:border-blue-100' :
+                  step.color === 'purple' ? 'bg-purple-50/40 hover:bg-white hover:border-purple-100' :
+                    'bg-emerald-50/40 hover:bg-white hover:border-emerald-100'
+                }`}>
                 <div className="flex items-center justify-between mb-6">
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 group-hover:rotate-12 ${
-                    step.color === 'blue' ? 'bg-blue-600 text-white shadow-xl shadow-blue-200' : 
-                    step.color === 'purple' ? 'bg-purple-600 text-white shadow-xl shadow-purple-200' : 
-                    'bg-emerald-600 text-white shadow-xl shadow-emerald-200'
-                  }`}>
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 group-hover:rotate-12 ${step.color === 'blue' ? 'bg-blue-600 text-white shadow-xl shadow-blue-200' :
+                      step.color === 'purple' ? 'bg-purple-600 text-white shadow-xl shadow-purple-200' :
+                        'bg-emerald-600 text-white shadow-xl shadow-emerald-200'
+                    }`}>
                     <Icon name={step.icon} size="lg" />
                   </div>
-                  <span className={`text-[10px] font-black tracking-[0.2em] uppercase ${
-                    step.color === 'blue' ? 'text-blue-600/30' : 
-                    step.color === 'purple' ? 'text-purple-600/30' : 
-                    'text-emerald-600/30'
-                  }`}>Step 0{idx + 1}</span>
+                  <span className={`text-[10px] font-black tracking-[0.2em] uppercase ${step.color === 'blue' ? 'text-blue-600/30' :
+                      step.color === 'purple' ? 'text-purple-600/30' :
+                        'text-emerald-600/30'
+                    }`}>Step 0{idx + 1}</span>
                 </div>
                 <h4 className="text-lg font-black text-slate-900 mb-3">{step.title}</h4>
                 <p className="text-sm text-slate-500 font-bold leading-relaxed">{step.desc}</p>

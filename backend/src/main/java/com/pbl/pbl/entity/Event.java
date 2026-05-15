@@ -76,6 +76,9 @@ public class Event {
     @Builder.Default
     private Ward ward = null;
 
+    private Double latitude;
+    private Double longitude;
+
     @Column(nullable = false)
     private LocalDateTime startTime;
 

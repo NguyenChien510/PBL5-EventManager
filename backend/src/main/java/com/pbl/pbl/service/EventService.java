@@ -357,6 +357,8 @@ public class EventService {
                         .maxPrice(minMaxByEventId.containsKey(e.getId()) ? minMaxByEventId.get(e.getId())[1] : null)
                         .ticketsLeft(ticketsLeftByEventId.getOrDefault(e.getId(), 0))
                         .totalTickets(totalTicketsByEventId.getOrDefault(e.getId(), 0))
+                        .latitude(e.getLatitude())
+                        .longitude(e.getLongitude())
                         .build())
                 .sorted((e1, e2) -> {
                     if (sortBy == null || sortBy.equals("Mới nhất")) {
@@ -411,6 +413,8 @@ public class EventService {
                 .artists(artists)
                 .description(request.getDescription())
                 .location(request.getLocation())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
                 .startTime(eventStart)
                 .endTime(eventEnd)
                 .posterUrl(request.getPosterUrl())
@@ -542,6 +546,8 @@ public class EventService {
                 .startTime(event.getStartTime())
                 .endTime(event.getEndTime())
                 .posterUrl(event.getPosterUrl())
+                .latitude(event.getLatitude())
+                .longitude(event.getLongitude())
                 .status(event.getStatus())
                 .rejectReason(event.getRejectReason())
                 .createdAt(event.getCreatedAt())

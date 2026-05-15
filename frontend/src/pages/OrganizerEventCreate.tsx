@@ -637,6 +637,8 @@ const OrganizerEventCreate = () => {
         location: searchQuery,
         provinceId: selectedProvince?.id,
         wardId: selectedWard?.id,
+        latitude: mapPosition?.lat,
+        longitude: mapPosition?.lng,
         posterUrl,
         sessions: sessions.map(s => ({
           sessionDate: s.sessionDate,
