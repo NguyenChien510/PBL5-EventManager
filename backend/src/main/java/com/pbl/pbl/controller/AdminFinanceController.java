@@ -3,11 +3,17 @@ package com.pbl.pbl.controller;
 import com.pbl.pbl.dto.AdminFinanceOverviewDTO;
 import com.pbl.pbl.dto.FinanceConfigDTO;
 import com.pbl.pbl.entity.SystemConfig;
+import com.pbl.pbl.entity.User;
 import com.pbl.pbl.repository.OrderRepository;
 import com.pbl.pbl.repository.SystemConfigRepository;
+import com.pbl.pbl.repository.UserRepository;
+import com.pbl.pbl.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.ArrayList;
 
 @RestController
 @RequestMapping("/api/admin/finance")
@@ -16,6 +22,8 @@ public class AdminFinanceController {
 
     private final SystemConfigRepository systemConfigRepository;
     private final OrderRepository orderRepository;
+    private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @GetMapping("/overview")
     public ResponseEntity<AdminFinanceOverviewDTO> getOverview() {
@@ -48,7 +56,21 @@ public class AdminFinanceController {
 
     @PostMapping("/config")
     public ResponseEntity<Void> updateConfig(@RequestBody FinanceConfigDTO configDTO) {
+        String oldRate = getConfigValue("DEFAULT_COMMISSION_RATE", "10");
         saveConfig("DEFAULT_COMMISSION_RATE", configDTO.getDefaultCommissionRate(), "Tỷ lệ thuế/phí nền tảng mặc định (%)");
+        
+        if (configDTO.getDefaultCommissionRate() != null && !configDTO.getDefaultCommissionRate().equals(oldRate)) {
+            String msg = "Phí hệ thống (Platform Fee) đã thay đổi từ " + oldRate + "% thành " + configDTO.getDefaultCommissionRate() + "%";
+            
+            List<User> targetUsers = new ArrayList<>();
+            targetUsers.addAll(userRepository.findByRole_Name("ADMIN"));
+            targetUsers.addAll(userRepository.findByRole_Name("ORGANIZER"));
+            
+            for (User target : targetUsers) {
+                notificationService.createNotification(msg, target);
+            }
+        }
+
         if (configDTO.getAutoApply() != null) {
             saveConfig("AUTO_APPLY_COMMISSION", String.valueOf(configDTO.getAutoApply()), "Tự động áp dụng phí hệ thống cho đơn hàng");
         }

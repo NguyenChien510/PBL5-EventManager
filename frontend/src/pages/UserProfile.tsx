@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Icon, Avatar } from '../components/ui'
-import { DashboardLayout } from '../components/layout'
+import { DashboardLayout, PageHeader } from '../components/layout'
 import { userSidebarConfig } from '../config/userSidebarConfig'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '../stores/useAuthStore'
 import { apiClient } from '../utils/axios'
 
@@ -15,6 +15,7 @@ const sidebarConfig = userSidebarConfig
 
 const UserProfile = () => {
   const { user, setUser } = useAuthStore()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [tickets, setTickets] = useState<any[]>([])
   const [selectedTicket, setSelectedTicket] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -128,7 +129,7 @@ const UserProfile = () => {
     try {
       setIsUploading(true)
       const toastId = toast.loading('Đang xử lý và tải ảnh lên...', { id: 'avatar-upload' })
-      
+
       const croppedImageBlob = await getCroppedImg(tempImage, croppedAreaPixels)
       const file = new File([croppedImageBlob], 'avatar.jpg', { type: 'image/jpeg' })
 
@@ -138,7 +139,7 @@ const UserProfile = () => {
       const res = await apiClient.post('/users/upload-avatar', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
-      
+
       setUser(res.data)
       setShowCropModal(false)
       setTempImage(null)
@@ -188,6 +189,46 @@ const UserProfile = () => {
     }
     fetchData()
   }, [])
+
+  // Auto-open QR code modal if page is accessed with openEvent param from a notification
+  useEffect(() => {
+    if (tickets.length === 0) return
+
+    const openEventName = searchParams.get('openEvent')
+    if (!openEventName) return
+
+    // 1. Find matching ticket in raw list to prevent activeTab exclusion issues
+    const matchingTicket = tickets.find(t => 
+      t.title?.toLowerCase() === decodeURIComponent(openEventName).toLowerCase()
+    )
+
+    if (matchingTicket) {
+      // 2. Group by matching order
+      const orderId = matchingTicket.orderId || 'N/A'
+      const orderGroup = tickets.filter(t => (t.orderId || 'N/A') === orderId)
+
+      if (orderGroup.length > 0) {
+        // Open the Modal
+        setSelectedTicket(orderGroup)
+        
+        // Clear query params from URL dynamically without refresh
+        const params = new URLSearchParams(searchParams)
+        params.delete('openEvent')
+        setSearchParams(params, { replace: true })
+
+        // Set tab to show everything to make sure UI state is synced
+        setActiveTab('Tất cả')
+
+        // Smooth scroll down to the tickets section to give context
+        setTimeout(() => {
+          const section = document.getElementById('my-tickets-section')
+          if (section) {
+            section.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+        }, 300)
+      }
+    }
+  }, [tickets, searchParams, setSearchParams])
 
   useEffect(() => {
     if (showPasswordModal || selectedTicket || showNameModal) {
@@ -240,21 +281,12 @@ const UserProfile = () => {
   return (
     <>
       <DashboardLayout sidebarProps={sidebarConfig}>
-        {/* Header */}
-        <header className="h-20 px-8 lg:px-12 flex items-center justify-between sticky top-0 z-40 bg-white border-b border-slate-100/50">
-          <h2 className="text-xl font-bold text-slate-800">Hồ sơ người dùng</h2>
-          <div className="flex items-center gap-5">
-            <button className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-primary transition-colors">
-              <Icon name="search" />
-            </button>
-            <button className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-primary relative">
-              <Icon name="notifications" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full" />
-            </button>
-          </div>
-        </header>
+        {/* Animated Page Header with fully functional notifications and search */}
+        <div className="animate-in fade-in slide-in-from-top-4 duration-700">
+          <PageHeader title="Hồ sơ người dùng" subtitle="Thông tin cá nhân & lịch sử hoạt động của bạn" />
+        </div>
 
-        <div className="px-8 lg:px-12 pb-12 space-y-6">
+        <div className="px-8 lg:px-12 pt-6 lg:pt-8 pb-12 space-y-6">
           {/* Profile Card + Points */}
           <section className="grid grid-cols-1 xl:grid-cols-12 gap-12">
             {/* Profile Info */}
@@ -262,11 +294,11 @@ const UserProfile = () => {
               <div className="absolute top-0 right-0 w-48 h-48 bg-slate-50 rounded-full blur-3xl -mr-24 -mt-24 opacity-50 group-hover:bg-primary/5 transition-colors duration-700" />
 
               <div className="relative shrink-0">
-                <Avatar 
+                <Avatar
                   key={user?.avatar}
-                  src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.fullName || 'User')}&background=random`} 
-                  size="xl" 
-                  className="w-24 h-24 lg:w-28 lg:h-28 rounded-[1.5rem] shadow-xl border-4 border-white ring-1 ring-slate-100 object-cover" 
+                  src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.fullName || 'User')}&background=random`}
+                  size="xl"
+                  className="w-24 h-24 lg:w-28 lg:h-28 rounded-[1.5rem] shadow-xl border-4 border-white ring-1 ring-slate-100 object-cover"
                 />
                 <label htmlFor="avatar-upload" className="absolute -bottom-2 -right-2 w-10 h-10 bg-primary text-white rounded-xl shadow-lg border-2 border-white flex items-center justify-center cursor-pointer hover:scale-110 active:scale-95 transition-all">
                   <Icon name="camera_alt" size="sm" />
@@ -279,7 +311,7 @@ const UserProfile = () => {
                   <div className="flex flex-col md:flex-row items-center gap-3 mb-3">
                     <h3 className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight">{user?.fullName}</h3>
                     <div className={`px-3.5 py-1.5 ${tier.className} text-[9px] rounded-full border uppercase tracking-widest flex items-center gap-1.5 transition-all duration-500 select-none hover:scale-105`}>
-                      <Icon name={tier.icon} size="sm" className={`scale-90 ${tier.iconColor}`} filled={true} /> 
+                      <Icon name={tier.icon} size="sm" className={`scale-90 ${tier.iconColor}`} filled={true} />
                       <span>{tier.label}</span>
                     </div>
                   </div>
@@ -333,7 +365,7 @@ const UserProfile = () => {
           </section>
 
           {/* Tickets */}
-          <section className="space-y-6">
+          <section id="my-tickets-section" className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
@@ -527,7 +559,7 @@ const UserProfile = () => {
                   <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-blue-600/20 rounded-[2.5rem] blur opacity-25 group-hover/qr:opacity-50 transition duration-1000" />
                   <div className="relative text-center bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm">
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mb-3">Mã QR Check-in Duy nhất</p>
-                    
+
                     <div className="relative inline-block mb-3 p-3 bg-slate-50 rounded-3xl group-hover/qr:bg-white transition-colors duration-500">
                       <img
                         src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${Array.isArray(selectedTicket) ? selectedTicket[0].orderQrCode : selectedTicket.orderQrCode}`}
@@ -762,14 +794,14 @@ const UserProfile = () => {
                 <h3 className="text-lg font-black text-slate-900 leading-tight">Căn chỉnh ảnh</h3>
                 <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-0.5">Kéo để di chuyển, cuộn để phóng to</p>
               </div>
-              <button 
-                onClick={() => setShowCropModal(false)} 
+              <button
+                onClick={() => setShowCropModal(false)}
                 className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition-all active:scale-90"
               >
                 <Icon name="close" size="sm" />
               </button>
             </div>
-            
+
             <div className="relative flex-1 min-h-[300px] sm:min-h-[400px] bg-slate-950">
               <Cropper
                 image={tempImage}
@@ -809,7 +841,7 @@ const UserProfile = () => {
                     onChange={(e) => setZoom(Number(e.target.value))}
                     className="absolute w-full h-full opacity-0 cursor-pointer z-10"
                   />
-                  <div 
+                  <div
                     className="absolute w-5 h-5 bg-white border-2 border-primary rounded-full shadow-md pointer-events-none transition-transform"
                     style={{ left: `calc(${((zoom - 1) / 2) * 100}% - 10px)` }}
                   />

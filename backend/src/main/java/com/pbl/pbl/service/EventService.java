@@ -230,7 +230,7 @@ public class EventService {
         event.setRejectReason(null);
         Event saved = eventRepository.save(event);
 
-        List<com.pbl.pbl.entity.User> admins = userRepository.findByRole_Name("ROLE_ADMIN");
+        List<com.pbl.pbl.entity.User> admins = userRepository.findByRole_Name("ADMIN");
         emailService.sendEventPendingReview(saved, admins);
 
         return convertToResponseDTO(saved);

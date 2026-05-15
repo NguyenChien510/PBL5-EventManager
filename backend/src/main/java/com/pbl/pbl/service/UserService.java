@@ -49,6 +49,10 @@ public class UserService {
     private CloudinaryService cloudinaryService;
 
     public UserDTO getCurrentUser() {
+        return userMapper.toDto(getCurrentUserEntity());
+    }
+
+    public User getCurrentUserEntity() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         
         if (authentication == null || !authentication.isAuthenticated()) {
@@ -56,13 +60,9 @@ public class UserService {
             throw UnauthorizedException.notAuthenticated();
         }
 
-        // authentication.getName() now holds the email since we put email as the UserDetails username
         String email = authentication.getName();
-        User user = userRepository.findByEmail(email)
+        return userRepository.findByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException(email, "email"));
-
-        log.debug("Retrieved current user: {}", email);
-        return userMapper.toDto(user);
     }
 
     @Transactional

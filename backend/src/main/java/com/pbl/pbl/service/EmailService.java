@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 public class EmailService {
 
     private final JavaMailSender mailSender;
+    private final NotificationService notificationService;
 
     @Value("${spring.mail.username}")
     private String fromEmail;
@@ -33,8 +34,9 @@ public class EmailService {
     private String frontendUrl;
 
     @Autowired
-    public EmailService(JavaMailSender mailSender) {
+    public EmailService(JavaMailSender mailSender, NotificationService notificationService) {
         this.mailSender = mailSender;
+        this.notificationService = notificationService;
     }
 
     @Async
@@ -116,6 +118,10 @@ public class EmailService {
 
             helper.setText(content, true);
             mailSender.send(message);
+            
+            // Create in-app notification
+            notificationService.createNotification("Đặt vé thành công cho sự kiện \"" + event.getTitle() + "\". Hãy kiểm tra chi tiết trong phần vé của bạn!", user);
+            
             log.info("Successfully sent ticket confirmation email for order {} to {}", order.getId(), user.getEmail());
         } catch (Exception e) {
             log.error("Failed to send ticket confirmation email for order {}", order.getId(), e);
@@ -160,6 +166,10 @@ public class EmailService {
 
             helper.setText(content, true);
             mailSender.send(message);
+            
+            // Create in-app notification for organizer
+            notificationService.createNotification("🚀 Sự kiện \"" + event.getTitle() + "\" của bạn đã được phê duyệt thành công!", organizer);
+            
             log.info("Successfully sent event approved email to organizer {}", organizer.getEmail());
         } catch (Exception e) {
             log.error("Failed to send event approved email for event id {}", event.getId(), e);
@@ -210,6 +220,10 @@ public class EmailService {
 
             helper.setText(content, true);
             mailSender.send(message);
+            
+            // Create in-app notification for organizer
+            notificationService.createNotification("💬 Nhận xét mới cho \"" + event.getTitle() + "\": " + commenter.getFullName() + " đã đánh giá " + comment.getRating() + "⭐", organizer);
+            
             log.info("Successfully sent feedback notification email to organizer {}", organizer.getEmail());
         } catch (Exception e) {
             log.error("Failed to send feedback notification email for organizer", e);
@@ -266,6 +280,9 @@ public class EmailService {
 
                     helper.setText(content, true);
                     mailSender.send(message);
+                    
+                    // Create in-app notification for each admin
+                    notificationService.createNotification("🔔 [KIỂM DUYỆT] Yêu cầu duyệt sự kiện \"" + event.getTitle() + "\" từ " + organizer.getFullName(), admin);
                 } catch (Exception e) {
                     log.error("Failed to send pending event email to individual admin {}", admin.getEmail(), e);
                 }

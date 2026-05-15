@@ -11,14 +11,12 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SystemConfig {
-
     @Id
-    @Column(name = "config_key", unique = true, nullable = false)
+    @Column(name = "config_key")
     private String configKey;
 
     @Column(name = "config_value", nullable = false)
     private String configValue;
 
-    @Column(name = "description")
     private String description;
 }
