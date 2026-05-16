@@ -13,10 +13,13 @@ from psycopg2.extras import RealDictCursor
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 from langchain_postgres.vectorstores import PGVector
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.documents import Document
+from langchain_classic.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_classic.schema import Document
+from langchain_classic.tools import tool
+from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
+from sqlalchemy import create_engine, text
+import re
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -46,9 +49,65 @@ DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 
 # Initialize components
-EMBEDDING_MODEL = "models/gemini-embedding-001" 
-embeddings = GoogleGenerativeAIEmbeddings(model=EMBEDDING_MODEL, google_api_key=GOOGLE_API_KEY)
+# Sử dụng Gemini Embedding 2 mới nhất
+embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-2", google_api_key=GOOGLE_API_KEY)
+# Sử dụng Gemini 2.5 Flash - Model mới nhất trong danh sách của bạn
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0, google_api_key=GOOGLE_API_KEY)
+
+# Safe SQL Middleware
+class SafeSQLMiddleware:
+    def __init__(self):
+        self.connection_string = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        self.engine = create_engine(self.connection_string)
+        self.forbidden_keywords = ["DROP", "DELETE", "UPDATE", "TRUNCATE", "ALTER", "INSERT", "GRANT", "REVOKE"]
+
+    def execute(self, query: str):
+        query_upper = query.upper().strip()
+        if not query_upper.startswith("SELECT"):
+            return "Lỗi: Chỉ cho phép truy vấn SELECT để đảm bảo an toàn."
+        
+        for word in self.forbidden_keywords:
+            if re.search(rf"\b{word}\b", query_upper):
+                return f"Lỗi: Truy vấn chứa từ khóa bị cấm ({word})."
+
+        try:
+            with self.engine.connect() as conn:
+                # Wrap query to limit results
+                safe_query = f"SELECT * FROM ({query.rstrip(';')}) AS sub LIMIT 15"
+                result = conn.execute(text(safe_query))
+                rows = [dict(row._mapping) for row in result]
+                return rows if rows else "Không tìm thấy dữ liệu."
+        except Exception as e:
+            return f"Lỗi thực thi SQL: {str(e)}"
+
+db_safe = SafeSQLMiddleware()
+
+# Define Tools
+@tool
+def query_database(query: str):
+    """Sử dụng để tra cứu dữ liệu chính xác từ database SQL (ví dụ: đếm số lượng, lọc giá, tìm địa điểm). Chỉ được dùng lệnh SELECT."""
+    return db_safe.execute(query)
+
+@tool
+def search_events_semantic(query: str):
+    """Sử dụng để tìm kiếm sự kiện dựa trên ý nghĩa, mô tả hoặc tư vấn chung khi không cần dữ liệu SQL chính xác."""
+    vs = get_vectorstore()
+    docs = vs.similarity_search(query, k=5)
+    return "\n---\n".join([d.page_content for d in docs])
+
+tools = [query_database, search_events_semantic]
+
+# Agent Memory
+from langchain_classic.memory import ChatMessageHistory
+from langchain_classic.schema import BaseChatMessageHistory
+from langchain_classic.schema.runnable.history import RunnableWithMessageHistory
+
+store = {}
+
+def get_session_history(session_id: str) -> BaseChatMessageHistory:
+    if session_id not in store:
+        store[session_id] = ChatMessageHistory()
+    return store[session_id]
 
 from google import genai
 
@@ -59,13 +118,12 @@ async def list_models():
         client = genai.Client(api_key=GOOGLE_API_KEY)
         models = []
         for m in client.models.list():
-            # Lọc các model có hỗ trợ embedContent
-            if "embedContent" in m.supported_actions:
-                models.append({
-                    "name": m.name,
-                    "description": m.description
-                })
-        return {"embedding_models_available": models}
+            models.append({
+                "name": m.name,
+                "supported_actions": m.supported_actions,
+                "description": m.description
+            })
+        return {"models_available": models}
     except Exception as e:
         return {"error": str(e)}
 
@@ -91,10 +149,11 @@ def get_vectorstore():
 
 class ChatRequest(BaseModel):
     message: str
+    session_id: str = "default_session"
 
 class ChatResponse(BaseModel):
     answer: str
-    sources: List[str] = []
+    intermediate_steps: List[str] = []
 
 @app.get("/")
 def read_root():
@@ -102,71 +161,63 @@ def read_root():
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    vs = get_vectorstore()
-    retriever = vs.as_retriever(search_kwargs={"k": 5})
+    # System prompt for Agent với thông tin thời gian thực
+    current_date = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", f"""Bạn là trợ lý ảo AI Agent chuyên nghiệp của EventPlatform. 
+Hôm nay là ngày: {current_date}.
 
-    # System instruction
-    template = """Bạn là trợ lý ảo thông minh của EventPlatform. 
-Hãy trả lời câu hỏi một cách chuyên nghiệp, thân thiện và trình bày thật đẹp mắt.
+Bạn có quyền truy cập vào Database SQL và Vector Store để trả lời câu hỏi.
 
-QUY TẮC TRÌNH BÀY:
-1. Sử dụng danh sách có dấu gạch đầu dòng (-) hoặc số thứ tự khi liệt kê nhiều sự kiện.
-2. Bôi đậm **Tên sự kiện** và **Thời gian**.
-3. Sử dụng các icon (📅, 📍, 🎤, 🏷️) để phân tách các thông tin:
-   - 📅 Ngày giờ
-   - 📍 Địa điểm
-   - 🎤 Nghệ sĩ
-   - 🏷️ Thể loại
-4. Nếu không có thông tin, hãy xin lỗi lịch sự.
+QUY TẮC:
+1. Luôn ưu tiên dùng `query_database` nếu câu hỏi cần số liệu chính xác. Mặc định dùng năm hiện tại ({datetime.now().year}) nếu không có yêu cầu khác.
+2. Dùng `search_events_semantic` khi cần tư vấn, tìm kiếm theo cảm xúc hoặc mô tả chung chung.
+3. Trình bày bằng Markdown chuyên nghiệp, dùng icon (📅, 📍, 🎟️, ⭐) và bôi đậm tên sự kiện.
+4. Tuyệt đối KHÔNG thực hiện lệnh INSERT, UPDATE, DELETE. Từ chối lịch sự nếu được yêu cầu.
 
-Danh sách TẤT CẢ sự kiện trong hệ thống (Dùng để trả lời các câu hỏi thống kê số lượng, đếm tháng, liệt kê tổng quan):
-{all_events_summary}
+DATABASE SCHEMA:
+- Bảng `events`: id, title, description, location, start_time, end_time, status, tickets_left, rating.
+- Bảng `ticket_types`: id, name (tên hạng vé), price (giá tiền), total_quantity, event_session_id.
+- Bảng `event_sessions`: id, event_id, session_date, start_time, end_time. (Kết nối `events` và `ticket_types`)
+- Bảng `categories`: id, name. (Kết nối qua `events.category_id`)
+- Bảng `artists`: id, name. (Kết nối qua bảng trung gian `event_artists`)
+- Bảng `comments`: content, rating, event_id. (Dùng để xem đánh giá của người dùng)
+"""),
+        MessagesPlaceholder(variable_name="history"),
+        ("human", "{input}"),
+        MessagesPlaceholder(variable_name="agent_scratchpad"),
+    ])
 
-Thông tin chi tiết tìm thấy cho câu hỏi (Dùng để trả lời chi tiết về 1 sự kiện cụ thể):
-{context}
+    agent = create_tool_calling_agent(llm, tools, prompt)
+    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-Câu hỏi của người dùng: {question}
-
-Câu trả lời của trợ lý:"""
-    
-    prompt = ChatPromptTemplate.from_template(template)
-
-    # Lấy tổng hợp tất cả sự kiện từ Database để AI có bức tranh toàn cảnh
-    try:
-        conn = psycopg2.connect(
-            host=DB_HOST, port=DB_PORT, database=DB_NAME, user=DB_USER, password=DB_PASSWORD
-        )
-        cur = conn.cursor()
-        cur.execute("SELECT title, start_time FROM events")
-        rows = cur.fetchall()
-        all_events_summary_str = "\n".join([f"- Tên: {r[0]} | Thời gian: {r[1]}" for r in rows])
-        if not all_events_summary_str:
-            all_events_summary_str = "Hiện chưa có sự kiện nào trong cơ sở dữ liệu."
-        cur.close()
-        conn.close()
-    except Exception as e:
-        logger.error(f"Error fetching all events summary: {e}")
-        all_events_summary_str = "Không thể lấy danh sách tổng hợp sự kiện."
-
-    # Building the chain (LCEL)
-    chain = (
-        {"context": retriever, "question": RunnablePassthrough(), "all_events_summary": lambda x: all_events_summary_str}
-        | prompt
-        | llm
-        | StrOutputParser()
+    agent_with_history = RunnableWithMessageHistory(
+        agent_executor,
+        get_session_history,
+        input_messages_key="input",
+        history_messages_key="history",
     )
 
     try:
-        # We need the source docs too for metadata, so we call retriever separately
-        docs = retriever.invoke(request.message)
-        context_str = "\n".join([doc.page_content for doc in docs])
+        response = agent_with_history.invoke(
+            {"input": request.message},
+            config={"configurable": {"session_id": request.session_id}}
+        )
         
-        answer = chain.invoke(request.message)
-        sources = [doc.metadata.get("source", "Unknown") for doc in docs]
+        # Trích xuất văn bản từ kết quả (Xử lý cả dict blocks và raw strings)
+        answer = response["output"]
+        if isinstance(answer, list):
+            parts = []
+            for block in answer:
+                if isinstance(block, dict):
+                    parts.append(block.get("text", ""))
+                elif isinstance(block, str):
+                    parts.append(block)
+            answer = "".join(parts)
         
-        return ChatResponse(answer=answer, sources=list(set(sources)))
+        return ChatResponse(answer=str(answer))
     except Exception as e:
-        logger.error(f"Error in /chat: {traceback.format_exc()}")
+        logging.error(f"Error in /chat Agent: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/sync-db")
