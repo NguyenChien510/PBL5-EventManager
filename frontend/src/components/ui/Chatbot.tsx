@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { ChatbotIcon } from './ChatbotIcon';
 
 interface Message {
   role: 'user' | 'ai';
@@ -12,6 +14,7 @@ const Chatbot: React.FC = () => {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { accessToken, user } = useAuthStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Dragging state
@@ -80,10 +83,15 @@ const Chatbot: React.FC = () => {
       const response = await fetch('http://localhost:8000/chat', {
         method: 'POST',
         mode: 'cors', // Đảm bảo cho phép gọi chéo domain
-        headers: { 
+        headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ message: input }),
+        body: JSON.stringify({
+          message: input,
+          session_id: user?.id || 'guest_session', // Dùng ID user làm session_id để lưu history
+          token: accessToken,
+          user_id: user?.id
+        }),
       });
 
       if (!response.ok) throw new Error('Network response was not ok');
@@ -100,42 +108,50 @@ const Chatbot: React.FC = () => {
   };
 
   return (
-    <div 
+    <div
       className="fixed bottom-6 right-24 z-[100]"
       style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
     >
-      {/* Floating Button */}
-      <button
-        onMouseDown={handleMouseDown}
-        onClick={handleIconClick}
-        className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-colors duration-300 ${
-          !isDragging ? 'hover:scale-110 transform cursor-pointer' : 'cursor-grabbing'
-        } ${
-          isOpen ? 'bg-slate-700 text-white' : 'bg-electric text-white shadow-electric/30'
-        }`}
-      >
-        <span className="material-symbols-outlined text-2xl">
-          {isOpen ? 'close' : 'smart_toy'}
-        </span>
-      </button>
+      {!isOpen && (
+        <button
+          onMouseDown={handleMouseDown}
+          onClick={handleIconClick}
+          className={`w-28 h-28 rounded-full flex items-center justify-center transition-all duration-300 ${!isDragging ? 'hover:scale-110 transform cursor-pointer' : 'cursor-grabbing'
+            } bg-transparent shadow-none hover:drop-shadow-[0_0_20px_rgba(111,157,255,0.6)]`}
+        >
+          <ChatbotIcon className="w-28 h-28" />
+        </button>
+      )}
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="absolute bottom-20 right-0 w-80 sm:w-96 h-[500px] bg-white rounded-3xl shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-300">
+        <div className="absolute bottom-0 right-0 w-80 sm:w-96 h-[500px] bg-white rounded-3xl shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-300">
           {/* Header */}
-          <div className="p-4 bg-gradient-to-r from-primary to-electric text-white flex justify-between items-center shrink-0">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined">smart_toy</span>
-              <div>
-                <h3 className="font-bold text-sm">Trợ lý EventPlatform</h3>
-                <div className="flex items-center gap-1">
-                  <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                  <span className="text-[10px] text-white/80">Đang trực tuyến</span>
+          <div
+            onMouseDown={handleMouseDown}
+            className={`relative p-4 bg-gradient-to-br from-primary/90 to-electric/90 backdrop-blur-xl text-white flex justify-between items-center shrink-0 shadow-lg border-b border-white/10 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+          >
+            {/* Glossy Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent pointer-events-none" />
+
+            <div className="flex items-center gap-3 relative z-10">
+              <div className="relative">
+                <div className="w-12 h-12 bg-white/10 rounded-2xl backdrop-blur-md flex items-center justify-center border border-white/20 shadow-inner">
+                  <ChatbotIcon className="w-10 h-10" />
                 </div>
+                <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-primary rounded-full shadow-lg animate-pulse"></span>
+              </div>
+
+              <div>
+                <h3 className="font-bold text-base tracking-tight leading-none mb-1">Trợ lý EventPlatform</h3>
               </div>
             </div>
-            <button onClick={() => setIsOpen(false)} className="hover:bg-white/20 p-1 rounded-lg transition-colors">
-              <span className="material-symbols-outlined text-xl">close</span>
+
+            <button
+              onClick={() => setIsOpen(false)}
+              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all active:scale-95 border border-white/10 shadow-sm"
+            >
+              <span className="material-symbols-outlined text-lg">close</span>
             </button>
           </div>
 
@@ -144,11 +160,10 @@ const Chatbot: React.FC = () => {
             {messages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div
-                  className={`max-w-[80%] p-3 rounded-2xl text-sm whitespace-pre-wrap ${
-                    msg.role === 'user'
-                      ? 'bg-primary text-white rounded-tr-none'
-                      : 'bg-white text-slate-700 shadow-sm border border-slate-100 rounded-tl-none'
-                  }`}
+                  className={`max-w-[80%] p-3 rounded-2xl text-sm whitespace-pre-wrap ${msg.role === 'user'
+                    ? 'bg-primary text-white rounded-tr-none'
+                    : 'bg-white text-slate-700 shadow-sm border border-slate-100 rounded-tl-none'
+                    }`}
                 >
                   {msg.content}
                 </div>
@@ -174,6 +189,8 @@ const Chatbot: React.FC = () => {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               placeholder="Nhập tin nhắn..."
+              spellCheck="false"
+              autoComplete="off"
               className="flex-1 bg-slate-100 border-none rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
             />
             <button

@@ -2,7 +2,8 @@ import os
 import logging
 import traceback
 import requests
-from typing import List
+from contextvars import ContextVar
+from typing import List, Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -56,6 +57,8 @@ QDRANT_URL = os.getenv("QDRANT_URL", "https://94e3d96c-ddc5-4a98-a77c-a4df1d317a
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIiwic3ViamVjdCI6ImFwaS1rZXk6Mjc1NjM2MDYtZWM2Ni00NzA0LWE0OGQtNzgwNWZiNmVhZGE0In0.vSJCvzHTQkcirk826fyGJyNGcV3Vp7aMdps767w0b7g")
 QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "event_platform")
 # Session management for user login
+# Global context for session tracking
+current_session_id_var: ContextVar[str] = ContextVar("current_session_id", default="default_session")
 user_sessions = {}  # session_id -> {"user_id": "...", "access_token": "..."}
 current_session_token = None  # Token for current booking session
 
@@ -105,7 +108,7 @@ def query_database(query: str):
 def search_events_semantic(query: str):
     """Sử dụng để tìm kiếm sự kiện dựa trên ý nghĩa, mô tả hoặc tư vấn chung khi không cần dữ liệu SQL chính xác."""
     vs = get_vectorstore()
-    docs = vs.similarity_search(query, k=5)
+    docs = vs.similarity_search(query, k=10)
     return "\n---\n".join([d.page_content for d in docs])
 
 # ======== Booking Tools ========
@@ -201,9 +204,13 @@ def get_event_seats(event_id: str, session_id: str = None):
     """
     try:
         eid = str(event_id)
+        target_session = session_id
+        if target_session in ["current", "default", None]:
+            target_session = current_session_id_var.get()
+            
         url = f"{BACKEND_URL}/api/events/{eid}/seats"
-        if session_id:
-            url += f"?sessionId={session_id}"
+        if target_session:
+            url += f"?sessionId={target_session}"
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
             data = response.json()
@@ -220,9 +227,23 @@ def get_event_seats(event_id: str, session_id: str = None):
             available = [s for s in seats if s.get("status") == "AVAILABLE"]
             if not available:
                 return "Không còn ghế trống."
-            result = f"Có {len(available)} ghế trống:\n"
-            for s in available[:20]:
-                result += f"- Row {s.get('row', 'N/A')}, Seat {s.get('seatNumber')} (ID: {s.get('id')})\n"
+            
+            # Kiểm tra xem có tọa độ x, y không
+            has_coords = any(s.get("x") is not None and s.get("y") is not None for s in available)
+            
+            result = f"Sự kiện này {'CÓ' if has_coords else 'KHÔNG CÓ'} sơ đồ tọa độ (x,y).\n"
+            result += f"Có {len(available)} ghế trống:\n"
+            
+            if has_coords:
+                result += "Hệ thống hỗ trợ chọn ghế trực quan qua tọa độ.\n"
+                for s in available[:20]:
+                    result += f"- Ghế {s.get('seatNumber')} (Row {s.get('row', 'N/A')}) | Tọa độ: ({s.get('x')}, {s.get('y')}) | ID: {s.get('id')}\n"
+            else:
+                result += "Sự kiện chỉ bán theo loại vé (không có sơ đồ ghế cụ thể).\n"
+                # Group by ticket type if possible or just list
+                for s in available[:15]:
+                    result += f"- Ghế {s.get('seatNumber')} | ID: {s.get('id')}\n"
+            
             return result
         else:
             return f"Lỗi lấy ghế: {response.status_code}"
@@ -240,15 +261,20 @@ def create_order_api(event_id: str, seat_ids: List[int], total_amount: int, sess
     """
     global current_session_token
     try:
+        # Fallback to context variable if session_id is default or None
+        target_session = session_id
+        if target_session in ["current", "default", None]:
+            target_session = current_session_id_var.get()
+
         token = current_session_token
         if not token:
-            session_data = user_sessions.get(session_id, {})
+            session_data = user_sessions.get(target_session, {})
             token = session_data.get("access_token")
         
         if not token:
-            return "Chưa đăng nhập! Vui lòng gọi login_user trước."
+            return f"Chưa đăng nhập! (Session: {target_session}). Vui lòng yêu cầu người dùng đăng nhập trên website."
         
-        user_id = user_sessions.get(session_id, {}).get("user_id")
+        user_id = user_sessions.get(target_session, {}).get("user_id")
         if not user_id:
             return "Không tìm thấy user ID. Vui lòng đăng nhập lại."
         
@@ -279,7 +305,7 @@ def create_order_api(event_id: str, seat_ids: List[int], total_amount: int, sess
             params = urllib.parse.parse_qs(parsed_url.query)
             order_id = params.get("txnRef", [None])[0]
             
-            return f"Đơn hàng đã được tạo thành công! (ID Đơn hàng: {order_id})\nLink thanh toán: {payment_url}\nBạn có muốn mình tự động thực hiện thanh toán luôn không?"
+            return f"Đơn hàng đã được tạo thành công! (ID Đơn hàng: {order_id})\nLink thanh toán gốc: {payment_url}"
         else:
             return f"Lỗi tạo đơn: {response.status_code} - {response.text}"
     except Exception as e:
@@ -331,7 +357,7 @@ def auto_pay_order(order_id: int):
     except Exception as e:
         return f"Lỗi hệ thống khi thanh toán: {str(e)}"
 
-tools = [query_database, search_events_semantic, login_user, search_events_api, get_event_details, get_event_seats, create_order_api, check_order_status, auto_pay_order]
+tools = [query_database, search_events_semantic, search_events_api, get_event_details, get_event_seats, create_order_api, check_order_status, auto_pay_order]
 
 # Agent Memory - simple list-based history
 from langchain_core.messages import HumanMessage, AIMessage
@@ -399,6 +425,8 @@ def get_vectorstore():
 class ChatRequest(BaseModel):
     message: str
     session_id: str = "default_session"
+    token: Optional[str] = None
+    user_id: Optional[str] = None
 
 class ChatResponse(BaseModel):
     answer: str
@@ -410,7 +438,18 @@ def read_root():
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    # System prompt for Agent với thông tin thời gian thực
+    session_id = request.session_id
+    current_session_id_var.set(session_id)
+    
+    # Auto-login if token provided from frontend
+    if request.token and request.user_id:
+        user_sessions[session_id] = {
+            "access_token": request.token,
+            "user_id": request.user_id
+        }
+        logger.info(f"Session {session_id} auto-authenticated with token.")
+
+    # System prompt cho Agent với thông tin thời gian thực
     current_date = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     prompt = ChatPromptTemplate.from_messages([
         ("system", f"""Bạn là trợ lý ảo AI Agent chuyên nghiệp của EventPlatform. 
@@ -418,40 +457,36 @@ Hôm nay là ngày: {current_date}.
 
 Bạn có quyền truy cập vào Database SQL, Vector Store và API để trả lời câu hỏi.
 
-📋 CÁC TOOL CÓ SẴN:
-- query_database: Truy vấn SQL chính xác
-- search_events_semantic: Tìm kiếm theo ý nghĩa
-- login_user(email, password, session_id): Đăng nhập để đặt vé
-- search_events_api(keyword, category_id, province): Tìm sự kiện qua API
-- get_event_details(event_id): Xem chi tiết + giá vé
-- get_event_seats(event_id, session_id): Xem ghế trống
-- create_order_api(event_id, seat_ids, session_id_from_user): Tạo đơn đặt vé
-- simulate_payment(order_id): Giả lập thanh toán (dev)
+🎫 QUY TẮC CHỌN TOOL (QUAN TRỌNG):
+1. **LUÔN LUÔN** dùng `query_database` khi người dùng hỏi về thời gian cụ thể (ví dụ: "tháng 5", "cuối tuần này", "ngày 20/5"), địa điểm cụ thể hoặc cần con số chính xác. Hãy tự viết câu lệnh SQL SELECT phù hợp.
+2. Dùng `search_events_semantic` khi người dùng hỏi chung chung, cần tư vấn theo cảm xúc hoặc mô tả sự kiện (ví dụ: "sự kiện nào vui nhộn", "có show diễn nào cho trẻ em không").
 
-🎫 QUY TRÌNH ĐẶT VÉ TỰ ĐỘNG:
-1. Hỏi email/password để đăng nhập
-2. Tìm sự kiện (search_events_api)
-3. Xem chi tiết + ghế (get_event_details, get_event_seats)
+🎨 QUY TẮC TRÌNH BÀY (PREMIUM UI):
+- Sử dụng Bảng (Table) Markdown để liệt kê danh sách sự kiện.
+- Cấu trúc bảng: | STT | Sự Kiện | Thời Gian | Địa Điểm | Trạng Thái |
+- Sử dụng các emoji phù hợp (📅, 🎭, 🎶, 📍, 🎟️).
+- Sau khi liệt kê, hãy cung cấp các gợi ý hành động như:
+  - `[Xem chi tiết ID: {id}]`
+  - `[Đặt vé ngay ID: {id}]`
+
+🎫 QUY TRÌNH ĐẶT VÉ TỰ ĐỘNG (Dành cho người dùng đã đăng nhập):
+1. Tìm sự kiện (Ưu tiên dùng `query_database` cho các câu hỏi về thời gian/địa điểm)
+2. Xem chi tiết + ghế (get_event_details, get_event_seats)
+3. **Xử lý linh hoạt theo loại ghế**:
+   - **Nếu sự kiện CÓ tọa độ (x,y)**: Hãy giới thiệu sơ đồ ghế và đề xuất người dùng chọn vị trí đẹp (ví dụ: "Bạn có muốn chọn ghế ở hàng đầu không?").
+   - **Nếu sự kiện KHÔNG CÓ tọa độ**: Chỉ liệt kê danh sách các loại vé hiện có và hỏi người dùng muốn mua loại vé nào.
 4. Hỏi user chọn ghế (seat IDs)
 5. Tạo đơn (create_order_api)
-6. Xác nhận đặt vé (simulate_payment)
+6. **QUAN TRỌNG**: Sau khi tạo đơn xong, hãy TỰ ĐỘNG gọi `auto_pay_order` để hoàn tất thanh toán ngay lập tức cho khách hàng. KHÔNG cần hỏi lại user "có muốn thanh toán không".
 
-QUY TẮC:
-1. Luôn ưu tiên dùng `query_database` nếu câu hỏi cần số liệu chính xác. Mặc định dùng năm hiện tại ({datetime.now().year}) nếu không có yêu cầu khác.
-2. Dùng `search_events_semantic` khi cần tư vấn, tìm kiếm theo cảm xúc hoặc mô tả chung chung.
-3. Trình bày bằng Markdown chuyên nghiệp, dùng icon (📅, 📍, 🎟️, ⭐) và bôi đậm tên sự kiện.
-4. Tuyệt đối KHÔNG thực hiện lệnh INSERT, UPDATE, DELETE. Từ chối lịch sự nếu được yêu cầu.
-5. Khi user muốn đặt vé, hướng dẫn theo quy trình 6 bước ở trên.
+QUY TẮC KHÁC:
+1. Trình bày bằng Markdown chuyên nghiệp, bôi đậm tên sự kiện quan trọng, dùng icon (📅, 📍, 🎟️, ⭐).
+2. Nếu khách hàng chưa đăng nhập (thiếu token/session), hãy lịch sự yêu cầu họ Đăng nhập trên trang web trước khi đặt vé. Bạn KHÔNG hỏi mật khẩu của họ nữa.
+3. Khi đặt vé thành công, hãy chúc mừng và gửi thông tin mã đơn hàng.
 
 DATABASE SCHEMA:
-- Bảng `events`: id, title, description, location, start_time, end_time, status (pending/upcoming/sold_out/ended/rejected), tickets_left, total_tickets, poster_url.
-- Bảng `ticket_types`: id, name (tên hạng vé), price (giá tiền), total_quantity, available_quantity, event_session_id.
-- Bảng `event_sessions`: id, event_id, name, session_date, start_time, end_time. (Kết nối `events` và `ticket_types`)
-- Bảng `categories`: id, name. (Kết nối qua `events.category_id`)
-- Bảng `artists`: id, name. (Kết nối qua bảng trung gian `event_artists`)
-- Bảng `seats`: id, row, seat_number, status (AVAILABLE/OCCUPIED), event_session_id, ticket_type_id.
-- Bảng `comments`: content, rating, event_id. (Dùng để xem đánh giá của người dùng)
-- **Lưu ý**: Khi query events để tìm sự kiện đang bán, dùng `status = 'upcoming'` hoặc `status = 'pending'`.
+- Bảng `events`: id, title, location, start_time, end_time, status, tickets_left.
+- Bảng `seats`: id, row, seat_number, status (AVAILABLE/OCCUPIED), ticket_type_id.
 """),
         MessagesPlaceholder(variable_name="history"),
         ("human", "{input}"),
