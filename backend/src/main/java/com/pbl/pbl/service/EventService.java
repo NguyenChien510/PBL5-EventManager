@@ -65,6 +65,7 @@ public class EventService {
     private final com.pbl.pbl.repository.OrderRepository orderRepository;
     private final EmailService emailService;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    private final AIService aiService;
 
     @Transactional(readOnly = true)
     public List<EventResponseDTO> getUpcomingEvents() {
@@ -215,6 +216,8 @@ public class EventService {
             emailService.sendEventApprovedEmail(saved);
         }
 
+        aiService.syncDatabase();
+
         return convertToResponseDTO(saved);
     }
 
@@ -233,6 +236,8 @@ public class EventService {
 
         List<com.pbl.pbl.entity.User> admins = userRepository.findByRole_Name("ADMIN");
         emailService.sendEventPendingReview(saved, admins);
+
+        aiService.syncDatabase();
 
         return convertToResponseDTO(saved);
     }
@@ -552,6 +557,8 @@ public class EventService {
 
         List<com.pbl.pbl.entity.User> admins = userRepository.findByRole_Name("ROLE_ADMIN");
         emailService.sendEventPendingReview(saved, admins);
+
+        aiService.syncDatabase();
 
         return convertToResponseDTO(saved);
     }

@@ -1,23 +1,23 @@
 import os
 import logging
 import traceback
-import psycopg2
+import requests
 from typing import List
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from psycopg2.extras import RealDictCursor
 
-# Updated LangChain Imports for v0.3+
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
-from langchain_postgres.vectorstores import PGVector
+from langchain_qdrant import QdrantVectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_classic.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_classic.schema import Document
 from langchain_classic.tools import tool
 from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
+from qdrant_client import QdrantClient
+from qdrant_client.http.models import Distance, VectorParams
 from sqlalchemy import create_engine, text
 import re
 from datetime import datetime
@@ -49,6 +49,15 @@ DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+# Backend API
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080")
+# Qdrant Cloud
+QDRANT_URL = os.getenv("QDRANT_URL", "https://94e3d96c-ddc5-4a98-a77c-a4df1d317a03.australia-southeast1-0.gcp.cloud.qdrant.io")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIiwic3ViamVjdCI6ImFwaS1rZXk6Mjc1NjM2MDYtZWM2Ni00NzA0LWE0OGQtNzgwNWZiNmVhZGE0In0.vSJCvzHTQkcirk826fyGJyNGcV3Vp7aMdps767w0b7g")
+QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "event_platform")
+# Session management for user login
+user_sessions = {}  # session_id -> {"user_id": "...", "access_token": "..."}
+current_session_token = None  # Token for current booking session
 
 # Initialize components
 # Sử dụng Gemini Embedding 2 mới nhất
@@ -99,7 +108,230 @@ def search_events_semantic(query: str):
     docs = vs.similarity_search(query, k=5)
     return "\n---\n".join([d.page_content for d in docs])
 
-tools = [query_database, search_events_semantic]
+# ======== Booking Tools ========
+@tool
+def login_user(email: str, password: str, session_id: str = "current"):
+    """
+    Đăng nhập người dùng để đặt vé. session_id mặc định là "current" cho phiên đặt vé hiện tại.
+    """
+    global current_session_token
+    try:
+        response = requests.post(
+            f"{BACKEND_URL}/api/auth/signin",
+            json={"email": email, "password": password},
+            timeout=10
+        )
+        if response.status_code == 200:
+            data = response.json()
+            token = data.get("accessToken")
+            user_id = data.get("user", {}).get("id")
+            user_sessions[session_id] = {
+                "user_id": user_id,
+                "access_token": token
+            }
+            current_session_token = token
+            return f"Đăng nhập thành công! User: {data.get('user', {}).get('fullName')} (ID: {user_id})"
+        else:
+            return f"Đăng nhập thất bại: {response.text}"
+    except Exception as e:
+        return f"Lỗi đăng nhập: {str(e)}"
+
+@tool
+def search_events_api(keyword: str = "", category_id: str = "all", province: str = ""):
+    """
+    Tìm kiếm sự kiện qua API, trả về danh sách sự kiện.
+    """
+    try:
+        params = {"keyword": keyword} if keyword else {}
+        if category_id != "all":
+            params["categoryId"] = category_id
+        if province:
+            params["province"] = province
+        response = requests.get(f"{BACKEND_URL}/api/events/search", params=params, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            # Handle both wrapped and unwrapped lists
+            events = data.get("data", []) if isinstance(data, dict) else data
+            if not events or not isinstance(events, list):
+                return "Không tìm thấy sự kiện nào."
+            result = "Danh sách sự kiện:\n"
+            for e in events[:5]:
+                result += f"- ID: {e.get('id')} | {e.get('title')} | {e.get('startTime')} | {e.get('location')}\n"
+            return result
+        else:
+            return f"Lỗi tìm kiếm: {response.status_code}"
+    except Exception as e:
+        return f"Lỗi xử lý dữ liệu: {str(e)}"
+
+@tool
+def get_event_details(event_id: str):
+    """
+    Lấy thông tin chi tiết sự kiện: ticket types, sessions, giá vé. Tham số event_id phải là chuỗi hoặc số.
+    """
+    try:
+        # Force event_id to string for API call
+        eid = str(event_id)
+        response = requests.get(f"{BACKEND_URL}/api/events/{eid}", timeout=10)
+        if response.status_code != 200:
+            return f"Lỗi lấy thông tin: {response.status_code}"
+        
+        event = response.json()
+        result = f"Event: {event.get('title')}\n"
+        result += f"Location: {event.get('location')}\n"
+        result += f"Time: {event.get('startTime')} - {event.get('endTime')}\n\n"
+        
+        # Get ticket types
+        tt_response = requests.get(f"{BACKEND_URL}/api/events/{eid}/ticket-types", timeout=10)
+        if tt_response.status_code == 200:
+            tt_data = tt_response.json()
+            ticket_types = tt_data.get("data", []) if isinstance(tt_data, dict) else tt_data
+            if ticket_types and isinstance(ticket_types, list):
+                result += "Ticket Types:\n"
+                for tt in ticket_types:
+                    result += f"- {tt.get('name')}: {tt.get('price')} VNĐ (còn {tt.get('availableQuantity', 'N/A')})\n"
+        
+        return result
+    except Exception as e:
+        return f"Lỗi xử lý chi tiết: {str(e)}"
+
+@tool
+def get_event_seats(event_id: str, session_id: str = None):
+    """
+    Lấy danh sách ghế ngồi của sự kiện. Trả về seat map với các ghế đang trống. event_id phải là chuỗi hoặc số.
+    """
+    try:
+        eid = str(event_id)
+        url = f"{BACKEND_URL}/api/events/{eid}/seats"
+        if session_id:
+            url += f"?sessionId={session_id}"
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            # Handle both wrapped and unwrapped lists
+            seats = []
+            if isinstance(data, list):
+                seats = data
+            elif isinstance(data, dict):
+                seats = data.get("data", {}).get("seats", []) if isinstance(data.get("data"), dict) else data.get("data", [])
+            
+            if not isinstance(seats, list):
+                return "Lỗi định dạng dữ liệu ghế."
+                
+            available = [s for s in seats if s.get("status") == "AVAILABLE"]
+            if not available:
+                return "Không còn ghế trống."
+            result = f"Có {len(available)} ghế trống:\n"
+            for s in available[:20]:
+                result += f"- Row {s.get('row', 'N/A')}, Seat {s.get('seatNumber')} (ID: {s.get('id')})\n"
+            return result
+        else:
+            return f"Lỗi lấy ghế: {response.status_code}"
+    except Exception as e:
+        return f"Lỗi xử lý ghế: {str(e)}"
+
+@tool
+def create_order_api(event_id: str, seat_ids: List[int], total_amount: int, session_id: str = "current"):
+    """
+    Tạo đơn hàng và lấy link thanh toán. 
+    - event_id: ID sự kiện.
+    - seat_ids: Danh sách ID ghế.
+    - total_amount: Tổng tiền (VNĐ).
+    - session_id: Mặc định "current".
+    """
+    global current_session_token
+    try:
+        token = current_session_token
+        if not token:
+            session_data = user_sessions.get(session_id, {})
+            token = session_data.get("access_token")
+        
+        if not token:
+            return "Chưa đăng nhập! Vui lòng gọi login_user trước."
+        
+        user_id = user_sessions.get(session_id, {}).get("user_id")
+        if not user_id:
+            return "Không tìm thấy user ID. Vui lòng đăng nhập lại."
+        
+        seat_id_list = seat_ids if isinstance(seat_ids, list) else [seat_ids]
+        
+        order_data = {
+            "amount": total_amount,
+            "orderInfo": f"Thanh toán vé sự kiện {event_id}",
+            "userId": user_id,
+            "seatIds": seat_id_list,
+            "paymentMethod": "vnpay" 
+        }
+        
+        headers = {"Authorization": f"Bearer {token}"}
+        response = requests.post(
+            f"{BACKEND_URL}/api/payment/create",
+            json=order_data,
+            headers=headers,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            payment_url = data.get("url")
+            # The URL usually contains txnRef or we can parse it
+            import urllib.parse
+            parsed_url = urllib.parse.urlparse(payment_url)
+            params = urllib.parse.parse_qs(parsed_url.query)
+            order_id = params.get("txnRef", [None])[0]
+            
+            return f"Đơn hàng đã được tạo thành công! (ID Đơn hàng: {order_id})\nLink thanh toán: {payment_url}\nBạn có muốn mình tự động thực hiện thanh toán luôn không?"
+        else:
+            return f"Lỗi tạo đơn: {response.status_code} - {response.text}"
+    except Exception as e:
+        return f"Lỗi: {str(e)}"
+
+@tool
+def check_order_status(order_id: int):
+    """
+    Kiểm tra trạng thái thanh toán của đơn hàng từ database.
+    """
+    try:
+        query = f"SELECT status, total_amount FROM orders WHERE id = {order_id}"
+        # Reuse query_database logic but inside here for simplicity or just call it
+        from sqlalchemy import text
+        with engine.connect() as connection:
+            result = connection.execute(text(query))
+            row = result.fetchone()
+            if row:
+                status = row[0]
+                amount = row[1]
+                if status == "COMPLETED":
+                    return f"✅ Đơn hàng {order_id} đã được thanh toán thành công (Số tiền: {amount} VNĐ)."
+                else:
+                    return f"⏳ Đơn hàng {order_id} đang ở trạng thái: {status}. Vui lòng hoàn tất thanh toán."
+            else:
+                return f"❌ Không tìm thấy đơn hàng có ID {order_id}."
+    except Exception as e:
+        return f"Lỗi kiểm tra đơn hàng: {str(e)}"
+
+@tool
+def auto_pay_order(order_id: int):
+    """
+    Tự động thực hiện thanh toán cho đơn hàng (Auto-pay). 
+    Sử dụng cơ chế Mock Sandbox để xác nhận thanh toán ngay lập tức.
+    """
+    try:
+        # Call the vnpay-return endpoint with mock hash
+        params = {
+            "vnp_TxnRef": str(order_id),
+            "vnp_TransactionResponseCode": "00",
+            "vnp_SecureHash": "MOCK_SANDBOX_HASH"
+        }
+        response = requests.get(f"{BACKEND_URL}/api/public/payment/vnpay-return", params=params, timeout=10)
+        
+        if response.status_code in [200, 302]: # Redirect is expected
+            return f"✅ Đã thực hiện thanh toán tự động thành công cho đơn hàng {order_id}! Hệ thống đã xác nhận và gửi vé qua email cho bạn."
+        else:
+            return f"Lỗi khi thực hiện auto-pay: {response.status_code}"
+    except Exception as e:
+        return f"Lỗi hệ thống khi thanh toán: {str(e)}"
+
+tools = [query_database, search_events_semantic, login_user, search_events_api, get_event_details, get_event_seats, create_order_api, check_order_status, auto_pay_order]
 
 # Agent Memory - simple list-based history
 from langchain_core.messages import HumanMessage, AIMessage
@@ -131,8 +363,13 @@ async def list_models():
 
 @app.get("/inspect-db")
 async def inspect_db():
-    """Kiểm tra DB đã chuyển sang Supabase."""
-    return {"message": "Using Supabase vector database.", "collection_name": COLLECTION_NAME}
+    """Kiểm tra Qdrant vector store."""
+    try:
+        client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+        collections = client.get_collections()
+        return {"message": "Using Qdrant vector database.", "collection": QDRANT_COLLECTION, "collections": [c.name for c in collections.collections]}
+    except Exception as e:
+        return {"error": str(e)}
 
 # Global vectorstore reference
 vectorstore = None
@@ -140,12 +377,22 @@ vectorstore = None
 def get_vectorstore():
     global vectorstore
     if vectorstore is None:
-        CONNECTION_STRING = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-        vectorstore = PGVector(
-            collection_name=COLLECTION_NAME,
-            connection=CONNECTION_STRING,
-            embeddings=embeddings,
-            use_jsonb=True,
+        qdrant_client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+        # Create collection if it doesn't exist
+        try:
+            collections = qdrant_client.get_collections()
+            exists = any(c.name == QDRANT_COLLECTION for c in collections.collections)
+            if not exists:
+                qdrant_client.create_collection(
+                    collection_name=QDRANT_COLLECTION,
+                    vectors_config=VectorParams(size=3072, distance=Distance.COSINE)
+                )
+        except Exception:
+            pass  # Collection might already exist
+        vectorstore = QdrantVectorStore(
+            client=qdrant_client,
+            collection_name=QDRANT_COLLECTION,
+            embedding=embeddings,
         )
     return vectorstore
 
@@ -169,46 +416,79 @@ async def chat(request: ChatRequest):
         ("system", f"""Bạn là trợ lý ảo AI Agent chuyên nghiệp của EventPlatform. 
 Hôm nay là ngày: {current_date}.
 
-Bạn có quyền truy cập vào Database SQL và Vector Store để trả lời câu hỏi.
+Bạn có quyền truy cập vào Database SQL, Vector Store và API để trả lời câu hỏi.
+
+📋 CÁC TOOL CÓ SẴN:
+- query_database: Truy vấn SQL chính xác
+- search_events_semantic: Tìm kiếm theo ý nghĩa
+- login_user(email, password, session_id): Đăng nhập để đặt vé
+- search_events_api(keyword, category_id, province): Tìm sự kiện qua API
+- get_event_details(event_id): Xem chi tiết + giá vé
+- get_event_seats(event_id, session_id): Xem ghế trống
+- create_order_api(event_id, seat_ids, session_id_from_user): Tạo đơn đặt vé
+- simulate_payment(order_id): Giả lập thanh toán (dev)
+
+🎫 QUY TRÌNH ĐẶT VÉ TỰ ĐỘNG:
+1. Hỏi email/password để đăng nhập
+2. Tìm sự kiện (search_events_api)
+3. Xem chi tiết + ghế (get_event_details, get_event_seats)
+4. Hỏi user chọn ghế (seat IDs)
+5. Tạo đơn (create_order_api)
+6. Xác nhận đặt vé (simulate_payment)
 
 QUY TẮC:
 1. Luôn ưu tiên dùng `query_database` nếu câu hỏi cần số liệu chính xác. Mặc định dùng năm hiện tại ({datetime.now().year}) nếu không có yêu cầu khác.
 2. Dùng `search_events_semantic` khi cần tư vấn, tìm kiếm theo cảm xúc hoặc mô tả chung chung.
 3. Trình bày bằng Markdown chuyên nghiệp, dùng icon (📅, 📍, 🎟️, ⭐) và bôi đậm tên sự kiện.
 4. Tuyệt đối KHÔNG thực hiện lệnh INSERT, UPDATE, DELETE. Từ chối lịch sự nếu được yêu cầu.
+5. Khi user muốn đặt vé, hướng dẫn theo quy trình 6 bước ở trên.
 
 DATABASE SCHEMA:
-- Bảng `events`: id, title, description, location, start_time, end_time, status, tickets_left, rating.
-- Bảng `ticket_types`: id, name (tên hạng vé), price (giá tiền), total_quantity, event_session_id.
-- Bảng `event_sessions`: id, event_id, session_date, start_time, end_time. (Kết nối `events` và `ticket_types`)
+- Bảng `events`: id, title, description, location, start_time, end_time, status (pending/upcoming/sold_out/ended/rejected), tickets_left, total_tickets, poster_url.
+- Bảng `ticket_types`: id, name (tên hạng vé), price (giá tiền), total_quantity, available_quantity, event_session_id.
+- Bảng `event_sessions`: id, event_id, name, session_date, start_time, end_time. (Kết nối `events` và `ticket_types`)
 - Bảng `categories`: id, name. (Kết nối qua `events.category_id`)
 - Bảng `artists`: id, name. (Kết nối qua bảng trung gian `event_artists`)
+- Bảng `seats`: id, row, seat_number, status (AVAILABLE/OCCUPIED), event_session_id, ticket_type_id.
 - Bảng `comments`: content, rating, event_id. (Dùng để xem đánh giá của người dùng)
+- **Lưu ý**: Khi query events để tìm sự kiện đang bán, dùng `status = 'upcoming'` hoặc `status = 'pending'`.
 """),
         MessagesPlaceholder(variable_name="history"),
         ("human", "{input}"),
         MessagesPlaceholder(variable_name="agent_scratchpad"),
     ])
 
-    def try_invoke(model, message, history):
+    def try_invoke(model, message, history, session_id):
         agent = create_tool_calling_agent(model, tools, prompt)
         executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
         return executor.invoke({
             "input": message,
             "history": history,
+            "session_id": session_id,
         })
 
-    history = get_session_history(request.session_id)
+    session_id = request.session_id
+    history = get_session_history(session_id)
 
     try:
-        response = try_invoke(llm_groq, request.message, history)
+        response = try_invoke(llm_groq, request.message, history, session_id)
     except Exception as groq_err:
-        logger.warning(f"⚠️ Groq gặp lỗi: {str(groq_err)}. Đang chuyển sang Gemini dự phòng...")
+        err_msg = str(groq_err)
+        if "429" in err_msg or "rate_limit" in err_msg.lower():
+            logger.warning("⚠️ Groq bị giới hạn tốc độ (429). Thử Gemini...")
+        else:
+            logger.warning(f"⚠️ Groq gặp lỗi: {err_msg}. Đang chuyển sang Gemini dự phòng...")
+            
         try:
-            response = try_invoke(llm_gemini, request.message, history)
+            response = try_invoke(llm_gemini, request.message, history, session_id)
         except Exception as gemini_err:
-            logger.error(f"❌ Cả Groq và Gemini đều thất bại. Lỗi Gemini: {str(gemini_err)}", exc_info=True)
-            raise HTTPException(status_code=500, detail=f"AI Services unavailable. Groq: {str(groq_err)} | Gemini: {str(gemini_err)}")
+            gem_msg = str(gemini_err)
+            logger.error(f"❌ Cả Groq và Gemini đều thất bại. Lỗi Gemini: {gem_msg}", exc_info=True)
+            
+            if "429" in gem_msg or "RESOURCE_EXHAUSTED" in gem_msg:
+                return ChatResponse(answer="⚠️ Hiện tại cả hai hệ thống AI (Groq & Gemini) đều đang quá tải (Rate Limit). Vui lòng đợi khoảng 30 giây rồi thử lại. Xin lỗi bạn vì sự bất tiện này! 🙏")
+            
+            raise HTTPException(status_code=500, detail=f"AI Services unavailable. Groq: {err_msg} | Gemini: {gem_msg}")
 
     try:
         
@@ -235,40 +515,46 @@ DATABASE SCHEMA:
 @app.post("/sync-db")
 async def sync_database():
     try:
-        conn = psycopg2.connect(
-            host=DB_HOST, port=DB_PORT, database=DB_NAME, user=DB_USER, password=DB_PASSWORD
-        )
-        cur = conn.cursor(cursor_factory=RealDictCursor)
+        # Fetch all events from backend API
+        response = requests.get(f"{BACKEND_URL}/api/events/search?size=100", timeout=15)
+        if response.status_code != 200:
+            return {"error": f"Failed to fetch events: {response.status_code}"}
         
-        query = "SELECT id, title, description, location, start_time, category, artists FROM events"
-        cur.execute(query)
-        rows = cur.fetchall()
+        data = response.json()
+        events = data.get("data", []) if isinstance(data, dict) else data
         
-        if not rows:
-            return {"message": "No events found in database."}
+        if not events:
+            return {"message": "No events found."}
 
         documents = []
-        for row in rows:
+        for event in events:
             content = (
-                f"Sự kiện: {row['title']}\n"
-                f"Thể loại: {row['category']}\n"
-                f"Nghệ sĩ: {row['artists']}\n"
-                f"Mô tả: {row['description']}\n"
-                f"Địa điểm: {row['location']}\n"
-                f"Thời gian bắt đầu: {row['start_time']}"
+                f"Sự kiện: {event.get('title', 'N/A')}\n"
+                f"Thể loại: {event.get('categoryName', 'N/A')}\n"
+                f"Nghệ sĩ: {event.get('artists', 'N/A')}\n"
+                f"Mô tả: {event.get('description', 'N/A')}\n"
+                f"Địa điểm: {event.get('location', 'N/A')}\n"
+                f"Thời gian bắt đầu: {event.get('startTime', 'N/A')}"
             )
-            documents.append(Document(page_content=content, metadata={"source": f"db-event-{row['id']}"}))
+            documents.append(Document(page_content=content, metadata={"source": f"event-{event.get('id')}"}))
 
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         texts = text_splitter.split_documents(documents)
 
+        # Clear collection and add new documents
         vs = get_vectorstore()
+        try:
+            qdrant_client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+            qdrant_client.recreate_collection(
+                collection_name=QDRANT_COLLECTION,
+                vectors_config=VectorParams(size=3072, distance=Distance.COSINE)
+            )
+        except Exception as e:
+            logger.warning(f"Failed to recreate collection: {e}")
+            
         vs.add_documents(texts)
         
-        cur.close()
-        conn.close()
-        
-        return {"message": f"Successfully synced {len(rows)} events."}
+        return {"message": f"Successfully synced {len(events)} events to Qdrant."}
     except Exception as e:
         logger.error(f"Error in /sync-db: {traceback.format_exc()}")
         return {"error": str(e)}

@@ -75,4 +75,8 @@ cloudinary:
   api-key: "572615717297474"
   api-secret: "rqy__CPlTP8PLRc8AYz-NoNRDr4"
 
+ai:
+  service:
+    url: http://localhost:8000
+
 

@@ -13,3 +13,6 @@ pydantic
 python-multipart
 psycopg2-binary
 langchain-groq
+langchain-qdrant
+qdrant-client
+
