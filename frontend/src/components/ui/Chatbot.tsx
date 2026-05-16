@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { ChatbotIcon } from './ChatbotIcon';
 
@@ -8,6 +9,7 @@ interface Message {
 }
 
 const Chatbot: React.FC = () => {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { role: 'ai', content: 'Xin chào! Tôi là trợ lý ảo của EventPlatform. Tôi có thể giúp gì cho bạn?' }
@@ -70,41 +72,101 @@ const Chatbot: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = async () => {
-    if (!input.trim()) return;
+  const handleSend = async (overrideInput?: string, silent: boolean = false) => {
+    const messageToSend = overrideInput || input;
+    if (!messageToSend.trim()) return;
 
-    const userMessage: Message = { role: 'user', content: input };
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
+    let newMessages = messages;
+    if (!silent) {
+      newMessages = [...messages, { role: 'user', content: messageToSend }];
+      setMessages(newMessages);
+    }
+    
+    if (!overrideInput) setInput('');
     setIsLoading(true);
 
     try {
-      // Gọi trực tiếp đến AI server, không thông qua các bộ lọc token của hệ thống backend chính
       const response = await fetch('http://localhost:8000/chat', {
         method: 'POST',
-        mode: 'cors', // Đảm bảo cho phép gọi chéo domain
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: input,
-          session_id: user?.id || 'guest_session', // Dùng ID user làm session_id để lưu history
+          message: messageToSend,
+          session_id: user?.id || 'guest',
           token: accessToken,
           user_id: user?.id
         }),
       });
-
-      if (!response.ok) throw new Error('Network response was not ok');
-
       const data = await response.json();
-      const aiMessage: Message = { role: 'ai', content: data.answer };
-      setMessages(prev => [...prev, aiMessage]);
+      setMessages(prev => [...prev, { role: 'ai', content: data.answer }]);
     } catch (error) {
-      console.error('Error calling AI API:', error);
-      setMessages(prev => [...prev, { role: 'ai', content: 'Xin lỗi, đã có lỗi xảy ra khi kết nối với máy chủ AI.' }]);
+      console.error('Error sending message:', error);
+      setMessages(prev => [...prev, { role: 'ai', content: 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại sau!' }]);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const MessageContent: React.FC<{ content: string; onAction: (text: string) => void }> = ({ content, onAction }) => {
+    // Regex cho cả 2 định dạng: [TYPE: Label | Value] và [Label ID: Value]
+    const parts = content.split(/(\[.*?:.*?\|.*?\]|\[(?:Xem chi tiết|Đặt vé ngay).*?ID:.*?\])/g);
+    
+    return (
+      <div className="whitespace-pre-wrap">
+        {parts.map((part, i) => {
+          // Định dạng mới: [INFO: Label | Value]
+          const newMatch = part.match(/\[(INFO|BOOK|SELECT):\s*([^|\]]+)\s*\|\s*([^\]]+)\]/);
+          if (newMatch) {
+            const [_, type, label, value] = newMatch;
+            const btnClass = "inline-flex items-center gap-1 px-3 py-1.5 mt-2 mr-2 rounded-lg text-xs font-bold transition-all border shadow-sm ";
+            
+            if (type === 'INFO') {
+              return (
+                <button key={i} onClick={() => navigate(`/event/${value.trim()}`)} className={btnClass + "bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-600 hover:text-white"}>
+                  <span className="material-symbols-outlined text-xs">visibility</span>
+                  {label}
+                </button>
+              );
+            }
+            if (type === 'BOOK') {
+              return (
+                <button key={i} onClick={() => onAction(`Tôi muốn đặt vé sự kiện ID ${value.trim()}`)} className={btnClass + "bg-green-50 text-green-600 border-green-100 hover:bg-green-600 hover:text-white"}>
+                  <span className="material-symbols-outlined text-xs">local_activity</span>
+                  {label}
+                </button>
+              );
+            }
+            return (
+              <button key={i} onClick={() => onAction(`${label.trim()} (ID: ${value.trim()})`)} className={btnClass + "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-700 hover:text-white"}>
+                {label}
+              </button>
+            );
+          }
+
+          // Định dạng cũ (Fallback): [Xem chi tiết ID: 1043]
+          const oldMatch = part.match(/\[(Xem chi tiết|Đặt vé ngay).*?ID:\s*([^\]]+)\]/);
+          if (oldMatch) {
+            const [_, label, value] = oldMatch;
+            const btnClass = "inline-flex items-center gap-1 px-3 py-1.5 mt-2 mr-2 rounded-lg text-xs font-bold transition-all border shadow-sm ";
+            const isInfo = label.includes("Xem");
+            
+            return (
+              <button 
+                key={i} 
+                onClick={() => isInfo ? navigate(`/event/${value.trim()}`) : onAction(`Tôi muốn đặt vé sự kiện ID ${value.trim()}`)} 
+                className={btnClass + (isInfo ? "bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-600 hover:text-white" : "bg-green-50 text-green-600 border-green-100 hover:bg-green-600 hover:text-white")}
+              >
+                <span className="material-symbols-outlined text-xs">{isInfo ? 'visibility' : 'local_activity'}</span>
+                {label}
+              </button>
+            );
+          }
+
+          return <span key={i}>{part}</span>;
+        })}
+      </div>
+    );
   };
 
   return (
@@ -156,16 +218,19 @@ const Chatbot: React.FC = () => {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 scroll-smooth">
             {messages.map((msg, idx) => (
-              <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
                 <div
-                  className={`max-w-[80%] p-3 rounded-2xl text-sm whitespace-pre-wrap ${msg.role === 'user'
-                    ? 'bg-primary text-white rounded-tr-none'
+                  className={`max-w-[85%] p-3 rounded-2xl text-sm ${msg.role === 'user'
+                    ? 'bg-primary text-white rounded-tr-none shadow-md'
                     : 'bg-white text-slate-700 shadow-sm border border-slate-100 rounded-tl-none'
                     }`}
                 >
-                  {msg.content}
+                  <MessageContent 
+                    content={msg.content} 
+                    onAction={(text) => handleSend(text, true)} 
+                  />
                 </div>
               </div>
             ))}

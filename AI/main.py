@@ -232,17 +232,25 @@ def get_event_seats(event_id: str, session_id: str = None):
             has_coords = any(s.get("x") is not None and s.get("y") is not None for s in available)
             
             result = f"Sự kiện này {'CÓ' if has_coords else 'KHÔNG CÓ'} sơ đồ tọa độ (x,y).\n"
-            result += f"Có {len(available)} ghế trống:\n"
             
             if has_coords:
-                result += "Hệ thống hỗ trợ chọn ghế trực quan qua tọa độ.\n"
+                result += f"Có {len(available)} ghế trống hỗ trợ tọa độ.\n"
                 for s in available[:20]:
                     result += f"- Ghế {s.get('seatNumber')} (Row {s.get('row', 'N/A')}) | Tọa độ: ({s.get('x')}, {s.get('y')}) | ID: {s.get('id')}\n"
             else:
-                result += "Sự kiện chỉ bán theo loại vé (không có sơ đồ ghế cụ thể).\n"
-                # Group by ticket type if possible or just list
-                for s in available[:15]:
-                    result += f"- Ghế {s.get('seatNumber')} | ID: {s.get('id')}\n"
+                result += "Sự kiện KHÔNG có sơ đồ ghế. Thay vào đó hãy liệt kê các loại vé có sẵn:\n"
+                # Lấy ticket types thay thế
+                tt_response = requests.get(f"{BACKEND_URL}/api/events/{eid}/ticket-types", timeout=10)
+                if tt_response.status_code == 200:
+                    tt_data = tt_response.json()
+                    ticket_types = tt_data.get("data", []) if isinstance(tt_data, dict) else tt_data
+                    if ticket_types and isinstance(ticket_types, list):
+                        for tt in ticket_types:
+                            result += f"- Loại vé: {tt.get('name')} | Giá: {tt.get('price')} VNĐ | ID: {tt.get('id')}\n"
+                else:
+                    # Fallback nếu lỗi lấy ticket types
+                    for s in available[:10]:
+                        result += f"- Ghế: {s.get('seatNumber')} | ID: {s.get('id')}\n"
             
             return result
         else:
@@ -461,28 +469,31 @@ Bạn có quyền truy cập vào Database SQL, Vector Store và API để trả
 1. **LUÔN LUÔN** dùng `query_database` khi người dùng hỏi về thời gian cụ thể (ví dụ: "tháng 5", "cuối tuần này", "ngày 20/5"), địa điểm cụ thể hoặc cần con số chính xác. Hãy tự viết câu lệnh SQL SELECT phù hợp.
 2. Dùng `search_events_semantic` khi người dùng hỏi chung chung, cần tư vấn theo cảm xúc hoặc mô tả sự kiện (ví dụ: "sự kiện nào vui nhộn", "có show diễn nào cho trẻ em không").
 
-🎨 QUY TẮC TRÌNH BÀY (PREMIUM UI):
-- Sử dụng Bảng (Table) Markdown để liệt kê danh sách sự kiện.
-- Cấu trúc bảng: | STT | Sự Kiện | Thời Gian | Địa Điểm | Trạng Thái |
-- Sử dụng các emoji phù hợp (📅, 🎭, 🎶, 📍, 🎟️).
-- Sau khi liệt kê, hãy cung cấp các gợi ý hành động như:
-  - `[Xem chi tiết ID: {id}]`
-  - `[Đặt vé ngay ID: {id}]`
+🎨 QUY TẮC TRÌNH BÀY (PREMIUM MOBILE-FIRST UI):
+- **KHÔNG DÙNG BÔI ĐẬM (**)**. Thay vào đó hãy dùng `inline code` (dấu `) để highlight thông tin quan trọng.
+- **KHÔNG DÙNG BẢNG (TABLE)**. Hãy dùng định dạng **Card (Thẻ)** như sau:
+  ---
+  🎭 `Tên Sự Kiện Highlight`
+  📅 {current_date}
+  📍 Địa điểm ngắn gọn
+  [INFO: Xem chi tiết | ID] [BOOK: Đặt vé | ID]
+  ---
+- Sử dụng cú pháp nút bấm đặc biệt để Frontend hiển thị nút thật:
+  - `[INFO: Tên nút | ID]` -> Nút xem chi tiết
+  - `[BOOK: Tên nút | ID]` -> Nút đặt vé
+  - `[SELECT: Tên nút | Value]` -> Nút chọn (ví dụ chọn ghế, chọn loại vé)
+- Nếu sự kiện **KHÔNG CÓ sơ đồ tọa độ**, hãy dùng nút `[SELECT: Tên vé | ID_VE]` để người dùng chọn loại vé trực tiếp.
+- Trình bày cực kỳ tinh gọn, tránh viết đoạn văn dài.
 
-🎫 QUY TRÌNH ĐẶT VÉ TỰ ĐỘNG (Dành cho người dùng đã đăng nhập):
-1. Tìm sự kiện (Ưu tiên dùng `query_database` cho các câu hỏi về thời gian/địa điểm)
-2. Xem chi tiết + ghế (get_event_details, get_event_seats)
-3. **Xử lý linh hoạt theo loại ghế**:
-   - **Nếu sự kiện CÓ tọa độ (x,y)**: Hãy giới thiệu sơ đồ ghế và đề xuất người dùng chọn vị trí đẹp (ví dụ: "Bạn có muốn chọn ghế ở hàng đầu không?").
-   - **Nếu sự kiện KHÔNG CÓ tọa độ**: Chỉ liệt kê danh sách các loại vé hiện có và hỏi người dùng muốn mua loại vé nào.
-4. Hỏi user chọn ghế (seat IDs)
-5. Tạo đơn (create_order_api)
-6. **QUAN TRỌNG**: Sau khi tạo đơn xong, hãy TỰ ĐỘNG gọi `auto_pay_order` để hoàn tất thanh toán ngay lập tức cho khách hàng. KHÔNG cần hỏi lại user "có muốn thanh toán không".
+🎫 QUY TRÌNH ĐẶT VÉ TỰ ĐỘNG:
+1. Tìm sự kiện -> Xem chi tiết + ghế.
+2. Đề xuất ghế/vé bằng các nút `[SELECT: Ghế A1 | ID_GHE]`.
+3. Tạo đơn -> Tự động thanh toán (`auto_pay_order`).
 
 QUY TẮC KHÁC:
-1. Trình bày bằng Markdown chuyên nghiệp, bôi đậm tên sự kiện quan trọng, dùng icon (📅, 📍, 🎟️, ⭐).
-2. Nếu khách hàng chưa đăng nhập (thiếu token/session), hãy lịch sự yêu cầu họ Đăng nhập trên trang web trước khi đặt vé. Bạn KHÔNG hỏi mật khẩu của họ nữa.
-3. Khi đặt vé thành công, hãy chúc mừng và gửi thông tin mã đơn hàng.
+1. Trình bày bằng Markdown chuyên nghiệp, dùng `inline code` để highlight thông tin, dùng icon (📅, 📍, 🎟️, ⭐).
+2. Nếu khách hàng chưa đăng nhập, hãy yêu cầu họ Đăng nhập. **BẮT BUỘC** kèm theo nút `[SELECT: Tôi đã đăng nhập | check_auth]` để người dùng nhấn sau khi đăng nhập xong.
+3. Nếu khách hỏi về giá vé hoặc chỗ ngồi, LUÔN gọi `get_event_seats` để có dữ liệu mới nhất.
 
 DATABASE SCHEMA:
 - Bảng `events`: id, title, location, start_time, end_time, status, tickets_left.
