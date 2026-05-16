@@ -12,3 +12,4 @@ langchain-text-splitters
 pydantic
 python-multipart
 psycopg2-binary
+langchain-groq

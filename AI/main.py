@@ -11,6 +11,7 @@ from psycopg2.extras import RealDictCursor
 
 # Updated LangChain Imports for v0.3+
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 from langchain_postgres.vectorstores import PGVector
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_classic.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -47,12 +48,15 @@ DB_PORT = os.getenv("DB_PORT")
 DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 # Initialize components
 # Sử dụng Gemini Embedding 2 mới nhất
 embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-2", google_api_key=GOOGLE_API_KEY)
-# Sử dụng Gemini 2.5 Flash - Model mới nhất trong danh sách của bạn
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0, google_api_key=GOOGLE_API_KEY)
+# Model dự phòng (Gemini) - Dùng khi Groq lỗi
+llm_gemini = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0, google_api_key=GOOGLE_API_KEY, max_retries=0)
+# Model chính (Groq) - Dùng model OpenAI-compatible để tool calling ổn định
+llm_groq = ChatGroq(model="openai/gpt-oss-120b", temperature=0, groq_api_key=GROQ_API_KEY)
 
 # Safe SQL Middleware
 class SafeSQLMiddleware:
@@ -97,16 +101,14 @@ def search_events_semantic(query: str):
 
 tools = [query_database, search_events_semantic]
 
-# Agent Memory
-from langchain_classic.memory import ChatMessageHistory
-from langchain_classic.schema import BaseChatMessageHistory
-from langchain_classic.schema.runnable.history import RunnableWithMessageHistory
+# Agent Memory - simple list-based history
+from langchain_core.messages import HumanMessage, AIMessage
 
 store = {}
 
-def get_session_history(session_id: str) -> BaseChatMessageHistory:
+def get_session_history(session_id: str):
     if session_id not in store:
-        store[session_id] = ChatMessageHistory()
+        store[session_id] = []
     return store[session_id]
 
 from google import genai
@@ -188,21 +190,27 @@ DATABASE SCHEMA:
         MessagesPlaceholder(variable_name="agent_scratchpad"),
     ])
 
-    agent = create_tool_calling_agent(llm, tools, prompt)
-    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+    def try_invoke(model, message, history):
+        agent = create_tool_calling_agent(model, tools, prompt)
+        executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+        return executor.invoke({
+            "input": message,
+            "history": history,
+        })
 
-    agent_with_history = RunnableWithMessageHistory(
-        agent_executor,
-        get_session_history,
-        input_messages_key="input",
-        history_messages_key="history",
-    )
+    history = get_session_history(request.session_id)
 
     try:
-        response = agent_with_history.invoke(
-            {"input": request.message},
-            config={"configurable": {"session_id": request.session_id}}
-        )
+        response = try_invoke(llm_groq, request.message, history)
+    except Exception as groq_err:
+        logger.warning(f"⚠️ Groq gặp lỗi: {str(groq_err)}. Đang chuyển sang Gemini dự phòng...")
+        try:
+            response = try_invoke(llm_gemini, request.message, history)
+        except Exception as gemini_err:
+            logger.error(f"❌ Cả Groq và Gemini đều thất bại. Lỗi Gemini: {str(gemini_err)}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"AI Services unavailable. Groq: {str(groq_err)} | Gemini: {str(gemini_err)}")
+
+    try:
         
         # Trích xuất văn bản từ kết quả (Xử lý cả dict blocks và raw strings)
         answer = response["output"]
@@ -214,6 +222,10 @@ DATABASE SCHEMA:
                 elif isinstance(block, str):
                     parts.append(block)
             answer = "".join(parts)
+        
+        # Lưu vào lịch sử hội thoại
+        history.append(HumanMessage(content=request.message))
+        history.append(AIMessage(content=str(answer)))
         
         return ChatResponse(answer=str(answer))
     except Exception as e:
