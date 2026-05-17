@@ -81,8 +81,8 @@ groq_keys = [GROQ_API_KEY]
 for k in [GROQ_API_KEY_2, GROQ_API_KEY_3]:
     if k:
         groq_keys.append(k)
-llm_clients = [(f"groq_{key[-8:]}", ChatGroq(model="openai/gpt-oss-120b", temperature=0, groq_api_key=key, max_retries=0)) for key in groq_keys]
-local_llm = ChatOpenAI(model="qwen3-4b", temperature=0, base_url=LOCAL_LLM_BASE_URL, api_key="not-needed", max_retries=0)
+llm_clients = [(f"groq_{key[-8:]}", ChatGroq(model="openai/gpt-oss-120b", temperature=0, groq_api_key=key, max_retries=2)) for key in groq_keys]
+local_llm = ChatOpenAI(model="qwen3-4b", temperature=0, base_url=LOCAL_LLM_BASE_URL, api_key="not-needed", max_retries=2)
 llm_clients.append(("local", local_llm))
 llm_key_index = 0
 
@@ -215,13 +215,15 @@ def get_event_details(event_id: int):
         try:
             with db_safe.engine.connect() as conn:
                 avail_query = text("""
-                    SELECT tt.id, tt.name, tt.price, tt.color, COUNT(s.id) AS available
+                    SELECT tt.id, tt.name, tt.price, tt.color, es.session_date, es.name AS session_name,
+                           es.start_time AS session_start,
+                           COUNT(s.id) AS available
                     FROM ticket_types tt
                     JOIN event_sessions es ON tt.event_session_id = es.id
                     LEFT JOIN seats s ON s.ticket_type_id = tt.id AND s.status = 'AVAILABLE'
                     WHERE es.event_id = :eid
-                    GROUP BY tt.id, tt.name, tt.price, tt.color
-                    ORDER BY tt.id
+                    GROUP BY tt.id, tt.name, tt.price, tt.color, es.session_date, es.name, es.start_time
+                    ORDER BY es.session_date, tt.id
                 """)
                 tt_rows = {r.id: r for r in conn.execute(avail_query, {"eid": event_id})}
         except Exception:
@@ -235,7 +237,9 @@ def get_event_details(event_id: int):
                 avail = row.available if row else tt.get('availableQuantity', '?')
                 color = row.color if row and row.color else ""
                 color_tag = f" (color:{color})" if color else ""
-                result += f"- {tt.get('name')}: {tt.get('price')} VNĐ (còn {avail}){color_tag} | ID: {tt_id} (EV{event_id}_TT{tt_id})\n"
+                session_info = f" | {row.session_name} ({str(row.session_date)[5:]} {str(row.session_start)[:5]})" if row and row.session_name else ""
+                result += f"- {tt.get('name')}: {tt.get('price')} VNĐ (còn {avail}){color_tag}{session_info} | ID: {tt_id}\n"
+            result += "\n👉 Khi tạo nút SELECT: ghi rõ ngày giờ. VD: [SELECT: Vé Thường (Phiên 1 - 23/05 18:30) | EV1047_TT91]"
         
         return result
     except Exception as e:
@@ -305,7 +309,7 @@ def get_event_seats(event_id: int):
                             ttid = tt.get('id')
                             color_info = tt_colors.get(ttid, {})
                             color_dot = f"🟠" if color_info.get('color') else ""
-                            result += f"- {color_dot} {tt.get('name')}: {tt.get('price')} VNĐ | ID: {ttid} (EV{event_id}_TT{ttid})\n"
+                            result += f"- {color_dot} {tt.get('name')}: {tt.get('price')} VNĐ | ID: {ttid}\n"
                         result += f"\nDùng các nút [SELECT: <tên loại vé> | EV<eventId>_TT<id>] để user chọn loại vé."
                 else:
                     for s in available[:10]:
@@ -625,6 +629,7 @@ Bạn có quyền truy cập vào Database SQL, Vector Store và API để trả
   - [INFO: Tên nút | ID] -> Nút xem chi tiết
   - [BOOK: Tên nút | ID] -> Nút đặt vé
   - [SELECT: Tên nút | EV<eventId>_TT<ticketTypeId>] hoặc [SELECT: Tên nút | EV<eventId>_SE<seatId>] -> Nút chọn
+  - Khi có nhiều session/phiên: thêm thông tin phiên + giờ vào label, VD: [SELECT: Vé Thường (Phiên 1 - 23/05 18:30) | EV1047_TT91]
 
   ⚠️ QUAN TRỌNG: Xuống dòng RIÊNG cho mỗi nút, KHÔNG đặt trong backtick, KHÔNG thêm `` quanh cú pháp.
 - Trình bày cực kỳ tinh gọn, tránh viết đoạn văn dài.
@@ -637,6 +642,10 @@ Bước 2: Khi user click SELECT, user sẽ gửi tin nhắn dạng "CHỌN_VÉ 
    - "CHỌN_GHẾ EV<id>_SE<id>": lấy eventId và seatId, gọi NGAY `create_order_api(event_id, seat_ids=[<seatId>], total_amount=<giá>)`.
    - KHÔNG hỏi lại user, KHÔNG trả link thanh toán.
 Bước 3: Thông báo kết quả cho user. Kèm nút [SELECT: Xem vé tại Profile | navigate_profile] để user vào profile xem QR.
+
+🚨 QUAN TRỌNG - LUÔN ghi ngày giờ phiên vào nút SELECT:
+VD ĐÚNG: [SELECT: Vé Thường (Phiên 1 - 23/05 18:30) | EV1047_TT91]
+VD SAI: [SELECT: Vé Thường (Phiên 1) | EV1047_TT91] (thiếu ngày giờ)
 
 ⚠️ TUYỆT ĐỐI KHÔNG gọi tool `check_order_status` sau khi đặt vé. Thay vào đó hãy hướng dẫn user vào Profile.
 
@@ -807,6 +816,7 @@ Bạn có quyền truy cập vào Database SQL, Vector Store và API để trả
   - [INFO: Tên nút | ID] -> Nút xem chi tiết
   - [BOOK: Tên nút | ID] -> Nút đặt vé
   - [SELECT: Tên nút | EV<eventId>_TT<ticketTypeId>] hoặc [SELECT: Tên nút | EV<eventId>_SE<seatId>] -> Nút chọn
+  - Khi có nhiều session/phiên: thêm thông tin phiên + giờ vào label, VD: [SELECT: Vé Thường (Phiên 1 - 23/05 18:30) | EV1047_TT91]
 
   ⚠️ QUAN TRỌNG: Xuống dòng RIÊNG cho mỗi nút, KHÔNG đặt trong backtick, KHÔNG thêm `` quanh cú pháp.
 - Trình bày cực kỳ tinh gọn, tránh viết đoạn văn dài.
@@ -819,6 +829,10 @@ Bước 2: Khi user click SELECT, user sẽ gửi tin nhắn dạng "CHỌN_VÉ 
    - "CHỌN_GHẾ EV<id>_SE<id>": lấy eventId và seatId, gọi NGAY `create_order_api(event_id, seat_ids=[<seatId>], total_amount=<giá>)`.
    - KHÔNG hỏi lại user, KHÔNG trả link thanh toán.
 Bước 3: Thông báo kết quả cho user. Kèm nút [SELECT: Xem vé tại Profile | navigate_profile] để user vào profile xem QR.
+
+🚨 QUAN TRỌNG - LUÔN ghi ngày giờ phiên vào nút SELECT:
+VD ĐÚNG: [SELECT: Vé Thường (Phiên 1 - 23/05 18:30) | EV1047_TT91]
+VD SAI: [SELECT: Vé Thường (Phiên 1) | EV1047_TT91] (thiếu ngày giờ)
 
 ⚠️ TUYỆT ĐỐI KHÔNG gọi tool `check_order_status` sau khi đặt vé. Thay vào đó hãy hướng dẫn user vào Profile.
 
