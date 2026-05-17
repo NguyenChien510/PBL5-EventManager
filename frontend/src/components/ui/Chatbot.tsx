@@ -15,6 +15,7 @@ const Chatbot: React.FC = () => {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingStatus, setLoadingStatus] = useState('');
   const { accessToken, user } = useAuthStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -125,13 +126,13 @@ const Chatbot: React.FC = () => {
     
     if (!overrideInput) setInput('');
     setIsLoading(true);
+    setLoadingStatus('🤔 Đang phân tích yêu cầu...');
 
     try {
-      const response = await fetch('http://localhost:8000/chat', {
+      // Try streaming endpoint first
+      const streamResponse = await fetch('http://localhost:8000/chat/stream', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: messageToSend,
           session_id: user?.id ? `user_${user.id}` : 'guest',
@@ -139,25 +140,88 @@ const Chatbot: React.FC = () => {
           user_id: user?.id
         }),
       });
-      const data = await response.json();
-      const answer = data?.answer || 'Xin lỗi, tôi không thể xử lý yêu cầu này ngay bây giờ.';
-      const aiMessage: Message = { role: 'ai', content: answer };
       
-      setMessages(prev => {
-        const updated = [...prev, aiMessage];
-        if (!user?.id) {
-          localStorage.setItem('chatbot_guest_history', JSON.stringify(updated));
+      if (streamResponse.ok && streamResponse.headers.get('content-type')?.includes('text/event-stream')) {
+        // SSE streaming path
+        const reader = streamResponse.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let fullAnswer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                if (data.type === 'status') {
+                  setLoadingStatus(data.message);
+                } else if (data.type === 'result') {
+                  fullAnswer = data.answer;
+                } else if (data.type === 'error') {
+                  fullAnswer = `⚠️ ${data.message}`;
+                }
+              } catch {
+                // ignore parse errors
+              }
+            }
+          }
         }
-        return updated;
-      });
+
+        const answer = fullAnswer || 'Xin lỗi, tôi không thể xử lý yêu cầu này ngay bây giờ.';
+        const aiMessage: Message = { role: 'ai', content: answer };
+        setMessages(prev => {
+          const updated = [...prev, aiMessage];
+          if (!user?.id) {
+            localStorage.setItem('chatbot_guest_history', JSON.stringify(updated));
+          }
+          return updated;
+        });
+      } else {
+        // Fallback to regular endpoint
+        const response = await fetch('http://localhost:8000/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: messageToSend,
+            session_id: user?.id ? `user_${user.id}` : 'guest',
+            token: accessToken,
+            user_id: user?.id
+          }),
+        });
+        const data = await response.json();
+        const answer = data?.answer || 'Xin lỗi, tôi không thể xử lý yêu cầu này ngay bây giờ.';
+        const aiMessage: Message = { role: 'ai', content: answer };
+        setMessages(prev => {
+          const updated = [...prev, aiMessage];
+          if (!user?.id) {
+            localStorage.setItem('chatbot_guest_history', JSON.stringify(updated));
+          }
+          return updated;
+        });
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       const errorMessage: Message = { role: 'ai', content: 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại sau!' };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+      setLoadingStatus('');
     }
   };
+
+  useEffect(() => {
+    if (!isLoading) return;
+    const timeout = setTimeout(() => {
+      setLoadingStatus(prev => prev || '⏳ Đang xử lý...');
+    }, 5000);
+    return () => clearTimeout(timeout);
+  }, [isLoading]);
 
   const MessageContent: React.FC<{ content: string; onAction: (text: string) => void }> = ({ content, onAction }) => {
     if (!content) return null;
@@ -189,7 +253,18 @@ const Chatbot: React.FC = () => {
               );
             }
             return (
-              <button key={i} onClick={() => onAction(`${label.trim()} (ID: ${value.trim()})`)} className={btnClass + "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-700 hover:text-white"}>
+              <button key={i} onClick={() => {
+                const v = value.trim();
+                if (v === 'navigate_profile') {
+                  navigate('/profile');
+                } else if (v.startsWith('EV') && v.includes('_SE')) {
+                  onAction(`CHỌN_GHẾ ${v}`);
+                } else if (v.startsWith('EV') && v.includes('_TT')) {
+                  onAction(`CHỌN_VÉ ${v}`);
+                } else {
+                  onAction(`${label.trim()} (ID: ${v})`);
+                }
+              }} className={btnClass + "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-700 hover:text-white"}>
                 {label}
               </button>
             );
@@ -295,10 +370,13 @@ const Chatbot: React.FC = () => {
             ))}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 rounded-tl-none flex gap-1">
-                  <div className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce"></div>
-                  <div className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                  <div className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 rounded-tl-none">
+                  <div className="flex gap-1 mb-1">
+                    <div className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce"></div>
+                    <div className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                    <div className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                  </div>
+                  {loadingStatus && <div className="text-xs text-slate-400">{loadingStatus}</div>}
                 </div>
               </div>
             )}

@@ -6,11 +6,15 @@ from contextvars import ContextVar
 from typing import List, Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+import json
+import asyncio
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_groq import ChatGroq
+from langchain_openai import ChatOpenAI
 from langchain_qdrant import QdrantVectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_classic.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -55,6 +59,8 @@ GROQ_API_KEY_2 = os.getenv("GROQ_API_KEY_2")
 GROQ_API_KEY_3 = os.getenv("GROQ_API_KEY_3")
 # Backend API
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080")
+# Local LLM (OpenAI-compatible)
+LOCAL_LLM_BASE_URL = os.getenv("LOCAL_LLM_BASE_URL", "http://192.168.1.123:1234/v1")
 # Qdrant Cloud
 QDRANT_URL = os.getenv("QDRANT_URL", "https://94e3d96c-ddc5-4a98-a77c-a4df1d317a03.australia-southeast1-0.gcp.cloud.qdrant.io")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIiwic3ViamVjdCI6ImFwaS1rZXk6Mjc1NjM2MDYtZWM2Ni00NzA0LWE0OGQtNzgwNWZiNmVhZGE0In0.vSJCvzHTQkcirk826fyGJyNGcV3Vp7aMdps767w0b7g")
@@ -64,18 +70,21 @@ QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "event_platform")
 current_session_id_var: ContextVar[str] = ContextVar("current_session_id", default="default_session")
 user_sessions = {}  # session_id -> {"user_id": "...", "access_token": "..."}
 current_session_token = None  # Token for current booking session
+current_user_id = None  # User ID for current booking session
 
 # Initialize components
 # Sử dụng Gemini Embedding 2 mới nhất
 embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-2", google_api_key=GOOGLE_API_KEY)
 
-# Groq API failover: list of (api_key, ChatGroq) pairs
+# LLM Clients: Groq primary, local fallback
 groq_keys = [GROQ_API_KEY]
 for k in [GROQ_API_KEY_2, GROQ_API_KEY_3]:
     if k:
         groq_keys.append(k)
-groq_clients = [(key, ChatGroq(model="openai/gpt-oss-120b", temperature=0, groq_api_key=key, max_retries=0)) for key in groq_keys]
-groq_key_index = 0  # Track which key is currently active
+llm_clients = [(f"groq_{key[-8:]}", ChatGroq(model="openai/gpt-oss-120b", temperature=0, groq_api_key=key, max_retries=0)) for key in groq_keys]
+local_llm = ChatOpenAI(model="qwen3-4b", temperature=0, base_url=LOCAL_LLM_BASE_URL, api_key="not-needed", max_retries=0)
+llm_clients.append(("local", local_llm))
+llm_key_index = 0
 
 # Safe SQL Middleware
 class SafeSQLMiddleware:
@@ -189,18 +198,44 @@ def get_event_details(event_id: int):
         event = response.json()
         result = f"Event: {event.get('title')}\n"
         result += f"Location: {event.get('location')}\n"
-        result += f"Time: {event.get('startTime')} - {event.get('endTime')}\n\n"
+        result += f"Time: {event.get('startTime')} - {event.get('endTime')}\n"
+        has_seat_map = event.get('hasSeatMap')
+        if has_seat_map is not None:
+            result += f"HasSeatMap: {'YES' if has_seat_map else 'NO'}\n"
+        result += "\n"
         
-        # Get ticket types
+        # Get ticket types + real availability from seats
         tt_response = requests.get(f"{BACKEND_URL}/api/events/{eid}/ticket-types", timeout=10)
+        ticket_types = []
         if tt_response.status_code == 200:
             tt_data = tt_response.json()
             ticket_types = tt_data.get("data", []) if isinstance(tt_data, dict) else tt_data
-            if ticket_types and isinstance(ticket_types, list):
-                result += "Ticket Types:\n"
-                for tt in ticket_types:
-                    tt_id = tt.get('id')
-                    result += f"- {tt.get('name')}: {tt.get('price')} VNĐ (còn {tt.get('availableQuantity', 'N/A')}) | ID: {tt_id} (EV{event_id}_TT{tt_id})\n"
+        
+        # Query real available seat counts + colors
+        try:
+            with db_safe.engine.connect() as conn:
+                avail_query = text("""
+                    SELECT tt.id, tt.name, tt.price, tt.color, COUNT(s.id) AS available
+                    FROM ticket_types tt
+                    JOIN event_sessions es ON tt.event_session_id = es.id
+                    LEFT JOIN seats s ON s.ticket_type_id = tt.id AND s.status = 'AVAILABLE'
+                    WHERE es.event_id = :eid
+                    GROUP BY tt.id, tt.name, tt.price, tt.color
+                    ORDER BY tt.id
+                """)
+                tt_rows = {r.id: r for r in conn.execute(avail_query, {"eid": event_id})}
+        except Exception:
+            tt_rows = {}
+        
+        if ticket_types and isinstance(ticket_types, list):
+            result += "Ticket Types:\n"
+            for tt in ticket_types:
+                tt_id = tt.get('id')
+                row = tt_rows.get(tt_id)
+                avail = row.available if row else tt.get('availableQuantity', '?')
+                color = row.color if row and row.color else ""
+                color_tag = f" (color:{color})" if color else ""
+                result += f"- {tt.get('name')}: {tt.get('price')} VNĐ (còn {avail}){color_tag} | ID: {tt_id} (EV{event_id}_TT{tt_id})\n"
         
         return result
     except Exception as e:
@@ -235,13 +270,29 @@ def get_event_seats(event_id: int):
             if not available:
                 return "Không còn ghế trống."
             
+            # Get ticket type colors from DB
+            try:
+                with db_safe.engine.connect() as conn:
+                    color_query = text("""
+                        SELECT tt.id, tt.name, tt.color 
+                        FROM ticket_types tt 
+                        JOIN event_sessions es ON tt.event_session_id = es.id 
+                        WHERE es.event_id = :eid
+                    """)
+                    tt_colors = {r.id: {"name": r.name, "color": r.color} for r in conn.execute(color_query, {"eid": event_id})}
+            except Exception:
+                tt_colors = {}
+            
             has_coords = any(s.get("x") is not None and s.get("y") is not None for s in available)
             
             if has_coords:
                 result = f"Sơ đồ ghế (tọa độ x,y):\n"
                 for s in available[:30]:
                     sid = s.get('id')
-                    result += f"- Ghế {s.get('seatNumber')} | ID: {sid} (EV{event_id}_SE{sid})\n"
+                    tt_id = s.get('ticketTypeId') or s.get('ticket_type_id')
+                    color_info = tt_colors.get(tt_id, {})
+                    color_label = f" [{color_info['name']}]" if color_info.get('name') else ""
+                    result += f"- Ghế {s.get('seatNumber')}{color_label} | ID: {sid} (EV{event_id}_SE{sid})\n"
                 result += f"\nDùng các nút [SELECT: Ghế <tên> | EV{event_id}_SE<ID>] để user chọn ghế."
             else:
                 result = "Sự kiện KHÔNG có sơ đồ ghế. Chỉ chọn loại vé dưới đây:\n"
@@ -252,7 +303,9 @@ def get_event_seats(event_id: int):
                     if ticket_types and isinstance(ticket_types, list):
                         for tt in ticket_types:
                             ttid = tt.get('id')
-                            result += f"- {tt.get('name')}: {tt.get('price')} VNĐ | ID: {ttid} (EV{event_id}_TT{ttid})\n"
+                            color_info = tt_colors.get(ttid, {})
+                            color_dot = f"🟠" if color_info.get('color') else ""
+                            result += f"- {color_dot} {tt.get('name')}: {tt.get('price')} VNĐ | ID: {ttid} (EV{event_id}_TT{ttid})\n"
                         result += f"\nDùng các nút [SELECT: <tên loại vé> | EV<eventId>_TT<id>] để user chọn loại vé."
                 else:
                     for s in available[:10]:
@@ -268,24 +321,18 @@ def get_event_seats(event_id: int):
 @tool
 def create_order_api(event_id: int, seat_ids: List[int], total_amount: int):
     """
-    Tạo đơn hàng và lấy link thanh toán. 
+    Tạo đơn hàng và tự động thanh toán luôn (không trả link).
     - event_id: ID sự kiện.
     - seat_ids: Danh sách ID ghế.
     - total_amount: Tổng tiền (VNĐ).
     """
     global current_session_token
     try:
-        target_session = current_session_id_var.get()
-
         token = current_session_token
         if not token:
-            session_data = user_sessions.get(target_session, {})
-            token = session_data.get("access_token")
-        
-        if not token:
-            return f"Chưa đăng nhập! (Session: {target_session}). Vui lòng yêu cầu người dùng đăng nhập trên website."
-        
-        user_id = user_sessions.get(target_session, {}).get("user_id")
+            return f"Chưa đăng nhập! Vui lòng yêu cầu người dùng đăng nhập trên website."
+
+        user_id = current_user_id
         if not user_id:
             return "Không tìm thấy user ID. Vui lòng đăng nhập lại."
         
@@ -293,21 +340,16 @@ def create_order_api(event_id: int, seat_ids: List[int], total_amount: int):
         if not seat_id_list:
             return "Lỗi: Danh sách ghế không được trống."
 
-        # Resolve ticket_type_ids to seat_ids if necessary
         resolved_seat_ids = []
         try:
             with db_safe.engine.connect() as conn:
                 for sid in seat_id_list:
-                    # Check if it exists in seats
                     seat_check = conn.execute(text("SELECT id FROM seats WHERE id = :sid"), {"sid": sid}).fetchone()
                     if seat_check:
                         resolved_seat_ids.append(sid)
                     else:
-                        # Check if it's a ticket_type_id
                         tt_check = conn.execute(text("SELECT id FROM ticket_types WHERE id = :sid"), {"sid": sid}).fetchone()
                         if tt_check:
-                            # It is a ticket type ID! Find an available seat
-                            # Exclude seats already added to resolved_seat_ids to avoid duplicates
                             exclude_ids = resolved_seat_ids if resolved_seat_ids else [-1]
                             placeholders = ", ".join(str(x) for x in exclude_ids)
                             query = text(f"""
@@ -343,18 +385,30 @@ def create_order_api(event_id: int, seat_ids: List[int], total_amount: int):
             timeout=10
         )
         
-        if response.status_code == 200:
-            data = response.json()
-            payment_url = data.get("url")
-            # The URL usually contains txnRef or we can parse it
-            import urllib.parse
-            parsed_url = urllib.parse.urlparse(payment_url)
-            params = urllib.parse.parse_qs(parsed_url.query)
-            order_id = params.get("txnRef", [None])[0]
-            
-            return f"Đơn hàng đã được tạo thành công! (ID Đơn hàng: {order_id})\nLink thanh toán gốc: {payment_url}"
-        else:
+        if response.status_code != 200:
             return f"Lỗi tạo đơn: {response.status_code} - {response.text}"
+
+        data = response.json()
+        payment_url = data.get("url")
+        import urllib.parse
+        parsed_url = urllib.parse.urlparse(payment_url)
+        params = urllib.parse.parse_qs(parsed_url.query)
+        order_id = params.get("txnRef", [None])[0]
+        if not order_id:
+            return f"Lỗi: Không tìm thấy order ID trong response."
+        
+        # Auto-pay immediately
+        pay_params = {
+            "vnp_TxnRef": str(order_id),
+            "vnp_TransactionResponseCode": "00",
+            "vnp_SecureHash": "MOCK_SANDBOX_HASH"
+        }
+        pay_resp = requests.get(f"{BACKEND_URL}/api/public/payment/vnpay-return", params=pay_params, timeout=10)
+        
+        if pay_resp.status_code in [200, 302]:
+            return f"✅ Đặt vé thành công! Đơn hàng #{order_id} đã được thanh toán tự động."
+        else:
+            return f"Đơn hàng #{order_id} đã tạo nhưng thanh toán thất bại (mã: {pay_resp.status_code})."
     except Exception as e:
         return f"Lỗi: {str(e)}"
 
@@ -367,7 +421,7 @@ def check_order_status(order_id: int):
         query = f"SELECT status, total_amount FROM orders WHERE id = {order_id}"
         # Reuse query_database logic but inside here for simplicity or just call it
         from sqlalchemy import text
-        with engine.connect() as connection:
+        with db_safe.engine.connect() as connection:
             result = connection.execute(text(query))
             row = result.fetchone()
             if row:
@@ -404,7 +458,7 @@ def auto_pay_order(order_id: int):
     except Exception as e:
         return f"Lỗi hệ thống khi thanh toán: {str(e)}"
 
-tools = [query_database, search_events_semantic, search_events_api, get_event_details, get_event_seats, create_order_api, check_order_status, auto_pay_order]
+tools = [query_database, search_events_semantic, search_events_api, get_event_details, get_event_seats, create_order_api, check_order_status]
 
 # Agent Memory - simple list-based history
 from langchain_core.messages import HumanMessage, AIMessage
@@ -532,18 +586,25 @@ async def chat(request: ChatRequest):
     current_session_id_var.set(session_id)
     
     # Auto-login if token provided from frontend
-    if request.token and request.user_id:
+    is_logged_in = bool(request.token and request.user_id)
+    if is_logged_in:
+        global current_session_token, current_user_id
+        current_session_token = request.token
+        current_user_id = request.user_id
         user_sessions[session_id] = {
             "access_token": request.token,
             "user_id": request.user_id
         }
         logger.info(f"Session {session_id} auto-authenticated with token.")
 
+    login_status = f"✅ User ĐÃ đăng nhập (ID: {request.user_id})" if is_logged_in else "❌ User CHƯA đăng nhập"
+    
     # System prompt cho Agent với thông tin thời gian thực
     current_date = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     prompt = ChatPromptTemplate.from_messages([
         ("system", f"""Bạn là trợ lý ảo AI Agent chuyên nghiệp của EventPlatform. 
 Hôm nay là ngày: {current_date}.
+{login_status}
 
 Bạn có quyền truy cập vào Database SQL, Vector Store và API để trả lời câu hỏi.
 
@@ -570,25 +631,45 @@ Bạn có quyền truy cập vào Database SQL, Vector Store và API để trả
 - 🚨 TUYỆT ĐỐI KHÔNG tự tạo/bịa danh sách ghế. Chỉ hiển thị ghế/danh sách có được từ kết quả tool `get_event_seats`.
 
 🎫 QUY TRÌNH ĐẶT VÉ TỰ ĐỘNG:
-1. Gọi `get_event_details` để xem thông tin + loại vé.
-2. Gọi `get_event_seats` để kiểm tra loại sơ đồ:
-   - Nếu CÓ tọa độ (x,y): hiển thị danh sách ghế từ kết quả, dùng nút [SELECT: Ghế <tên> | EV<eventId>_SE<seatId>] mỗi ghế một dòng.
-   - Nếu KHÔNG có x,y: KHÔNG hiển thị ghế. Chỉ hiển thị loại vé, dùng nút [SELECT: <tên loại vé> | EV<eventId>_TT<ticketTypeId>] mỗi loại một dòng.
-3. SAU KHI user chọn loại vé (click EV_TT button): LUÔN gọi lại `get_event_seats(event_id)` để lấy thông tin cập nhật. Nếu ko có x,y thì proceed luôn (ko hỏi ghế).
-4. Tạo đơn -> Tự động thanh toán (gọi `auto_pay_order`).
+Bước 1: Gọi `get_event_details` -> hiển thị loại vé với nút [SELECT: <tên> | EV<eventId>_TT<ticketTypeId>].
+Bước 2: Khi user click SELECT, user sẽ gửi tin nhắn dạng "CHỌN_VÉ EV<eventId>_TT<ticketTypeId>" hoặc "CHỌN_GHẾ EV<eventId>_SE<seatId>":
+   - "CHỌN_VÉ EV<id>_TT<id>": lấy eventId và ticketTypeId, gọi `get_event_seats(eventId)`. Nếu có tọa độ -> hiển thị ghế chờ chọn. Nếu không -> gọi NGAY `create_order_api(event_id, seat_ids=[<ticketTypeId>], total_amount=<giá>)`. Tool này tự thanh toán luôn.
+   - "CHỌN_GHẾ EV<id>_SE<id>": lấy eventId và seatId, gọi NGAY `create_order_api(event_id, seat_ids=[<seatId>], total_amount=<giá>)`.
+   - KHÔNG hỏi lại user, KHÔNG trả link thanh toán.
+Bước 3: Thông báo kết quả cho user. Kèm nút [SELECT: Xem vé tại Profile | navigate_profile] để user vào profile xem QR.
+
+⚠️ TUYỆT ĐỐI KHÔNG gọi tool `check_order_status` sau khi đặt vé. Thay vào đó hãy hướng dẫn user vào Profile.
 
 QUY TẮC KHÁC:
 1. Trình bày bằng Markdown chuyên nghiệp, dùng `inline code` để highlight thông tin, dùng icon (📅, 📍, 🎟️, ⭐).
-2. Nếu khách hàng chưa đăng nhập, hãy yêu cầu họ Đăng nhập. Kèm theo nút [SELECT: Tôi đã đăng nhập | check_auth] trên một dòng riêng (không backtick).
-3. Nếu khách hỏi về giá vé hoặc chỗ ngồi, LUÔN gọi `get_event_details` trước để xem loại vé, sau đó gọi `get_event_seats`.
+2. Nếu login status là "CHƯA đăng nhập": yêu cầu họ đăng nhập trên website, kèm nút [SELECT: Tôi đã đăng nhập | check_auth] trên dòng riêng. Nếu login status là "ĐÃ đăng nhập": KHÔNG hỏi đăng nhập, proceed luôn.
+3. Khi xem chi tiết sự kiện: nếu HasSeatMap = YES, LUÔN gọi tiếp `get_event_seats` để lấy danh sách ghế. KHÔNG tự ý kết luận "không cần chọn ghế".
 4. Khi khách tìm sự kiện theo tên ca sĩ/nghệ sĩ, KHÔNG dùng `search_events_semantic` — thay vào đó dùng `query_database` với SQL JOIN: `SELECT e.* FROM events e JOIN event_artists ea ON e.id=ea.event_id JOIN artists a ON ea.artist_id=a.id WHERE a.name ILIKE '%tên_ca_sĩ%'`.
 5. Khi khách hỏi "có sự kiện nào ở [địa điểm]" — tìm events với `ILIKE '%địa điểm%'` và `start_time > NOW()` (sự kiện sắp diễn ra). KHÔNG thêm điều kiện `start_time <= NOW() AND end_time >= NOW()` trừ khi khách hỏi "đang diễn ra". Nếu tìm thấy thì HIỂN THỊ NGAY cho khách, không tự ý query lại với điều kiện khác.
 
-DATABASE SCHEMA:
-- Bảng `events`: id, title, location, start_time, end_time, status (pending|sold_out|ended|upcoming|rejected), tickets_left.
-- Bảng `seats`: id, row, seat_number, status (AVAILABLE|PENDING|BOOKED), ticket_type_id.
-- Bảng `artists`: id, name, bio, image.
-- Bảng `event_artists`: event_id, artist_id (liên kết nhiều-nhiều events <-> artists).
+QUY TẮC KIỂM TRA VÉ CÒN HAY HẾT:
+- `events.tickets_left` là dữ liệu sai lệch, TUYỆT ĐỐI KHÔNG ĐƯỢC DÙNG.
+- Cách chính xác: đếm ghế `AVAILABLE` trong `seats`: `SELECT COUNT(*) FROM seats s JOIN ticket_types tt ON s.ticket_type_id = tt.id JOIN event_sessions es ON tt.event_session_id = es.id WHERE es.event_id = <eventId> AND s.status = 'AVAILABLE'`
+- Hoặc gọi tool `get_event_seats` để lấy số ghế trống real-time.
+- KHÔNG BAO GIỜ nói "hết vé" hay "tickets_left = 0" trong câu trả lời. Nếu có ticket type trong kết quả thì tức là vẫn còn vé.
+
+QUY TẮC TÌM THEO THỂ LOẠI (categories):
+- Các thể loại hiện có: 6=Nhạc sống, 7=Sân khấu & Nghệ thuật, 8=Thể Thao, 9=Hội thảo & Workshop, 10=Tham quan & Trải nghiệm
+- Khi tìm theo thể loại: dùng `query_database` với `e.category_id = <số>`.
+
+DATABASE SCHEMA (đầy đủ):
+- Bảng `events`: id, title, location, start_time, end_time, status (pending|sold_out|ended|upcoming|rejected), category_id (FK).
+- Bảng `event_sessions`: id, event_id (FK), session_date, start_time, end_time, name.
+- Bảng `ticket_types`: id, event_session_id (FK), name, price, total_quantity, color.
+- Bảng `seats`: id, event_session_id (FK), ticket_type_id (FK), seat_number, status (AVAILABLE|PENDING|BOOKED), x, y.
+- Bảng `orders`: id, user_id (FK), total_amount, status (PENDING|COMPLETED|CANCELLED).
+- Bảng `tickets`: id, user_id (FK), seat_id (FK -> seats.id), order_id (FK), status (PENDING|PAID|CANCELLED|CHECKED_IN).
+- Bảng `categories`: id, name, icon, color.
+- Bảng `artists`: id, name.
+- Bảng `event_artists`: event_id, artist_id.
+- Bảng `users`: id (UUID), email, full_name.
+- Bảng `provinces`: id, name.
+- Bảng `wards`: id, name, province_id.
 """),
         MessagesPlaceholder(variable_name="history"),
         ("human", "{input}"),
@@ -605,28 +686,32 @@ DATABASE SCHEMA:
         })
 
     def invoke_with_failover(message, history, session_id):
-        global groq_key_index
+        global llm_key_index
+        llm_key_index = 0  # Always start from Groq
         errors = []
-        num_keys = len(groq_clients)
-        for attempt in range(num_keys):
-            idx = (groq_key_index + attempt) % num_keys
-            api_key, llm_instance = groq_clients[idx]
+        num_clients = len(llm_clients)
+        for attempt in range(num_clients):
+            idx = (llm_key_index + attempt) % num_clients
+            client_name, llm_instance = llm_clients[idx]
             try:
                 result = try_invoke(llm_instance, message, history, session_id)
-                groq_key_index = idx
+                llm_key_index = idx
                 return result
             except Exception as e:
                 err_msg = str(e)
-                errors.append(f"Key {idx}: {err_msg[:200]}")
+                errors.append(f"{client_name}: {err_msg[:200]}")
                 if "429" in err_msg or "rate_limit" in err_msg.lower():
-                    logger.warning(f"⚠️ Groq key {idx} rate limited, trying next...")
+                    logger.warning(f"⚠️ {client_name} rate limited, trying next...")
                     continue
                 if "Failed to call a function" in err_msg:
-                    logger.warning(f"⚠️ Groq model lỗi tool call, thử lại key khác...")
+                    logger.warning(f"⚠️ {client_name} lỗi tool call, thử lại...")
                     continue
-                logger.error(f"❌ Groq key {idx} lỗi: {err_msg}", exc_info=True)
+                if "Cannot put tools" in err_msg:
+                    logger.warning(f"⚠️ {client_name} không support tool calling, thử client khác...")
+                    continue
+                logger.error(f"❌ {client_name} lỗi: {err_msg}", exc_info=True)
                 raise
-        # All keys exhausted
+        # All clients exhausted
         logger.error(f"❌ Tất cả attempts thất bại: {'; '.join(errors)}")
         return {"output": "⚠️ Hệ thống AI tạm thời quá tải. Vui lòng thử lại sau ít phút."}
 
@@ -669,6 +754,178 @@ DATABASE SCHEMA:
     except Exception as e:
         logging.error(f"Error in /chat Agent: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+TOOL_LABELS = {
+    "query_database": "📊 Truy vấn cơ sở dữ liệu",
+    "search_events_semantic": "🔍 Tìm kiếm sự kiện",
+    "search_events_api": "🔍 Tìm kiếm qua API",
+    "get_event_details": "📋 Xem chi tiết sự kiện",
+    "get_event_seats": "💺 Kiểm tra ghế",
+    "create_order_api": "🎫 Đặt vé & thanh toán",
+    "check_order_status": "📦 Kiểm tra đơn hàng",
+}
+
+@app.post("/chat/stream")
+async def chat_stream(request: ChatRequest):
+    session_id = request.session_id
+    current_session_id_var.set(session_id)
+
+    is_logged_in = bool(request.token and request.user_id)
+    if is_logged_in:
+        global current_session_token, current_user_id
+        current_session_token = request.token
+        current_user_id = request.user_id
+        user_sessions[session_id] = {
+            "access_token": request.token,
+            "user_id": request.user_id
+        }
+
+    login_status = f"✅ User ĐÃ đăng nhập (ID: {request.user_id})" if is_logged_in else "❌ User CHƯA đăng nhập"
+    current_date = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", f"""Bạn là trợ lý ảo AI Agent chuyên nghiệp của EventPlatform. 
+Hôm nay là ngày: {current_date}.
+{login_status}
+
+Bạn có quyền truy cập vào Database SQL, Vector Store và API để trả lời câu hỏi.
+
+🎫 QUY TẮC CHỌN TOOL (QUAN TRỌNG):
+1. **LUÔN LUÔN** dùng `query_database` khi người dùng hỏi về thời gian cụ thể (ví dụ: "tháng 5", "cuối tuần này", "ngày 20/5"), địa điểm cụ thể hoặc cần con số chính xác. Hãy tự viết câu lệnh SQL SELECT phù hợp.
+2. Dùng `search_events_semantic` khi người dùng hỏi chung chung, cần tư vấn theo cảm xúc hoặc mô tả sự kiện (ví dụ: "sự kiện nào vui nhộn", "có show diễn nào cho trẻ em không").
+
+🎨 QUY TẮC TRÌNH BÀY (PREMIUM MOBILE-FIRST UI):
+- **KHÔNG DÙNG BÔI ĐẬM (**)**. Thay vào đó hãy dùng `inline code` (dấu `) để highlight thông tin quan trọng.
+- **KHÔNG DÙNG BẢNG (TABLE)**. Hãy dùng định dạng **Card (Thẻ)** như sau:
+  ---
+  🎭 `Tên Sự Kiện Highlight`
+  📅 {current_date}
+  📍 Địa điểm ngắn gọn
+  [INFO: Xem chi tiết | ID] [BOOK: Đặt vé | ID]
+  ---
+- Sử dụng cú pháp nút bấm đặc biệt (KHÔNG bọc trong backtick ``):
+  - [INFO: Tên nút | ID] -> Nút xem chi tiết
+  - [BOOK: Tên nút | ID] -> Nút đặt vé
+  - [SELECT: Tên nút | EV<eventId>_TT<ticketTypeId>] hoặc [SELECT: Tên nút | EV<eventId>_SE<seatId>] -> Nút chọn
+
+  ⚠️ QUAN TRỌNG: Xuống dòng RIÊNG cho mỗi nút, KHÔNG đặt trong backtick, KHÔNG thêm `` quanh cú pháp.
+- Trình bày cực kỳ tinh gọn, tránh viết đoạn văn dài.
+- 🚨 TUYỆT ĐỐI KHÔNG tự tạo/bịa danh sách ghế. Chỉ hiển thị ghế/danh sách có được từ kết quả tool `get_event_seats`.
+
+🎫 QUY TRÌNH ĐẶT VÉ TỰ ĐỘNG:
+Bước 1: Gọi `get_event_details` -> hiển thị loại vé với nút [SELECT: <tên> | EV<eventId>_TT<ticketTypeId>].
+Bước 2: Khi user click SELECT, user sẽ gửi tin nhắn dạng "CHỌN_VÉ EV<eventId>_TT<ticketTypeId>" hoặc "CHỌN_GHẾ EV<eventId>_SE<seatId>":
+   - "CHỌN_VÉ EV<id>_TT<id>": lấy eventId và ticketTypeId, gọi `get_event_seats(eventId)`. Nếu có tọa độ -> hiển thị ghế chờ chọn. Nếu không -> gọi NGAY `create_order_api(event_id, seat_ids=[<ticketTypeId>], total_amount=<giá>)`. Tool này tự thanh toán luôn.
+   - "CHỌN_GHẾ EV<id>_SE<id>": lấy eventId và seatId, gọi NGAY `create_order_api(event_id, seat_ids=[<seatId>], total_amount=<giá>)`.
+   - KHÔNG hỏi lại user, KHÔNG trả link thanh toán.
+Bước 3: Thông báo kết quả cho user. Kèm nút [SELECT: Xem vé tại Profile | navigate_profile] để user vào profile xem QR.
+
+⚠️ TUYỆT ĐỐI KHÔNG gọi tool `check_order_status` sau khi đặt vé. Thay vào đó hãy hướng dẫn user vào Profile.
+
+QUY TẮC KHÁC:
+1. Trình bày bằng Markdown chuyên nghiệp, dùng `inline code` để highlight thông tin, dùng icon (📅, 📍, 🎟️, ⭐).
+2. Nếu login status là "CHƯA đăng nhập": yêu cầu họ đăng nhập trên website, kèm nút [SELECT: Tôi đã đăng nhập | check_auth] trên dòng riêng. Nếu login status là "ĐÃ đăng nhập": KHÔNG hỏi đăng nhập, proceed luôn.
+3. Khi xem chi tiết sự kiện: nếu HasSeatMap = YES, LUÔN gọi tiếp `get_event_seats` để lấy danh sách ghế. KHÔNG tự ý kết luận "không cần chọn ghế".
+4. Khi khách tìm sự kiện theo tên ca sĩ/nghệ sĩ, KHÔNG dùng `search_events_semantic` — thay vào đó dùng `query_database` với SQL JOIN: `SELECT e.* FROM events e JOIN event_artists ea ON e.id=ea.event_id JOIN artists a ON ea.artist_id=a.id WHERE a.name ILIKE '%tên_ca_sĩ%'`.
+5. Khi khách hỏi "có sự kiện nào ở [địa điểm]" — tìm events với `ILIKE '%địa điểm%'` và `start_time > NOW()` (sự kiện sắp diễn ra). KHÔNG thêm điều kiện `start_time <= NOW() AND end_time >= NOW()` trừ khi khách hỏi "đang diễn ra". Nếu tìm thấy thì HIỂN THỊ NGAY cho khách, không tự ý query lại với điều kiện khác.
+
+QUY TẮC KIỂM TRA VÉ CÒN HAY HẾT:
+- `events.tickets_left` là dữ liệu sai lệch, TUYỆT ĐỐI KHÔNG ĐƯỢC DÙNG.
+- Cách chính xác: đếm ghế `AVAILABLE` trong `seats`: `SELECT COUNT(*) FROM seats s JOIN ticket_types tt ON s.ticket_type_id = tt.id JOIN event_sessions es ON tt.event_session_id = es.id WHERE es.event_id = <eventId> AND s.status = 'AVAILABLE'`
+- Hoặc gọi tool `get_event_seats` để lấy số ghế trống real-time.
+- KHÔNG BAO GIỜ nói "hết vé" hay "tickets_left = 0" trong câu trả lời. Nếu có ticket type trong kết quả thì tức là vẫn còn vé.
+
+QUY TẮC TÌM THEO THỂ LOẠI (categories):
+- Các thể loại hiện có: 6=Nhạc sống, 7=Sân khấu & Nghệ thuật, 8=Thể Thao, 9=Hội thảo & Workshop, 10=Tham quan & Trải nghiệm
+- Khi tìm theo thể loại: dùng `query_database` với `e.category_id = <số>`.
+
+DATABASE SCHEMA (đầy đủ):
+- Bảng `events`: id, title, location, start_time, end_time, status (pending|sold_out|ended|upcoming|rejected), category_id (FK).
+- Bảng `event_sessions`: id, event_id (FK), session_date, start_time, end_time, name.
+- Bảng `ticket_types`: id, event_session_id (FK), name, price, total_quantity, color.
+- Bảng `seats`: id, event_session_id (FK), ticket_type_id (FK), seat_number, status (AVAILABLE|PENDING|BOOKED), x, y.
+- Bảng `orders`: id, user_id (FK), total_amount, status (PENDING|COMPLETED|CANCELLED).
+- Bảng `tickets`: id, user_id (FK), seat_id (FK -> seats.id), order_id (FK), status (PENDING|PAID|CANCELLED|CHECKED_IN).
+- Bảng `categories`: id, name, icon, color.
+- Bảng `artists`: id, name.
+- Bảng `event_artists`: event_id, artist_id.
+- Bảng `users`: id (UUID), email, full_name.
+- Bảng `provinces`: id, name.
+- Bảng `wards`: id, name, province_id.
+"""),
+        MessagesPlaceholder(variable_name="history"),
+        ("human", "{input}"),
+        MessagesPlaceholder(variable_name="agent_scratchpad"),
+    ])
+
+    history = get_session_history(session_id, request.user_id)
+
+    async def event_generator():
+        for idx in range(len(llm_clients)):
+            client_name, llm = llm_clients[idx]
+            q = asyncio.Queue()
+            loop = asyncio.get_event_loop()
+
+            def run_agent():
+                try:
+                    agent = create_tool_calling_agent(llm, tools, prompt)
+                    executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+                    for step in executor.stream({
+                        "input": request.message,
+                        "history": history[-1:],
+                        "session_id": session_id,
+                    }):
+                        if "actions" in step:
+                            for action in step["actions"]:
+                                label = TOOL_LABELS.get(action.tool, f"🔧 {action.tool}")
+                                loop.call_soon_threadsafe(q.put_nowait, ("status", label))
+                        elif "output" in step:
+                            loop.call_soon_threadsafe(q.put_nowait, ("result", step["output"]))
+                    loop.call_soon_threadsafe(q.put_nowait, ("_done", None))
+                except Exception as e:
+                    err = str(e)
+                    if "429" in err or "rate_limit" in err.lower() or "Failed to call a function" in err or "Cannot put tools" in err:
+                        loop.call_soon_threadsafe(q.put_nowait, ("_retry", err[:200]))
+                    else:
+                        loop.call_soon_threadsafe(q.put_nowait, ("_error", err))
+
+            task = loop.run_in_executor(None, run_agent)
+            answer = None
+            retry = False
+
+            while True:
+                try:
+                    event_type, data = await asyncio.wait_for(q.get(), timeout=30.0)
+                    if event_type == "status":
+                        yield f"data: {json.dumps({'type': 'status', 'message': data})}\n\n"
+                    elif event_type == "result":
+                        answer = data
+                    elif event_type == "_done":
+                        break
+                    elif event_type == "_retry":
+                        retry = True
+                        break
+                    elif event_type == "_error":
+                        yield f"data: {json.dumps({'type': 'error', 'message': data})}\n\n"
+                        return
+                except asyncio.TimeoutError:
+                    yield f"data: {json.dumps({'type': 'ping'})}\n\n"
+
+            if answer:
+                yield f"data: {json.dumps({'type': 'result', 'answer': answer})}\n\n"
+                history.append(HumanMessage(content=request.message))
+                history.append(AIMessage(content=str(answer)))
+                if request.user_id:
+                    save_message_to_db(request.user_id, 'user', request.message)
+                    save_message_to_db(request.user_id, 'ai', str(answer))
+                return
+
+            if not retry:
+                yield f"data: {json.dumps({'type': 'status', 'message': '⚠️ Thử lại với model khác...'})}\n\n"
+
+        yield f"data: {json.dumps({'type': 'error', 'message': 'Hệ thống quá tải, vui lòng thử lại.'})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.post("/sync-db")
 async def sync_database():
