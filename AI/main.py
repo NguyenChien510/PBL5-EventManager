@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_groq import ChatGroq
 from langchain_qdrant import QdrantVectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -17,6 +17,7 @@ from langchain_classic.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_classic.schema import Document
 from langchain_classic.tools import tool
 from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
+from langchain_core.messages import HumanMessage, AIMessage
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams
 from sqlalchemy import create_engine, text
@@ -50,6 +51,8 @@ DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_API_KEY_2 = os.getenv("GROQ_API_KEY_2")
+GROQ_API_KEY_3 = os.getenv("GROQ_API_KEY_3")
 # Backend API
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080")
 # Qdrant Cloud
@@ -65,10 +68,14 @@ current_session_token = None  # Token for current booking session
 # Initialize components
 # Sử dụng Gemini Embedding 2 mới nhất
 embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-2", google_api_key=GOOGLE_API_KEY)
-# Model dự phòng (Gemini) - Dùng khi Groq lỗi
-llm_gemini = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0, google_api_key=GOOGLE_API_KEY, max_retries=0)
-# Model chính (Groq) - Dùng model OpenAI-compatible để tool calling ổn định
-llm_groq = ChatGroq(model="openai/gpt-oss-120b", temperature=0, groq_api_key=GROQ_API_KEY)
+
+# Groq API failover: list of (api_key, ChatGroq) pairs
+groq_keys = [GROQ_API_KEY]
+for k in [GROQ_API_KEY_2, GROQ_API_KEY_3]:
+    if k:
+        groq_keys.append(k)
+groq_clients = [(key, ChatGroq(model="openai/gpt-oss-120b", temperature=0, groq_api_key=key, max_retries=0)) for key in groq_keys]
+groq_key_index = 0  # Track which key is currently active
 
 # Safe SQL Middleware
 class SafeSQLMiddleware:
@@ -113,12 +120,13 @@ def search_events_semantic(query: str):
 
 # ======== Booking Tools ========
 @tool
-def login_user(email: str, password: str, session_id: str = "current"):
+def login_user(email: str, password: str, session_id: Optional[str] = None):
     """
-    Đăng nhập người dùng để đặt vé. session_id mặc định là "current" cho phiên đặt vé hiện tại.
+    Đăng nhập người dùng để đặt vé.
     """
     global current_session_token
     try:
+        sid = session_id or current_session_id_var.get()
         response = requests.post(
             f"{BACKEND_URL}/api/auth/signin",
             json={"email": email, "password": password},
@@ -128,7 +136,7 @@ def login_user(email: str, password: str, session_id: str = "current"):
             data = response.json()
             token = data.get("accessToken")
             user_id = data.get("user", {}).get("id")
-            user_sessions[session_id] = {
+            user_sessions[sid] = {
                 "user_id": user_id,
                 "access_token": token
             }
@@ -167,7 +175,7 @@ def search_events_api(keyword: str = "", category_id: str = "all", province: str
         return f"Lỗi xử lý dữ liệu: {str(e)}"
 
 @tool
-def get_event_details(event_id: str):
+def get_event_details(event_id: int):
     """
     Lấy thông tin chi tiết sự kiện: ticket types, sessions, giá vé. Tham số event_id phải là chuỗi hoặc số.
     """
@@ -191,30 +199,29 @@ def get_event_details(event_id: str):
             if ticket_types and isinstance(ticket_types, list):
                 result += "Ticket Types:\n"
                 for tt in ticket_types:
-                    result += f"- {tt.get('name')}: {tt.get('price')} VNĐ (còn {tt.get('availableQuantity', 'N/A')})\n"
+                    tt_id = tt.get('id')
+                    result += f"- {tt.get('name')}: {tt.get('price')} VNĐ (còn {tt.get('availableQuantity', 'N/A')}) | ID: {tt_id} (EV{event_id}_TT{tt_id})\n"
         
         return result
     except Exception as e:
         return f"Lỗi xử lý chi tiết: {str(e)}"
 
 @tool
-def get_event_seats(event_id: str, session_id: str = None):
+def get_event_seats(event_id: int):
     """
-    Lấy danh sách ghế ngồi của sự kiện. Trả về seat map với các ghế đang trống. event_id phải là chuỗi hoặc số.
+    Lấy thông tin ghế và loại vé của sự kiện.
+    - Nếu sự kiện có tọa độ (x,y): trả về danh sách ghế + tọa độ để user chọn ghế cụ thể.
+    - Nếu sự kiện KHÔNG có tọa độ: trả về danh sách loại vé, KHÔNG yêu cầu chọn ghế.
     """
     try:
         eid = str(event_id)
-        target_session = session_id
-        if target_session in ["current", "default", None]:
-            target_session = current_session_id_var.get()
-            
+        target_session = current_session_id_var.get()
         url = f"{BACKEND_URL}/api/events/{eid}/seats"
         if target_session:
             url += f"?sessionId={target_session}"
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
             data = response.json()
-            # Handle both wrapped and unwrapped lists
             seats = []
             if isinstance(data, list):
                 seats = data
@@ -228,29 +235,29 @@ def get_event_seats(event_id: str, session_id: str = None):
             if not available:
                 return "Không còn ghế trống."
             
-            # Kiểm tra xem có tọa độ x, y không
             has_coords = any(s.get("x") is not None and s.get("y") is not None for s in available)
             
-            result = f"Sự kiện này {'CÓ' if has_coords else 'KHÔNG CÓ'} sơ đồ tọa độ (x,y).\n"
-            
             if has_coords:
-                result += f"Có {len(available)} ghế trống hỗ trợ tọa độ.\n"
-                for s in available[:20]:
-                    result += f"- Ghế {s.get('seatNumber')} (Row {s.get('row', 'N/A')}) | Tọa độ: ({s.get('x')}, {s.get('y')}) | ID: {s.get('id')}\n"
+                result = f"Sơ đồ ghế (tọa độ x,y):\n"
+                for s in available[:30]:
+                    sid = s.get('id')
+                    result += f"- Ghế {s.get('seatNumber')} | ID: {sid} (EV{event_id}_SE{sid})\n"
+                result += f"\nDùng các nút [SELECT: Ghế <tên> | EV{event_id}_SE<ID>] để user chọn ghế."
             else:
-                result += "Sự kiện KHÔNG có sơ đồ ghế. Thay vào đó hãy liệt kê các loại vé có sẵn:\n"
-                # Lấy ticket types thay thế
+                result = "Sự kiện KHÔNG có sơ đồ ghế. Chỉ chọn loại vé dưới đây:\n"
                 tt_response = requests.get(f"{BACKEND_URL}/api/events/{eid}/ticket-types", timeout=10)
                 if tt_response.status_code == 200:
                     tt_data = tt_response.json()
                     ticket_types = tt_data.get("data", []) if isinstance(tt_data, dict) else tt_data
                     if ticket_types and isinstance(ticket_types, list):
                         for tt in ticket_types:
-                            result += f"- Loại vé: {tt.get('name')} | Giá: {tt.get('price')} VNĐ | ID: {tt.get('id')}\n"
+                            ttid = tt.get('id')
+                            result += f"- {tt.get('name')}: {tt.get('price')} VNĐ | ID: {ttid} (EV{event_id}_TT{ttid})\n"
+                        result += f"\nDùng các nút [SELECT: <tên loại vé> | EV<eventId>_TT<id>] để user chọn loại vé."
                 else:
-                    # Fallback nếu lỗi lấy ticket types
                     for s in available[:10]:
-                        result += f"- Ghế: {s.get('seatNumber')} | ID: {s.get('id')}\n"
+                        sid = s.get('id')
+                        result += f"- Ghế: {s.get('seatNumber')} | ID: {sid} (EV{event_id}_SE{sid})\n"
             
             return result
         else:
@@ -259,20 +266,16 @@ def get_event_seats(event_id: str, session_id: str = None):
         return f"Lỗi xử lý ghế: {str(e)}"
 
 @tool
-def create_order_api(event_id: str, seat_ids: List[int], total_amount: int, session_id: str = "current"):
+def create_order_api(event_id: int, seat_ids: List[int], total_amount: int):
     """
     Tạo đơn hàng và lấy link thanh toán. 
     - event_id: ID sự kiện.
     - seat_ids: Danh sách ID ghế.
     - total_amount: Tổng tiền (VNĐ).
-    - session_id: Mặc định "current".
     """
     global current_session_token
     try:
-        # Fallback to context variable if session_id is default or None
-        target_session = session_id
-        if target_session in ["current", "default", None]:
-            target_session = current_session_id_var.get()
+        target_session = current_session_id_var.get()
 
         token = current_session_token
         if not token:
@@ -287,12 +290,48 @@ def create_order_api(event_id: str, seat_ids: List[int], total_amount: int, sess
             return "Không tìm thấy user ID. Vui lòng đăng nhập lại."
         
         seat_id_list = seat_ids if isinstance(seat_ids, list) else [seat_ids]
-        
+        if not seat_id_list:
+            return "Lỗi: Danh sách ghế không được trống."
+
+        # Resolve ticket_type_ids to seat_ids if necessary
+        resolved_seat_ids = []
+        try:
+            with db_safe.engine.connect() as conn:
+                for sid in seat_id_list:
+                    # Check if it exists in seats
+                    seat_check = conn.execute(text("SELECT id FROM seats WHERE id = :sid"), {"sid": sid}).fetchone()
+                    if seat_check:
+                        resolved_seat_ids.append(sid)
+                    else:
+                        # Check if it's a ticket_type_id
+                        tt_check = conn.execute(text("SELECT id FROM ticket_types WHERE id = :sid"), {"sid": sid}).fetchone()
+                        if tt_check:
+                            # It is a ticket type ID! Find an available seat
+                            # Exclude seats already added to resolved_seat_ids to avoid duplicates
+                            exclude_ids = resolved_seat_ids if resolved_seat_ids else [-1]
+                            placeholders = ", ".join(str(x) for x in exclude_ids)
+                            query = text(f"""
+                                SELECT id FROM seats 
+                                WHERE ticket_type_id = :tt_id 
+                                  AND status = 'AVAILABLE' 
+                                  AND id NOT IN ({placeholders})
+                                ORDER BY id ASC LIMIT 1
+                            """)
+                            avail_seat = conn.execute(query, {"tt_id": sid}).fetchone()
+                            if avail_seat:
+                                resolved_seat_ids.append(avail_seat[0])
+                            else:
+                                return f"Lỗi: Hết vé cho loại vé ID {sid}."
+                        else:
+                            return f"Lỗi: ID {sid} không phải là ID ghế hoặc ID loại vé hợp lệ."
+        except Exception as db_err:
+            return f"Lỗi truy vấn cơ sở dữ liệu: {str(db_err)}"
+
         order_data = {
             "amount": total_amount,
             "orderInfo": f"Thanh toán vé sự kiện {event_id}",
             "userId": user_id,
-            "seatIds": seat_id_list,
+            "seatIds": resolved_seat_ids,
             "paymentMethod": "vnpay" 
         }
         
@@ -372,10 +411,40 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 store = {}
 
-def get_session_history(session_id: str):
+def get_session_history(session_id: str, user_id: str = None):
+    # If user_id is provided, try to load from database
+    if user_id:
+        try:
+            with db_safe.engine.connect() as conn:
+                # Get last 15 messages for this user
+                query = text("SELECT role, message FROM chat_history WHERE account_id = :uid ORDER BY timestamp ASC LIMIT 30")
+                result = conn.execute(query, {"uid": user_id})
+                db_history = []
+                for row in result:
+                    if row.role == 'user':
+                        db_history.append(HumanMessage(content=row.message))
+                    else:
+                        db_history.append(AIMessage(content=row.message))
+                
+                if db_history:
+                    return db_history
+        except Exception as e:
+            logger.error(f"Error loading history from DB: {e}")
+
     if session_id not in store:
         store[session_id] = []
     return store[session_id]
+
+def save_message_to_db(user_id: str, role: str, message: str):
+    if not user_id:
+        return
+    try:
+        with db_safe.engine.connect() as conn:
+            query = text("INSERT INTO chat_history (account_id, role, message, timestamp) VALUES (:uid, :role, :msg, :ts)")
+            conn.execute(query, {"uid": user_id, "role": role, "msg": message, "ts": datetime.now()})
+            conn.commit()
+    except Exception as e:
+        logger.error(f"Error saving message to DB: {e}")
 
 from google import genai
 
@@ -439,6 +508,19 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
     intermediate_steps: List[str] = []
+    history: Optional[List[dict]] = None
+
+@app.get("/chat-history/{user_id}")
+async def get_history(user_id: str):
+    try:
+        with db_safe.engine.connect() as conn:
+            query = text("SELECT role, message FROM chat_history WHERE account_id = :uid ORDER BY timestamp ASC LIMIT 50")
+            result = conn.execute(query, {"uid": user_id})
+            history = [{"role": row.role, "content": row.message} for row in result]
+            return {"history": history}
+    except Exception as e:
+        logger.error(f"Error fetching history: {e}")
+        return {"history": []}
 
 @app.get("/")
 def read_root():
@@ -478,26 +560,35 @@ Bạn có quyền truy cập vào Database SQL, Vector Store và API để trả
   📍 Địa điểm ngắn gọn
   [INFO: Xem chi tiết | ID] [BOOK: Đặt vé | ID]
   ---
-- Sử dụng cú pháp nút bấm đặc biệt để Frontend hiển thị nút thật:
-  - `[INFO: Tên nút | ID]` -> Nút xem chi tiết
-  - `[BOOK: Tên nút | ID]` -> Nút đặt vé
-  - `[SELECT: Tên nút | Value]` -> Nút chọn (ví dụ chọn ghế, chọn loại vé)
-- Nếu sự kiện **KHÔNG CÓ sơ đồ tọa độ**, hãy dùng nút `[SELECT: Tên vé | ID_VE]` để người dùng chọn loại vé trực tiếp.
+- Sử dụng cú pháp nút bấm đặc biệt (KHÔNG bọc trong backtick ``):
+  - [INFO: Tên nút | ID] -> Nút xem chi tiết
+  - [BOOK: Tên nút | ID] -> Nút đặt vé
+  - [SELECT: Tên nút | EV<eventId>_TT<ticketTypeId>] hoặc [SELECT: Tên nút | EV<eventId>_SE<seatId>] -> Nút chọn
+
+  ⚠️ QUAN TRỌNG: Xuống dòng RIÊNG cho mỗi nút, KHÔNG đặt trong backtick, KHÔNG thêm `` quanh cú pháp.
 - Trình bày cực kỳ tinh gọn, tránh viết đoạn văn dài.
+- 🚨 TUYỆT ĐỐI KHÔNG tự tạo/bịa danh sách ghế. Chỉ hiển thị ghế/danh sách có được từ kết quả tool `get_event_seats`.
 
 🎫 QUY TRÌNH ĐẶT VÉ TỰ ĐỘNG:
-1. Tìm sự kiện -> Xem chi tiết + ghế.
-2. Đề xuất ghế/vé bằng các nút `[SELECT: Ghế A1 | ID_GHE]`.
-3. Tạo đơn -> Tự động thanh toán (`auto_pay_order`).
+1. Gọi `get_event_details` để xem thông tin + loại vé.
+2. Gọi `get_event_seats` để kiểm tra loại sơ đồ:
+   - Nếu CÓ tọa độ (x,y): hiển thị danh sách ghế từ kết quả, dùng nút [SELECT: Ghế <tên> | EV<eventId>_SE<seatId>] mỗi ghế một dòng.
+   - Nếu KHÔNG có x,y: KHÔNG hiển thị ghế. Chỉ hiển thị loại vé, dùng nút [SELECT: <tên loại vé> | EV<eventId>_TT<ticketTypeId>] mỗi loại một dòng.
+3. SAU KHI user chọn loại vé (click EV_TT button): LUÔN gọi lại `get_event_seats(event_id)` để lấy thông tin cập nhật. Nếu ko có x,y thì proceed luôn (ko hỏi ghế).
+4. Tạo đơn -> Tự động thanh toán (gọi `auto_pay_order`).
 
 QUY TẮC KHÁC:
 1. Trình bày bằng Markdown chuyên nghiệp, dùng `inline code` để highlight thông tin, dùng icon (📅, 📍, 🎟️, ⭐).
-2. Nếu khách hàng chưa đăng nhập, hãy yêu cầu họ Đăng nhập. **BẮT BUỘC** kèm theo nút `[SELECT: Tôi đã đăng nhập | check_auth]` để người dùng nhấn sau khi đăng nhập xong.
-3. Nếu khách hỏi về giá vé hoặc chỗ ngồi, LUÔN gọi `get_event_seats` để có dữ liệu mới nhất.
+2. Nếu khách hàng chưa đăng nhập, hãy yêu cầu họ Đăng nhập. Kèm theo nút [SELECT: Tôi đã đăng nhập | check_auth] trên một dòng riêng (không backtick).
+3. Nếu khách hỏi về giá vé hoặc chỗ ngồi, LUÔN gọi `get_event_details` trước để xem loại vé, sau đó gọi `get_event_seats`.
+4. Khi khách tìm sự kiện theo tên ca sĩ/nghệ sĩ, KHÔNG dùng `search_events_semantic` — thay vào đó dùng `query_database` với SQL JOIN: `SELECT e.* FROM events e JOIN event_artists ea ON e.id=ea.event_id JOIN artists a ON ea.artist_id=a.id WHERE a.name ILIKE '%tên_ca_sĩ%'`.
+5. Khi khách hỏi "có sự kiện nào ở [địa điểm]" — tìm events với `ILIKE '%địa điểm%'` và `start_time > NOW()` (sự kiện sắp diễn ra). KHÔNG thêm điều kiện `start_time <= NOW() AND end_time >= NOW()` trừ khi khách hỏi "đang diễn ra". Nếu tìm thấy thì HIỂN THỊ NGAY cho khách, không tự ý query lại với điều kiện khác.
 
 DATABASE SCHEMA:
-- Bảng `events`: id, title, location, start_time, end_time, status, tickets_left.
-- Bảng `seats`: id, row, seat_number, status (AVAILABLE/OCCUPIED), ticket_type_id.
+- Bảng `events`: id, title, location, start_time, end_time, status (pending|sold_out|ended|upcoming|rejected), tickets_left.
+- Bảng `seats`: id, row, seat_number, status (AVAILABLE|PENDING|BOOKED), ticket_type_id.
+- Bảng `artists`: id, name, bio, image.
+- Bảng `event_artists`: event_id, artist_id (liên kết nhiều-nhiều events <-> artists).
 """),
         MessagesPlaceholder(variable_name="history"),
         ("human", "{input}"),
@@ -509,32 +600,48 @@ DATABASE SCHEMA:
         executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
         return executor.invoke({
             "input": message,
-            "history": history,
+            "history": history[-1:], # Chỉ lấy tin nhắn trước đó
             "session_id": session_id,
         })
 
+    def invoke_with_failover(message, history, session_id):
+        global groq_key_index
+        errors = []
+        num_keys = len(groq_clients)
+        for attempt in range(num_keys):
+            idx = (groq_key_index + attempt) % num_keys
+            api_key, llm_instance = groq_clients[idx]
+            try:
+                result = try_invoke(llm_instance, message, history, session_id)
+                groq_key_index = idx
+                return result
+            except Exception as e:
+                err_msg = str(e)
+                errors.append(f"Key {idx}: {err_msg[:200]}")
+                if "429" in err_msg or "rate_limit" in err_msg.lower():
+                    logger.warning(f"⚠️ Groq key {idx} rate limited, trying next...")
+                    continue
+                if "Failed to call a function" in err_msg:
+                    logger.warning(f"⚠️ Groq model lỗi tool call, thử lại key khác...")
+                    continue
+                logger.error(f"❌ Groq key {idx} lỗi: {err_msg}", exc_info=True)
+                raise
+        # All keys exhausted
+        logger.error(f"❌ Tất cả attempts thất bại: {'; '.join(errors)}")
+        return {"output": "⚠️ Hệ thống AI tạm thời quá tải. Vui lòng thử lại sau ít phút."}
+
     session_id = request.session_id
-    history = get_session_history(session_id)
+    user_id = request.user_id
+    
+    # Ưu tiên lấy lịch sử từ DB nếu có user_id
+    history = get_session_history(session_id, user_id)
 
     try:
-        response = try_invoke(llm_groq, request.message, history, session_id)
-    except Exception as groq_err:
-        err_msg = str(groq_err)
-        if "429" in err_msg or "rate_limit" in err_msg.lower():
-            logger.warning("⚠️ Groq bị giới hạn tốc độ (429). Thử Gemini...")
-        else:
-            logger.warning(f"⚠️ Groq gặp lỗi: {err_msg}. Đang chuyển sang Gemini dự phòng...")
-            
-        try:
-            response = try_invoke(llm_gemini, request.message, history, session_id)
-        except Exception as gemini_err:
-            gem_msg = str(gemini_err)
-            logger.error(f"❌ Cả Groq và Gemini đều thất bại. Lỗi Gemini: {gem_msg}", exc_info=True)
-            
-            if "429" in gem_msg or "RESOURCE_EXHAUSTED" in gem_msg:
-                return ChatResponse(answer="⚠️ Hiện tại cả hai hệ thống AI (Groq & Gemini) đều đang quá tải (Rate Limit). Vui lòng đợi khoảng 30 giây rồi thử lại. Xin lỗi bạn vì sự bất tiện này! 🙏")
-            
-            raise HTTPException(status_code=500, detail=f"AI Services unavailable. Groq: {err_msg} | Gemini: {gem_msg}")
+        response = invoke_with_failover(request.message, history, session_id)
+    except Exception as e:
+        err_msg = str(e)
+        logger.error(f"❌ Groq lỗi: {err_msg}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"AI Service unavailable: {err_msg}")
 
     try:
         
@@ -549,9 +656,14 @@ DATABASE SCHEMA:
                     parts.append(block)
             answer = "".join(parts)
         
-        # Lưu vào lịch sử hội thoại
+        # Lưu vào lịch sử hội thoại (In-memory)
         history.append(HumanMessage(content=request.message))
         history.append(AIMessage(content=str(answer)))
+        
+        # Lưu vào Database nếu đã đăng nhập
+        if user_id:
+            save_message_to_db(user_id, 'user', request.message)
+            save_message_to_db(user_id, 'ai', str(answer))
         
         return ChatResponse(answer=str(answer))
     except Exception as e:

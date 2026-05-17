@@ -11,13 +11,42 @@ interface Message {
 const Chatbot: React.FC = () => {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'ai', content: 'Xin chào! Tôi là trợ lý ảo của EventPlatform. Tôi có thể giúp gì cho bạn?' }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { accessToken, user } = useAuthStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load history once on mount (before chat opens)
+  useEffect(() => {
+    const loadHistory = async () => {
+      setLoadingHistory(true);
+      if (user?.id) {
+        try {
+          const response = await fetch(`http://localhost:8000/chat-history/${user.id}`);
+          const data = await response.json();
+          if (data.history && data.history.length > 0) {
+            setMessages(data.history);
+          } else {
+            setMessages([{ role: 'ai', content: 'Xin chào! Tôi là trợ lý ảo của EventPlatform. Tôi có thể giúp gì cho bạn?' }]);
+          }
+        } catch (error) {
+          console.error('Error fetching chat history:', error);
+          setMessages([{ role: 'ai', content: 'Xin chào! Tôi là trợ lý ảo của EventPlatform. Tôi có thể giúp gì cho bạn?' }]);
+        }
+      } else {
+        const guestHistory = localStorage.getItem('chatbot_guest_history');
+        if (guestHistory) {
+          setMessages(JSON.parse(guestHistory));
+        } else {
+          setMessages([{ role: 'ai', content: 'Xin chào! Tôi là trợ lý ảo của EventPlatform. Tôi có thể giúp gì cho bạn?' }]);
+        }
+      }
+      setLoadingHistory(false);
+    };
+    loadHistory();
+  }, [user?.id]);
 
   // Dragging state
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -64,13 +93,19 @@ const Chatbot: React.FC = () => {
     }
   };
 
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (!loadingHistory && isOpen) {
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [messages, loadingHistory, isOpen]);
 
   const handleSend = async (overrideInput?: string, silent: boolean = false) => {
     const messageToSend = overrideInput || input;
@@ -78,8 +113,14 @@ const Chatbot: React.FC = () => {
 
     let newMessages = messages;
     if (!silent) {
-      newMessages = [...messages, { role: 'user', content: messageToSend }];
-      setMessages(newMessages);
+      const userMessage: Message = { role: 'user', content: messageToSend };
+      const updatedMessages = [...messages, userMessage];
+      setMessages(updatedMessages);
+      
+      // Lưu LocalStorage cho khách
+      if (!user?.id) {
+        localStorage.setItem('chatbot_guest_history', JSON.stringify(updatedMessages));
+      }
     }
     
     if (!overrideInput) setInput('');
@@ -93,23 +134,33 @@ const Chatbot: React.FC = () => {
         },
         body: JSON.stringify({
           message: messageToSend,
-          session_id: user?.id || 'guest',
+          session_id: user?.id ? `user_${user.id}` : 'guest',
           token: accessToken,
           user_id: user?.id
         }),
       });
       const data = await response.json();
-      setMessages(prev => [...prev, { role: 'ai', content: data.answer }]);
+      const answer = data?.answer || 'Xin lỗi, tôi không thể xử lý yêu cầu này ngay bây giờ.';
+      const aiMessage: Message = { role: 'ai', content: answer };
+      
+      setMessages(prev => {
+        const updated = [...prev, aiMessage];
+        if (!user?.id) {
+          localStorage.setItem('chatbot_guest_history', JSON.stringify(updated));
+        }
+        return updated;
+      });
     } catch (error) {
       console.error('Error sending message:', error);
-      setMessages(prev => [...prev, { role: 'ai', content: 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại sau!' }]);
+      const errorMessage: Message = { role: 'ai', content: 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại sau!' };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const MessageContent: React.FC<{ content: string; onAction: (text: string) => void }> = ({ content, onAction }) => {
-    // Regex cho cả 2 định dạng: [TYPE: Label | Value] và [Label ID: Value]
+    if (!content) return null;
     const parts = content.split(/(\[.*?:.*?\|.*?\]|\[(?:Xem chi tiết|Đặt vé ngay).*?ID:.*?\])/g);
     
     return (
@@ -218,8 +269,16 @@ const Chatbot: React.FC = () => {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 scroll-smooth">
-            {messages.map((msg, idx) => (
+          <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 scroll-smooth">
+            {loadingHistory ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 bg-primary/40 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                  <div className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                </div>
+              </div>
+            ) : messages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
                 <div
                   className={`max-w-[85%] p-3 rounded-2xl text-sm ${msg.role === 'user'

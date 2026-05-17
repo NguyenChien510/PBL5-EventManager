@@ -26,7 +26,7 @@ const createCustomIcon = () => {
       <div class="relative group">
         <div class="w-10 h-10 bg-white rounded-2xl shadow-xl border-2 border-primary flex items-center justify-center transform transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-1">
           <div class="w-6 h-6 bg-primary/10 rounded-lg flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" height="18" viewBox="0 -960 960 960" width="18" fill="currentColor" class="text-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" height="18" viewBox="0 -960 960 960" width="18" fill="currentColor" className="text-primary">
               <path d="M480-480q33 0 56.5-23.5T560-560q0-33-23.5-56.5T480-640q-33 0-56.5 23.5T400-560q0 33 23.5 56.5T480-480Zm0 400Q319-215 239.5-334.5T160-552q0-150 96.5-239T480-880q127 0 223.5 89T800-552q0 113-79.5 232.5T480-80Z"/>
             </svg>
           </div>
@@ -167,7 +167,7 @@ const EventMap = ({ events }: EventMapProps) => {
         className="absolute bottom-6 right-6 z-[1000] w-12 h-12 bg-white rounded-2xl shadow-2xl border border-slate-200 flex items-center justify-center text-primary hover:bg-slate-50 transition-all hover:scale-110 active:scale-95 group"
         title="Định vị của tôi"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="currentColor" class="group-hover:rotate-12 transition-transform">
+        <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="currentColor" className="group-hover:rotate-12 transition-transform">
           <path d="M440-42l-80-249-249-80 691-282-282 691Zm44-188 126-308-308 126 130 42 52 140Z" />
         </svg>
       </button>

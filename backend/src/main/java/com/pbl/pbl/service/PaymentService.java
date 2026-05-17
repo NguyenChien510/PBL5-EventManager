@@ -56,6 +56,10 @@ public class PaymentService {
 
     @Transactional
     public String createPayment(PaymentDTO paymentDTO, HttpServletRequest request) throws Exception {
+        if (paymentDTO.getSeatIds() == null || paymentDTO.getSeatIds().isEmpty()) {
+            throw new IllegalArgumentException("Danh sách ghế không được trống");
+        }
+
         User user = userRepository.findById(paymentDTO.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
