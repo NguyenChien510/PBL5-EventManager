@@ -173,7 +173,7 @@ const Chatbot: React.FC = () => {
           }
         }
 
-        const answer = fullAnswer || 'Xin lỗi, tôi không thể xử lý yêu cầu này ngay bây giờ.';
+        const answer = (fullAnswer || 'Xin lỗi, tôi không thể xử lý yêu cầu này ngay bây giờ.').trim();
         const aiMessage: Message = { role: 'ai', content: answer };
         setMessages(prev => {
           const updated = [...prev, aiMessage];
@@ -195,7 +195,7 @@ const Chatbot: React.FC = () => {
           }),
         });
         const data = await response.json();
-        const answer = data?.answer || 'Xin lỗi, tôi không thể xử lý yêu cầu này ngay bây giờ.';
+        const answer = (data?.answer || 'Xin lỗi, tôi không thể xử lý yêu cầu này ngay bây giờ.').trim();
         const aiMessage: Message = { role: 'ai', content: answer };
         setMessages(prev => {
           const updated = [...prev, aiMessage];
@@ -225,7 +225,8 @@ const Chatbot: React.FC = () => {
 
   const MessageContent: React.FC<{ content: string; onAction: (text: string) => void }> = ({ content, onAction }) => {
     if (!content) return null;
-    const parts = content.split(/(\[.*?:.*?\|.*?\]|\[(?:Xem chi tiết|Đặt vé ngay).*?ID:.*?\])/g);
+    const trimmed = content.trim();
+    const parts = trimmed.split(/(\[.*?:.*?\|.*?\]|\[(?:Xem chi tiết|Đặt vé ngay).*?ID:.*?\])/g);
     
     return (
       <div className="whitespace-pre-wrap">
@@ -257,6 +258,8 @@ const Chatbot: React.FC = () => {
                 const v = value.trim();
                 if (v === 'navigate_profile') {
                   navigate('/profile');
+                } else if (v.startsWith('coupon_')) {
+                  onAction(`Tôi muốn áp dụng mã ${v.replace('coupon_', '')}`);
                 } else if (v.startsWith('EV') && v.includes('_SE')) {
                   onAction(`CHỌN_GHẾ ${v}`);
                 } else if (v.startsWith('EV') && v.includes('_TT')) {
