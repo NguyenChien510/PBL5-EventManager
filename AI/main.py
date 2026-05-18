@@ -59,6 +59,7 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_API_KEY_2 = os.getenv("GROQ_API_KEY_2")
 GROQ_API_KEY_3 = os.getenv("GROQ_API_KEY_3")
 GROQ_API_KEY_4 = os.getenv("GROQ_API_KEY_4")
+GROQ_API_KEY_5 = os.getenv("GROQ_API_KEY_5")
 # Backend API
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080")
 # Local LLM (OpenAI-compatible)
