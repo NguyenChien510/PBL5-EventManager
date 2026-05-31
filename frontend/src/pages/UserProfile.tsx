@@ -22,6 +22,7 @@ const UserProfile = () => {
   const [activeTab, setActiveTab] = useState('Tất cả')
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [showNameModal, setShowNameModal] = useState(false)
+  const [highlightedOrderId, setHighlightedOrderId] = useState<string | null>(null)
 
   // Crop States
   const [tempImage, setTempImage] = useState<string | null>(null)
@@ -190,43 +191,61 @@ const UserProfile = () => {
     fetchData()
   }, [])
 
-  // Auto-open QR code modal if page is accessed with openEvent param from a notification
+  // Auto-open QR code modal if page is accessed with openEvent or openOrder param
   useEffect(() => {
     if (tickets.length === 0) return
 
     const openEventName = searchParams.get('openEvent')
-    if (!openEventName) return
+    const openOrderId = searchParams.get('openOrder')
 
-    // 1. Find matching ticket in raw list to prevent activeTab exclusion issues
-    const matchingTicket = tickets.find(t => 
-      t.title?.toLowerCase() === decodeURIComponent(openEventName).toLowerCase()
-    )
+    if (!openEventName && !openOrderId) return
 
-    if (matchingTicket) {
-      // 2. Group by matching order
-      const orderId = matchingTicket.orderId || 'N/A'
-      const orderGroup = tickets.filter(t => (t.orderId || 'N/A') === orderId)
+    let orderGroup: any[] = []
 
+    if (openOrderId) {
+      orderGroup = tickets.filter(t => t.orderId?.toString() === openOrderId)
       if (orderGroup.length > 0) {
-        // Open the Modal
-        setSelectedTicket(orderGroup)
-        
-        // Clear query params from URL dynamically without refresh
-        const params = new URLSearchParams(searchParams)
-        params.delete('openEvent')
-        setSearchParams(params, { replace: true })
-
-        // Set tab to show everything to make sure UI state is synced
-        setActiveTab('Tất cả')
-
-        // Smooth scroll down to the tickets section to give context
+        setHighlightedOrderId(openOrderId)
         setTimeout(() => {
-          const section = document.getElementById('my-tickets-section')
-          if (section) {
-            section.scrollIntoView({ behavior: 'smooth', block: 'center' })
-          }
-        }, 300)
+          setHighlightedOrderId(null)
+        }, 5000)
       }
+    } else if (openEventName) {
+      const matchingTicket = tickets.find(t => 
+        t.title?.toLowerCase() === decodeURIComponent(openEventName).toLowerCase()
+      )
+      if (matchingTicket) {
+        const orderId = matchingTicket.orderId || 'N/A'
+        orderGroup = tickets.filter(t => (t.orderId || 'N/A') === orderId)
+        if (orderGroup.length > 0 && orderId !== 'N/A') {
+          setHighlightedOrderId(orderId.toString())
+          setTimeout(() => {
+            setHighlightedOrderId(null)
+          }, 5000)
+        }
+      }
+    }
+
+    if (orderGroup.length > 0) {
+      // Open the Modal
+      setSelectedTicket(orderGroup)
+      
+      // Clear query params from URL dynamically without refresh
+      const params = new URLSearchParams(searchParams)
+      params.delete('openEvent')
+      params.delete('openOrder')
+      setSearchParams(params, { replace: true })
+
+      // Set tab to show everything to make sure UI state is synced
+      setActiveTab('Tất cả')
+
+      // Smooth scroll down to the tickets section to give context
+      setTimeout(() => {
+        const section = document.getElementById('my-tickets-section')
+        if (section) {
+          section.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      }, 300)
     }
   }, [tickets, searchParams, setSearchParams])
 
@@ -423,7 +442,11 @@ const UserProfile = () => {
                   <div
                     key={orderId}
                     onClick={() => setSelectedTicket(ticketsInOrder)}
-                    className="group bg-white rounded-[2.5rem] p-4 md:p-5 flex flex-col md:flex-row gap-6 md:gap-8 border border-slate-100 hover:border-primary/20 hover:shadow-2xl hover:shadow-primary/10 transition-all cursor-pointer relative overflow-hidden"
+                    className={`flex flex-col md:flex-row gap-6 bg-white p-4 rounded-[2rem] border shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all cursor-pointer group relative overflow-hidden ${
+                      highlightedOrderId === orderId 
+                        ? 'border-emerald-500/80 ring-2 ring-emerald-500/10 shadow-lg shadow-emerald-500/5 animate-[pulse_1.5s_infinite]'
+                        : 'border-slate-100'
+                    }`}
                   >
                     {/* Left: Poster & Badges */}
                     <div className="w-full md:w-72 h-44 flex-shrink-0 rounded-[2rem] overflow-hidden relative shadow-xl bg-slate-100">

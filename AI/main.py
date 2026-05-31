@@ -804,9 +804,16 @@ class ChatResponse(BaseModel):
 async def get_history(user_id: str):
     try:
         with db_safe.engine.connect() as conn:
-            query = text("SELECT role, message FROM chat_history WHERE account_id = :uid ORDER BY timestamp ASC LIMIT 50")
+            query = text("SELECT role, message, timestamp FROM chat_history WHERE account_id = :uid ORDER BY timestamp ASC LIMIT 50")
             result = conn.execute(query, {"uid": user_id})
-            history = [{"role": row.role, "content": row.message} for row in result]
+            history = [
+                {
+                    "role": row.role,
+                    "content": row.message,
+                    "timestamp": row.timestamp.isoformat() if row.timestamp else None
+                }
+                for row in result
+            ]
             return {"history": history}
     except Exception as e:
         logger.error(f"Error fetching history: {e}")
