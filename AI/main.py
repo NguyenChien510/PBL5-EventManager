@@ -202,8 +202,8 @@ class RetryChatGroq(ChatGroq):
                         continue
                 raise e
 
-groq_llm = RetryChatGroq(model="openai/gpt-oss-120b", temperature=0, groq_api_key=groq_keys[0], max_retries=0)
-local_llm = ChatOpenAI(model="qwen3-4b", temperature=0, base_url=LOCAL_LLM_BASE_URL, api_key="not-needed", max_retries=2)
+groq_llm = RetryChatGroq(model="openai/gpt-oss-120b", temperature=0, groq_api_key=groq_keys[0], max_retries=0, max_tokens=1024)
+local_llm = ChatOpenAI(model="qwen3-4b", temperature=0, base_url=LOCAL_LLM_BASE_URL, api_key="not-needed", max_retries=2, max_tokens=1024)
 llm_clients = [
     ("groq_primary", groq_llm),
     ("local", local_llm)
@@ -819,6 +819,22 @@ async def get_history(user_id: str):
         logger.error(f"Error fetching history: {e}")
         return {"history": []}
 
+@app.delete("/chat-history/{user_id}")
+async def clear_history(user_id: str):
+    try:
+        with db_safe.engine.connect() as conn:
+            query = text("DELETE FROM chat_history WHERE account_id = :uid")
+            conn.execute(query, {"uid": user_id})
+            conn.commit()
+        for sid, s_val in list(user_sessions.items()):
+            if s_val.get("user_id") == user_id:
+                if sid in store:
+                    store[sid] = []
+        return {"status": "success", "message": "Chat history cleared successfully."}
+    except Exception as e:
+        logger.error(f"Error clearing history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/")
 def read_root():
     return {"status": "AI Assistant is running"}
@@ -853,12 +869,14 @@ Bạn có quyền truy cập vào Database SQL và API để trả lời câu h�
 
 🎫 QUY TẮC CHỌN TOOL (QUAN TRỌNG):
 1. LUÔN dùng `query_database` khi người dùng hỏi về thời gian cụ thể (ví dụ: "tháng 5", "cuối tuần này", "ngày 20/5"), địa điểm cụ thể hoặc cần con số chính xác. Hãy tự viết câu lệnh SQL SELECT phù hợp.
+2. Khi người dùng tìm "sự kiện sắp tới" hoặc "sự kiện mới nhất": Chỉ tìm các sự kiện diễn ra trong vòng 7 ngày tới (sử dụng điều kiện `start_time BETWEEN NOW() AND NOW() + INTERVAL '7 days'`) và CHỈ hiển thị tối đa 3 sự kiện cho người dùng.
+
 
 🎨 QUY TẮC TRÌNH BÀY (PREMIUM MOBILE-FIRST UI):
-- **KHÔNG DÙNG BÔI ĐẬM (**)**. Thay vào đó hãy dùng `inline code` (dấu `) để highlight thông tin quan trọng.
+- **KHÔNG DÙNG BÔI ĐẬM (**)**. Thay vào đó hãy dùng `inline code` (dấu `) để highlight thông tin quan trọng khác. Tuyệt đối KHÔNG sử dụng dấu backtick \` hay dấu gạch chéo ngược \\ cho Tên Sự Kiện.
 - **KHÔNG DÙNG BẢNG (TABLE)**. Hãy dùng định dạng **Card (Thẻ)** như sau:
   ---
-  🎭 `Tên Sự Kiện Highlight`
+  🎭 Tên Sự Kiện
   📅 {current_date}
   📍 Địa điểm ngắn gọn
   [INFO: Xem chi tiết | ID] [BOOK: Đặt vé | ID]
@@ -1074,12 +1092,14 @@ Bạn có quyền truy cập vào Database SQL và API để trả lời câu h�
 
 🎫 QUY TẮC CHỌN TOOL (QUAN TRỌNG):
 1. LUÔN dùng `query_database` khi người dùng hỏi về thời gian cụ thể (ví dụ: "tháng 5", "cuối tuần này", "ngày 20/5"), địa điểm cụ thể hoặc cần con số chính xác. Hãy tự viết câu lệnh SQL SELECT phù hợp.
+2. Khi người dùng tìm "sự kiện sắp tới" hoặc "sự kiện mới nhất": Chỉ tìm các sự kiện diễn ra trong vòng 7 ngày tới (sử dụng điều kiện `start_time BETWEEN NOW() AND NOW() + INTERVAL '7 days'`) và CHỈ hiển thị tối đa 3 sự kiện cho người dùng.
+
 
 🎨 QUY TẮC TRÌNH BÀY (PREMIUM MOBILE-FIRST UI):
-- **KHÔNG DÙNG BÔI ĐẬM (**)**. Thay vào đó hãy dùng `inline code` (dấu `) để highlight thông tin quan trọng.
+- **KHÔNG DÙNG BÔI ĐẬM (**)**. Thay vào đó hãy dùng `inline code` (dấu `) để highlight thông tin quan trọng khác. Tuyệt đối KHÔNG sử dụng dấu backtick \` hay dấu gạch chéo ngược \\ cho Tên Sự Kiện.
 - **KHÔNG DÙNG BẢNG (TABLE)**. Hãy dùng định dạng **Card (Thẻ)** như sau:
   ---
-  🎭 `Tên Sự Kiện Highlight`
+  🎭 Tên Sự Kiện
   📅 {current_date}
   📍 Địa điểm ngắn gọn
   [INFO: Xem chi tiết | ID] [BOOK: Đặt vé | ID]

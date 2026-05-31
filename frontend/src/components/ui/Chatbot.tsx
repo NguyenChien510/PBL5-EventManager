@@ -244,6 +244,24 @@ const Chatbot: React.FC = () => {
     handleSend(actionText);
   };
 
+  const handleClearHistory = async () => {
+    if (!window.confirm("Bạn có chắc chắn muốn làm sạch toàn bộ đoạn chat này không?")) {
+      return;
+    }
+    setMessages([getWelcomeMessage()]);
+    if (!user?.id) {
+      localStorage.removeItem('chatbot_guest_history');
+    } else {
+      try {
+        await fetch(`http://localhost:8000/chat-history/${user.id}`, {
+          method: 'DELETE'
+        });
+      } catch (error) {
+        console.error('Error clearing chat history:', error);
+      }
+    }
+  };
+
   const MessageContent: React.FC<{ content: string; onAction: (text: string) => void }> = ({ content, onAction }) => {
     if (!content) return null;
 
@@ -440,7 +458,10 @@ const Chatbot: React.FC = () => {
     };
 
     const renderTextLine = (line: string, lineKey: number) => {
-      const trimmedLine = line.trim();
+      let trimmedLine = line.trim();
+      if (trimmedLine.includes('🎭')) {
+        trimmedLine = trimmedLine.replace(/[`\\]/g, '');
+      }
       if (trimmedLine.startsWith('-') || trimmedLine.startsWith('*')) {
         const listContent = trimmedLine.substring(1).trim();
         return (
@@ -450,7 +471,7 @@ const Chatbot: React.FC = () => {
           </div>
         );
       }
-      return <div key={lineKey} className="my-0.5 leading-relaxed">{formatCode(line)}</div>;
+      return <div key={lineKey} className="my-0.5 leading-relaxed">{formatCode(trimmedLine)}</div>;
     };
 
     const renderNormalText = (text: string) => {
@@ -489,8 +510,8 @@ const Chatbot: React.FC = () => {
               if (!trimmedLine) return;
 
               if (trimmedLine.includes('🎭')) {
-                // Remove 🎭 and any backticks
-                title = trimmedLine.replace('🎭', '').replace(/`/g, '').trim();
+                // Remove 🎭, backticks, and any backslashes
+                title = trimmedLine.replace('🎭', '').replace(/[`\\]/g, '').trim();
               } else if (trimmedLine.includes('📅')) {
                 date = trimmedLine.replace('📅', '').trim();
               } else if (trimmedLine.includes('📍')) {
@@ -601,12 +622,21 @@ const Chatbot: React.FC = () => {
               </div>
             </div>
 
-            <button
-              onClick={() => setIsOpen(false)}
-              className="w-8 h-8 rounded-lg bg-red-600 hover:bg-red-700 text-white flex items-center justify-center transition-all border border-red-700/30 hover:border-red-800 hover:scale-110 hover:shadow-[0_0_12px_rgba(239,68,68,0.4)] active:scale-90 shadow-sm"
-            >
-              <span className="material-symbols-outlined text-[17px] font-bold">close</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleClearHistory}
+                className="w-8 h-8 rounded-lg bg-[#1460b7]/50 hover:bg-[#1460b7] hover:scale-110 active:scale-90 text-white flex items-center justify-center transition-all border border-white/10 shadow-sm"
+                title="Làm sạch đoạn chat"
+              >
+                <span className="material-symbols-outlined text-[17px] font-bold">refresh</span>
+              </button>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="w-8 h-8 rounded-lg bg-red-600 hover:bg-red-700 text-white flex items-center justify-center transition-all border border-red-700/30 hover:border-red-800 hover:scale-110 hover:shadow-[0_0_12px_rgba(239,68,68,0.4)] active:scale-90 shadow-sm"
+              >
+                <span className="material-symbols-outlined text-[17px] font-bold">close</span>
+              </button>
+            </div>
           </div>
 
           {/* Messages */}
