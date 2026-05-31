@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { API_BASE_URL } from '@/constants';
 import { ChatbotIcon } from './ChatbotIcon';
 
 interface Message {
@@ -262,6 +263,331 @@ const Chatbot: React.FC = () => {
     }
   };
 
+  // Mini Seat Map Component for visual seat selection
+  interface Seat {
+    id: number;
+    seatNumber: string;
+    status: 'AVAILABLE' | 'BOOKED' | 'HOLD';
+    ticketTypeId: number;
+    ticketTypeName: string;
+    price: number;
+    x: number | null;
+    y: number | null;
+    color?: string;
+  }
+
+  const MiniSeatMap: React.FC<{
+    eventId: string;
+    onAction: (text: string) => void;
+  }> = ({ eventId, onAction }) => {
+    const { user } = useAuthStore();
+    const [seats, setSeats] = useState<Seat[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [hoveredSeat, setHoveredSeat] = useState<Seat | null>(null);
+
+    // Pan state
+    const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+    const [isPanning, setIsPanning] = useState(false);
+    const panStart = useRef({ x: 0, y: 0 });
+    const dragDistance = useRef(0);
+    const panOrigin = useRef({ x: 0, y: 0 });
+
+    const handlePanStart = (clientX: number, clientY: number) => {
+      setIsPanning(true);
+      dragDistance.current = 0;
+      panOrigin.current = { x: clientX, y: clientY };
+      panStart.current = {
+        x: clientX - panOffset.x,
+        y: clientY - panOffset.y
+      };
+    };
+
+    const handlePanMove = (clientX: number, clientY: number) => {
+      if (!isPanning) return;
+      const dist = Math.sqrt(
+        Math.pow(clientX - panOrigin.current.x, 2) +
+        Math.pow(clientY - panOrigin.current.y, 2)
+      );
+      dragDistance.current = dist;
+      setPanOffset({
+        x: clientX - panStart.current.x,
+        y: clientY - panStart.current.y
+      });
+    };
+
+    const handlePanEnd = () => {
+      setIsPanning(false);
+    };
+
+    useEffect(() => {
+      let active = true;
+      const fetchSeats = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+          const sessionId = user?.id ? `user_${user.id}` : 'guest';
+          const response = await fetch(`${API_BASE_URL}/events/${eventId}/seats?sessionId=${sessionId}`);
+          if (!response.ok) {
+            throw new Error('Failed to fetch seat layout');
+          }
+          const data = await response.json();
+          if (active) {
+            const seatList = Array.isArray(data) ? data : (data.data || []);
+            setSeats(seatList);
+          }
+        } catch (err: any) {
+          if (active) {
+            setError(err.message || 'Error loading seats');
+          }
+        } finally {
+          if (active) {
+            setLoading(false);
+          }
+        }
+      };
+      fetchSeats();
+      return () => {
+        active = false;
+      };
+    }, [eventId, user?.id]);
+
+    if (loading) {
+      return (
+        <div className="w-full h-32 flex items-center justify-center bg-slate-50 border border-slate-100 rounded-2xl">
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-[10px] text-gray-400 font-semibold">Đang tải sơ đồ ghế...</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (error || seats.length === 0) {
+      return null;
+    }
+
+    const hasCoords = seats.some((s) => s.x !== null && s.y !== null);
+    const padding = 20;
+    const svgWidth = 320;
+    
+    let processedSeats: (Seat & { renderX: number; renderY: number })[] = [];
+    let svgHeight = 180;
+
+    if (hasCoords) {
+      const validSeats = seats.filter((s) => s.x !== null && s.y !== null);
+      const xs = validSeats.map((s) => s.x!);
+      const ys = validSeats.map((s) => s.y!);
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+      
+      const spanX = maxX - minX || 1;
+      const spanY = maxY - minY || 1;
+      
+      processedSeats = validSeats.map((s) => {
+        const x = padding + ((s.x! - minX) / spanX) * (svgWidth - padding * 2);
+        const y = padding + 25 + ((s.y! - minY) / spanY) * (180 - padding * 2 - 30);
+        return { ...s, renderX: x, renderY: y };
+      });
+    } else {
+      const sortedSeats = [...seats].sort((a, b) => 
+        a.seatNumber.localeCompare(b.seatNumber, undefined, { numeric: true, sensitivity: 'base' })
+      );
+      const cols = 8;
+      const rows = Math.ceil(sortedSeats.length / cols);
+      svgHeight = Math.max(160, rows * 32 + 40);
+      
+      processedSeats = sortedSeats.map((s, idx) => {
+        const row = Math.floor(idx / cols);
+        const col = idx % cols;
+        const x = padding + col * ((svgWidth - padding * 2) / (cols - 1 || 1));
+        const y = padding + 30 + row * 32;
+        return { ...s, renderX: x, renderY: y };
+      });
+    }
+
+    const tooltipX = hoveredSeat ? hoveredSeat.renderX + panOffset.x : 0;
+    const tooltipY = hoveredSeat ? hoveredSeat.renderY + panOffset.y - 12 : 0;
+
+    return (
+      <div className="relative my-2 p-3 bg-gradient-to-b from-slate-50 to-white border border-slate-200/60 rounded-2xl shadow-sm flex flex-col items-center w-full">
+        <div className="w-full flex items-center justify-between text-[10px] text-gray-500 font-bold mb-2 pb-1.5 border-b border-slate-100 select-none">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block shadow-sm"></span>
+              <span>Còn trống</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block shadow-sm"></span>
+              <span>Đã bán</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative w-full overflow-hidden bg-slate-50/50 rounded-xl border border-slate-100 flex items-center justify-center seat-map-container">
+          <svg 
+            width={svgWidth} 
+            height={svgHeight} 
+            className={`overflow-visible select-none ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+            onMouseDown={(e) => handlePanStart(e.clientX, e.clientY)}
+            onMouseMove={(e) => handlePanMove(e.clientX, e.clientY)}
+            onMouseUp={handlePanEnd}
+            onMouseLeave={() => {
+              handlePanEnd();
+              setHoveredSeat(null);
+            }}
+            onTouchStart={(e) => {
+              if (e.touches.length === 1) {
+                handlePanStart(e.touches[0].clientX, e.touches[0].clientY);
+              }
+            }}
+            onTouchMove={(e) => {
+              if (e.touches.length === 1) {
+                handlePanMove(e.touches[0].clientX, e.touches[0].clientY);
+              }
+            }}
+            onTouchEnd={handlePanEnd}
+          >
+            <g transform={`translate(${panOffset.x}, ${panOffset.y})`}>
+              <path 
+                d={`M 30,15 Q ${svgWidth / 2},5 ${svgWidth - 30},15`} 
+                fill="none" 
+                stroke="#cbd5e1" 
+                strokeWidth="3" 
+                strokeLinecap="round" 
+              />
+              <text 
+                x={svgWidth / 2} 
+                y={24} 
+                textAnchor="middle" 
+                fill="#94a3b8" 
+                fontSize="9" 
+                fontWeight="bold" 
+                letterSpacing="1"
+              >
+                SÂN KHẤU / STAGE
+              </text>
+
+              {processedSeats.map((seat) => {
+                const isAvailable = seat.status === 'AVAILABLE';
+                const color = seat.color || '#375dfb';
+                
+                return (
+                  <g 
+                    key={seat.id}
+                    className={isAvailable ? "cursor-pointer" : "cursor-not-allowed"}
+                    onMouseEnter={() => {
+                      setHoveredSeat(seat);
+                    }}
+                    onMouseLeave={() => setHoveredSeat(null)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (dragDistance.current < 5 && isAvailable) {
+                        onAction(`CHỌN_GHẾ EV${eventId}_SE${seat.id}`);
+                      }
+                    }}
+                  >
+                    {isAvailable && (
+                      <circle
+                        cx={seat.renderX}
+                        cy={seat.renderY}
+                        r={8.5}
+                        fill="none"
+                        stroke={color}
+                        strokeWidth="1.5"
+                        className="opacity-30 hover:opacity-100 transition-opacity duration-150"
+                      />
+                    )}
+                    <circle
+                      cx={seat.renderX}
+                      cy={seat.renderY}
+                      r={6.5}
+                      fill={isAvailable ? color : '#cbd5e1'}
+                      className="transition-opacity duration-150 hover:opacity-90"
+                    />
+                    <text
+                      x={seat.renderX}
+                      y={seat.renderY + 2.5}
+                      textAnchor="middle"
+                      fill="white"
+                      fontSize="7"
+                      fontWeight="bold"
+                      className="pointer-events-none select-none"
+                    >
+                      {seat.seatNumber.replace(/[^0-9]/g, '') || seat.seatNumber.charAt(0)}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {/* Native SVG Tooltip */}
+              {hoveredSeat && (
+                <g 
+                  transform={`translate(${hoveredSeat.renderX}, ${hoveredSeat.renderY - 18})`}
+                  className="pointer-events-none"
+                >
+                  {/* Tooltip Background */}
+                  <rect
+                    x="-65"
+                    y="-38"
+                    width="130"
+                    height="32"
+                    rx="6"
+                    fill="#0f172a"
+                    opacity="0.95"
+                    stroke="#1e293b"
+                    strokeWidth="1"
+                  />
+                  {/* Tooltip Arrow */}
+                  <polygon
+                    points="0,0 -5,-6 5,-6"
+                    fill="#0f172a"
+                  />
+                  {/* Tooltip Text */}
+                  <text
+                    x="0"
+                    y="-26"
+                    textAnchor="middle"
+                    fill="#ffffff"
+                    fontSize="8.5"
+                    fontWeight="bold"
+                  >
+                    Ghế: {hoveredSeat.seatNumber} ({hoveredSeat.status === 'AVAILABLE' ? 'Trống' : 'Hết'})
+                  </text>
+                  <text
+                    x="0"
+                    y="-13"
+                    textAnchor="middle"
+                    fill="#fbbf24"
+                    fontSize="8"
+                    fontWeight="bold"
+                  >
+                    {hoveredSeat.price ? `${hoveredSeat.price.toLocaleString('vi-VN')}₫` : 'Miễn phí'}
+                  </text>
+                </g>
+              )}
+            </g>
+          </svg>
+        </div>
+
+        <div className="w-full flex items-center justify-between text-[9px] text-gray-400 font-medium mt-1.5 select-none">
+          <span>💡 Kéo để di chuyển • Nhấp để chọn</span>
+          {panOffset.x !== 0 || panOffset.y !== 0 ? (
+            <button 
+              onClick={() => setPanOffset({ x: 0, y: 0 })}
+              className="text-indigo-500 hover:text-indigo-600 font-bold flex items-center gap-0.5 active:scale-95 transition-all"
+            >
+              <span className="material-symbols-outlined text-[10px]">center_focus_strong</span>
+              Đặt lại vị trí
+            </button>
+          ) : null}
+        </div>
+      </div>
+    );
+  };
+
   const MessageContent: React.FC<{ content: string; onAction: (text: string) => void }> = ({ content, onAction }) => {
     if (!content) return null;
 
@@ -320,8 +646,14 @@ const Chatbot: React.FC = () => {
       );
     }
 
+    const matchEventId = content.match(/EV(\d+)_SE/);
+    const hasSeatSelection = matchEventId !== null;
+
     // Helper to render individual button actions
     const renderButton = (btnText: string, key: number) => {
+      if (hasSeatSelection && btnText.includes('_SE')) {
+        return null;
+      }
       // New format: [INFO: Label | Value]
       const newMatch = btnText.match(/\[(INFO|BOOK|SELECT):\s*([^|\]]+)\s*\|\s*([^\]]+)\]/);
       if (newMatch) {
@@ -459,6 +791,9 @@ const Chatbot: React.FC = () => {
 
     const renderTextLine = (line: string, lineKey: number) => {
       let trimmedLine = line.trim();
+      if (hasSeatSelection && (trimmedLine.includes('Ghế') || trimmedLine.includes('Sơ đồ ghế') || trimmedLine.includes('_SE'))) {
+        return null;
+      }
       if (trimmedLine.includes('🎭')) {
         trimmedLine = trimmedLine.replace(/[`\\]/g, '');
       }
@@ -493,6 +828,9 @@ const Chatbot: React.FC = () => {
 
     return (
       <div className="flex flex-col w-full">
+        {hasSeatSelection && (
+          <MiniSeatMap eventId={matchEventId[1]} onAction={onAction} />
+        )}
         {segments.map((segment, segIdx) => {
           const lines = segment.split('\n');
           const hasEventData = lines.some(l => l.includes('🎭') || l.includes('📅') || l.includes('📍'));
