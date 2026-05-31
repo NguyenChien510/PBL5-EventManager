@@ -945,7 +945,7 @@ DATABASE SCHEMA (đầy đủ):
         executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
         return await executor.ainvoke({
             "input": message,
-            "history": history[-10:], # Lấy tối đa 10 tin nhắn gần nhất để giữ ngữ cảnh đặt vé (5 interactions)
+            "history": history[-4:], # Lấy tối đa 4 tin nhắn gần nhất (2 turns)
             "session_id": session_id,
         })
 
@@ -1179,7 +1179,7 @@ DATABASE SCHEMA (đầy đủ):
                         executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
                         for step in executor.stream({
                             "input": request.message,
-                            "history": history[-10:], # Lấy tối đa 10 tin nhắn gần nhất để giữ ngữ cảnh đặt vé (5 interactions)
+                            "history": history[-4:], # Lấy tối đa 4 tin nhắn gần nhất (2 turns)
                             "session_id": session_id,
                         }):
                             if "actions" in step:
