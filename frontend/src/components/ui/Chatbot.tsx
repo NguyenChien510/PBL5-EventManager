@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { API_BASE_URL } from '@/constants';
@@ -31,6 +31,7 @@ const Chatbot: React.FC = () => {
   const [loadingStatus, setLoadingStatus] = useState('');
   const { accessToken, user } = useAuthStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [visualLayouts, setVisualLayouts] = useState<Record<string, boolean>>({});
 
   const getWelcomeMessage = (): Message => ({
     role: 'ai',
@@ -282,9 +283,11 @@ const Chatbot: React.FC = () => {
   }> = ({ eventId, onAction }) => {
     const { user } = useAuthStore();
     const [seats, setSeats] = useState<Seat[]>([]);
+    const [layoutShapes, setLayoutShapes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [hoveredSeat, setHoveredSeat] = useState<Seat | null>(null);
+    const [hoveredZone, setHoveredZone] = useState<any | null>(null);
 
     // Pan state
     const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
@@ -327,18 +330,51 @@ const Chatbot: React.FC = () => {
         setError(null);
         try {
           const sessionId = user?.id ? `user_${user.id}` : 'guest';
-          const response = await fetch(`${API_BASE_URL}/events/${eventId}/seats?sessionId=${sessionId}`);
-          if (!response.ok) {
+          const [seatsRes, eventRes] = await Promise.all([
+            fetch(`${API_BASE_URL}/events/${eventId}/seats?sessionId=${sessionId}`),
+            fetch(`${API_BASE_URL}/events/${eventId}`)
+          ]);
+
+          if (!seatsRes.ok) {
             throw new Error('Failed to fetch seat layout');
           }
-          const data = await response.json();
+
+          const seatsData = await seatsRes.json();
+          let seatList: Seat[] = [];
           if (active) {
-            const seatList = Array.isArray(data) ? data : (data.data || []);
+            seatList = Array.isArray(seatsData) ? seatsData : (seatsData.data || []);
             setSeats(seatList);
+          }
+
+          let shapes: any[] = [];
+          if (eventRes.ok) {
+            const eventData = await eventRes.json();
+            if (active && eventData.seatMapLayout) {
+              try {
+                shapes = JSON.parse(eventData.seatMapLayout);
+                setLayoutShapes(shapes);
+              } catch (e) {
+                console.error("Failed parsing seatMapLayout in Chatbot", e);
+              }
+            }
+          }
+
+          if (active) {
+            const hasCoords = seatList.some((s) => s.x !== null && s.y !== null);
+            const hasZones = !hasCoords && shapes.length > 0;
+            const hasVisual = hasCoords || hasZones;
+            setVisualLayouts(prev => {
+              if (prev[eventId] === hasVisual) return prev;
+              return { ...prev, [eventId]: hasVisual };
+            });
           }
         } catch (err: any) {
           if (active) {
             setError(err.message || 'Error loading seats');
+            setVisualLayouts(prev => {
+              if (prev[eventId] === false) return prev;
+              return { ...prev, [eventId]: false };
+            });
           }
         } finally {
           if (active) {
@@ -351,6 +387,39 @@ const Chatbot: React.FC = () => {
         active = false;
       };
     }, [eventId, user?.id]);
+
+    const legendItems = useMemo(() => {
+      const unique = new Map();
+      seats.forEach(s => {
+        if (s.ticketTypeName) {
+          unique.set(s.ticketTypeName, { name: s.ticketTypeName, color: s.color || '#3b82f6' });
+        }
+      });
+      return Array.from(unique.values());
+    }, [seats]);
+
+    const groupedZoneTickets = useMemo(() => {
+      const group = new Map();
+      seats.forEach(seat => {
+        const name = seat.ticketTypeName;
+        if (!group.has(name)) {
+          group.set(name, {
+            name: name,
+            ticketTypeId: seat.ticketTypeId,
+            price: seat.price,
+            color: seat.color || '#375dfb',
+            availableSeats: [],
+            totalSeats: 0,
+          });
+        }
+        const info = group.get(name);
+        info.totalSeats++;
+        if (seat.status === 'AVAILABLE') {
+          info.availableSeats.push(seat);
+        }
+      });
+      return Array.from(group.values());
+    }, [seats]);
 
     if (loading) {
       return (
@@ -368,13 +437,38 @@ const Chatbot: React.FC = () => {
     }
 
     const hasCoords = seats.some((s) => s.x !== null && s.y !== null);
+    const hasZones = !hasCoords && layoutShapes.length > 0;
     const padding = 20;
     const svgWidth = 320;
     
     let processedSeats: (Seat & { renderX: number; renderY: number })[] = [];
+    let processedShapes: any[] = [];
     let svgHeight = 180;
 
-    if (hasCoords) {
+    if (hasZones) {
+      const rectShapes = layoutShapes.filter(s => s.type === 'rect');
+      const shapeXs = rectShapes.map(s => s.x);
+      const shapeWidths = rectShapes.map(s => s.x + s.width);
+      const shapeYs = rectShapes.map(s => s.y);
+      const shapeHeights = rectShapes.map(s => s.y + s.height);
+
+      const minX = Math.min(...shapeXs);
+      const maxX = Math.max(...shapeWidths);
+      const minY = Math.min(...shapeYs);
+      const maxY = Math.max(...shapeHeights);
+
+      const spanX = maxX - minX || 1;
+      const spanY = maxY - minY || 1;
+
+      processedShapes = rectShapes.map(s => {
+        const renderX = padding + ((s.x - minX) / spanX) * (svgWidth - padding * 2);
+        const renderY = padding + 25 + ((s.y - minY) / spanY) * (180 - padding * 2 - 30);
+        const renderWidth = (s.width / spanX) * (svgWidth - padding * 2);
+        const renderHeight = (s.height / spanY) * (180 - padding * 2 - 30);
+        return { ...s, renderX, renderY, renderWidth, renderHeight };
+      });
+      svgHeight = 180;
+    } else if (hasCoords) {
       const validSeats = seats.filter((s) => s.x !== null && s.y !== null);
       const xs = validSeats.map((s) => s.x!);
       const ys = validSeats.map((s) => s.y!);
@@ -413,20 +507,22 @@ const Chatbot: React.FC = () => {
 
     return (
       <div className="relative my-2 p-3 bg-gradient-to-b from-slate-50 to-white border border-slate-200/60 rounded-2xl shadow-sm flex flex-col items-center w-full">
-        <div className="w-full flex items-center justify-between text-[10px] text-gray-500 font-bold mb-2 pb-1.5 border-b border-slate-100 select-none">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block shadow-sm"></span>
-              <span>Còn trống</span>
+        {/* Dynamic Legend matching the seat-selection page premium layout */}
+        <div className="w-full flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[9px] text-gray-500 font-bold mb-2.5 pb-2 border-b border-slate-100 select-none">
+          {legendItems.map((item: any, idx: number) => (
+            <div key={idx} className="flex items-center gap-1 group">
+              <span className="w-2 h-2 rounded-full inline-block shadow-sm transition-transform group-hover:scale-110" style={{ backgroundColor: item.color }} />
+              <span>{item.name}</span>
             </div>
-            <div className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block shadow-sm"></span>
-              <span>Đã bán</span>
-            </div>
+          ))}
+          <div className="flex items-center gap-1 text-slate-400">
+            <span className="w-2 h-2 rounded-full bg-slate-300 inline-block shadow-sm" />
+            <span>Đã bán</span>
           </div>
         </div>
 
-        <div className="relative w-full overflow-hidden bg-slate-50/50 rounded-xl border border-slate-100 flex items-center justify-center seat-map-container">
+        {/* Premium Dark Viewport matching the seat-selection canvas */}
+        <div className="relative w-full overflow-hidden bg-[#0f172a] rounded-xl border border-slate-800 flex items-center justify-center seat-map-container shadow-inner">
           <svg 
             width={svgWidth} 
             height={svgHeight} 
@@ -437,6 +533,7 @@ const Chatbot: React.FC = () => {
             onMouseLeave={() => {
               handlePanEnd();
               setHoveredSeat(null);
+              setHoveredZone(null);
             }}
             onTouchStart={(e) => {
               if (e.touches.length === 1) {
@@ -454,81 +551,170 @@ const Chatbot: React.FC = () => {
               <path 
                 d={`M 30,15 Q ${svgWidth / 2},5 ${svgWidth - 30},15`} 
                 fill="none" 
-                stroke="#cbd5e1" 
-                strokeWidth="3" 
+                stroke="#1e293b" 
+                strokeWidth="2.5" 
                 strokeLinecap="round" 
               />
               <text 
                 x={svgWidth / 2} 
-                y={24} 
+                y={22} 
                 textAnchor="middle" 
-                fill="#94a3b8" 
-                fontSize="9" 
+                fill="#475569" 
+                fontSize="8" 
                 fontWeight="bold" 
-                letterSpacing="1"
+                letterSpacing="1.5"
               >
                 SÂN KHẤU / STAGE
               </text>
 
-              {processedSeats.map((seat) => {
-                const isAvailable = seat.status === 'AVAILABLE';
-                const color = seat.color || '#375dfb';
-                
-                return (
-                  <g 
-                    key={seat.id}
-                    className={isAvailable ? "cursor-pointer" : "cursor-not-allowed"}
-                    onMouseEnter={() => {
-                      setHoveredSeat(seat);
-                    }}
-                    onMouseLeave={() => setHoveredSeat(null)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (dragDistance.current < 5 && isAvailable) {
-                        onAction(`CHỌN_GHẾ EV${eventId}_SE${seat.id}`);
-                      }
-                    }}
-                  >
-                    {isAvailable && (
+              {hasZones ? (
+                /* Draw layout zone shapes */
+                processedShapes.map((shape) => {
+                  let targetGroup = groupedZoneTickets.find(g => String(g.ticketTypeId) === String(shape.ticketTypeId));
+                  if (!targetGroup && groupedZoneTickets.length > 0 && !isNaN(Number(shape.ticketTypeId)) && Number(shape.ticketTypeId) <= 50) {
+                    const sortedGroups = [...groupedZoneTickets].sort((a, b) => a.ticketTypeId - b.ticketTypeId);
+                    const idx = Number(shape.ticketTypeId) - 1;
+                    if (idx >= 0 && idx < sortedGroups.length) {
+                      targetGroup = sortedGroups[idx];
+                    }
+                  }
+                  
+                  const availableCount = targetGroup?.availableSeats.length || 0;
+                  const price = targetGroup?.price || 0;
+                  const isSoldOut = availableCount === 0;
+                  const color = targetGroup?.color || shape.fill || '#375dfb';
+
+                  return (
+                    <g 
+                      key={shape.id}
+                      className={!isSoldOut ? "cursor-pointer group" : "cursor-not-allowed"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!isSoldOut && targetGroup) {
+                          const avSeats = targetGroup.availableSeats;
+                          if (avSeats && avSeats.length > 0) {
+                            const randomIndex = Math.floor(Math.random() * avSeats.length);
+                            const selectedSeat = avSeats[randomIndex];
+                            onAction(`CHỌN_GHẾ EV${eventId}_SE${selectedSeat.id}`);
+                          } else {
+                            onAction(`CHỌN_VÉ EV${eventId}_TT${targetGroup.ticketTypeId}`);
+                          }
+                        }
+                      }}
+                      onMouseEnter={() => {
+                        setHoveredZone({
+                          name: shape.labelText || targetGroup?.name || 'Vùng',
+                          available: availableCount,
+                          price: price,
+                          renderX: shape.renderX,
+                          renderY: shape.renderY,
+                          renderWidth: shape.renderWidth,
+                          renderHeight: shape.renderHeight
+                        });
+                      }}
+                      onMouseLeave={() => setHoveredZone(null)}
+                    >
+                      <rect
+                        x={shape.renderX}
+                        y={shape.renderY}
+                        width={shape.renderWidth}
+                        height={shape.renderHeight}
+                        rx={6}
+                        fill={isSoldOut ? '#1e293b' : color}
+                        fillOpacity={isSoldOut ? 0.3 : 0.6}
+                        stroke={isSoldOut ? '#ef4444' : color}
+                        strokeWidth={1.5}
+                        strokeDasharray={isSoldOut ? "3,3" : undefined}
+                        className="transition-all duration-150 hover:fill-opacity-85"
+                      />
+                      <text
+                        x={shape.renderX + shape.renderWidth / 2}
+                        y={shape.renderY + shape.renderHeight / 2 - 2}
+                        textAnchor="middle"
+                        fill={isSoldOut ? '#64748b' : '#ffffff'}
+                        fontSize={shape.renderHeight > 40 ? "8.5" : "7.5"}
+                        fontWeight="bold"
+                        className="pointer-events-none select-none"
+                      >
+                        {shape.labelText || targetGroup?.name}
+                      </text>
+                      <text
+                        x={shape.renderX + shape.renderWidth / 2}
+                        y={shape.renderY + shape.renderHeight / 2 + 8}
+                        textAnchor="middle"
+                        fill={isSoldOut ? '#ef4444' : '#fbbf24'}
+                        fontSize="7.5"
+                        fontWeight="bold"
+                        className="pointer-events-none select-none"
+                      >
+                        {isSoldOut ? "HẾT" : `(${availableCount} trống)`}
+                      </text>
+                    </g>
+                  );
+                })
+              ) : (
+                /* Draw individual seat circles */
+                processedSeats.map((seat) => {
+                  const isAvailable = seat.status === 'AVAILABLE';
+                  const color = seat.color || '#375dfb';
+                  
+                  return (
+                    <g 
+                      key={seat.id}
+                      className={isAvailable ? "cursor-pointer" : "cursor-not-allowed"}
+                      onMouseEnter={() => {
+                        setHoveredSeat(seat);
+                      }}
+                      onMouseLeave={() => setHoveredSeat(null)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (dragDistance.current < 5 && isAvailable) {
+                          onAction(`CHỌN_GHẾ EV${eventId}_SE${seat.id}`);
+                        }
+                      }}
+                    >
+                      {isAvailable && (
+                        <circle
+                          cx={seat.renderX}
+                          cy={seat.renderY}
+                          r={8.5}
+                          fill="none"
+                          stroke={color}
+                          strokeWidth="1.5"
+                          className="opacity-30 hover:opacity-100 transition-opacity duration-150"
+                        />
+                      )}
                       <circle
                         cx={seat.renderX}
                         cy={seat.renderY}
-                        r={8.5}
-                        fill="none"
-                        stroke={color}
-                        strokeWidth="1.5"
-                        className="opacity-30 hover:opacity-100 transition-opacity duration-150"
+                        r={6.5}
+                        fill={isAvailable ? color : '#1e293b'}
+                        stroke={isAvailable ? 'none' : '#334155'}
+                        strokeWidth={isAvailable ? 0 : 1}
+                        className="transition-opacity duration-150 hover:opacity-90"
                       />
-                    )}
-                    <circle
-                      cx={seat.renderX}
-                      cy={seat.renderY}
-                      r={6.5}
-                      fill={isAvailable ? color : '#cbd5e1'}
-                      className="transition-opacity duration-150 hover:opacity-90"
-                    />
-                    <text
-                      x={seat.renderX}
-                      y={seat.renderY + 2.5}
-                      textAnchor="middle"
-                      fill="white"
-                      fontSize="7"
-                      fontWeight="bold"
-                      className="pointer-events-none select-none"
-                    >
-                      {seat.seatNumber.replace(/[^0-9]/g, '') || seat.seatNumber.charAt(0)}
-                    </text>
-                  </g>
-                );
-              })}
+                      <text
+                        x={seat.renderX}
+                        y={seat.renderY + 2.5}
+                        textAnchor="middle"
+                        fill={isAvailable ? "white" : "#475569"}
+                        fontSize="7"
+                        fontWeight="bold"
+                        className="pointer-events-none select-none"
+                      >
+                        {seat.seatNumber.replace(/[^0-9]/g, '') || seat.seatNumber.charAt(0)}
+                      </text>
+                    </g>
+                  );
+                })
+              )}
 
-              {/* Native SVG Tooltip */}
+              {/* Native SVG Tooltip for seats */}
               {hoveredSeat && (
                 <g 
                   transform={`translate(${hoveredSeat.renderX}, ${hoveredSeat.renderY - 18})`}
                   className="pointer-events-none"
                 >
-                  {/* Tooltip Background */}
                   <rect
                     x="-65"
                     y="-38"
@@ -540,12 +726,10 @@ const Chatbot: React.FC = () => {
                     stroke="#1e293b"
                     strokeWidth="1"
                   />
-                  {/* Tooltip Arrow */}
                   <polygon
                     points="0,0 -5,-6 5,-6"
                     fill="#0f172a"
                   />
-                  {/* Tooltip Text */}
                   <text
                     x="0"
                     y="-26"
@@ -565,6 +749,50 @@ const Chatbot: React.FC = () => {
                     fontWeight="bold"
                   >
                     {hoveredSeat.price ? `${hoveredSeat.price.toLocaleString('vi-VN')}₫` : 'Miễn phí'}
+                  </text>
+                </g>
+              )}
+
+              {/* Native SVG Tooltip for zones */}
+              {hoveredZone && (
+                <g 
+                  transform={`translate(${hoveredZone.renderX + hoveredZone.renderWidth / 2}, ${hoveredZone.renderY - 8})`}
+                  className="pointer-events-none"
+                >
+                  <rect
+                    x="-65"
+                    y="-38"
+                    width="130"
+                    height="32"
+                    rx="6"
+                    fill="#0f172a"
+                    opacity="0.95"
+                    stroke="#1e293b"
+                    strokeWidth="1"
+                  />
+                  <polygon
+                    points="0,0 -5,-6 5,-6"
+                    fill="#0f172a"
+                  />
+                  <text
+                    x="0"
+                    y="-26"
+                    textAnchor="middle"
+                    fill="#ffffff"
+                    fontSize="8.5"
+                    fontWeight="bold"
+                  >
+                    Khu: {hoveredZone.name}
+                  </text>
+                  <text
+                    x="0"
+                    y="-13"
+                    textAnchor="middle"
+                    fill="#fbbf24"
+                    fontSize="8"
+                    fontWeight="bold"
+                  >
+                    {hoveredZone.price ? `${hoveredZone.price.toLocaleString('vi-VN')}₫` : 'Miễn phí'} ({hoveredZone.available > 0 ? `${hoveredZone.available} trống` : 'Hết'})
                   </text>
                 </g>
               )}
@@ -589,7 +817,6 @@ const Chatbot: React.FC = () => {
   };
 
   const MessageContent: React.FC<{ content: string; onAction: (text: string) => void }> = ({ content, onAction }) => {
-    if (!content) return null;
 
     // Check for success/failure booking messages to render them as beautiful cards
     const bookingSuccessRegex = /✅\s*Đặt vé thành công!\s*Đơn hàng\s*#(\d+)\s*đã được thanh toán tự động\./i;
@@ -646,12 +873,13 @@ const Chatbot: React.FC = () => {
       );
     }
 
-    const matchEventId = content.match(/EV(\d+)_SE/);
+    const matchEventId = content.match(/EV(\d+)_(?:SE|TT)/);
     const hasSeatSelection = matchEventId !== null;
+    const hasVisualLayout = hasSeatSelection && (visualLayouts[matchEventId[1]] ?? true);
 
     // Helper to render individual button actions
     const renderButton = (btnText: string, key: number) => {
-      if (hasSeatSelection && btnText.includes('_SE')) {
+      if (hasVisualLayout && (btnText.includes('_SE') || btnText.includes('_TT'))) {
         return null;
       }
       // New format: [INFO: Label | Value]
@@ -791,7 +1019,14 @@ const Chatbot: React.FC = () => {
 
     const renderTextLine = (line: string, lineKey: number) => {
       let trimmedLine = line.trim();
-      if (hasSeatSelection && (trimmedLine.includes('Ghế') || trimmedLine.includes('Sơ đồ ghế') || trimmedLine.includes('_SE'))) {
+      if (hasVisualLayout && (
+        trimmedLine.includes('Ghế') || 
+        trimmedLine.includes('Sơ đồ ghế') || 
+        trimmedLine.includes('_SE') || 
+        trimmedLine.includes('_TT') ||
+        trimmedLine.includes('Ticket Types:') ||
+        /^\s*[-*]\s*.*?(?:VNĐ|VND|\d{1,3}(?:[.,]\d{3})+)/i.test(trimmedLine)
+      )) {
         return null;
       }
       if (trimmedLine.includes('🎭')) {
@@ -828,7 +1063,7 @@ const Chatbot: React.FC = () => {
 
     return (
       <div className="flex flex-col w-full">
-        {hasSeatSelection && (
+        {hasSeatSelection && (visualLayouts[matchEventId[1]] ?? true) && (
           <MiniSeatMap eventId={matchEventId[1]} onAction={onAction} />
         )}
         {segments.map((segment, segIdx) => {

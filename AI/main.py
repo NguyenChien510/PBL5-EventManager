@@ -238,11 +238,165 @@ class SafeSQLMiddleware:
 
 db_safe = SafeSQLMiddleware()
 
+# JWT Configuration and Role Authorization
+JWT_SECRET = os.getenv("JWT_SECRET", "MyVerySecureJWTSecretKeyThatIsAtLeast32BytesLongForHMACSHA256Algorithm2024")
+import jwt
+
+def get_roles_from_token(token: Optional[str]) -> List[str]:
+    if not token:
+        return []
+    try:
+        # Decode standard token using the signing key, allowing HS256, HS384, HS512 based on key size
+        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256", "HS384", "HS512"])
+        roles_str = payload.get("roles", "")
+        roles = []
+        if roles_str:
+            cleaned = roles_str.replace("[", "").replace("]", "")
+            roles = [r.strip() for r in cleaned.split(",") if r.strip()]
+        return roles
+    except jwt.ExpiredSignatureError:
+        logger.warning("JWT token has expired, performing signature verification fallback")
+        # In case it is expired but signature is valid, let's decode without verification
+        try:
+            payload = jwt.decode(token, options={"verify_signature": False})
+            roles_str = payload.get("roles", "")
+            roles = []
+            if roles_str:
+                cleaned = roles_str.replace("[", "").replace("]", "")
+                roles = [r.strip() for r in cleaned.split(",") if r.strip()]
+            return roles
+        except Exception:
+            return []
+    except Exception as e:
+        logger.error(f"Error decoding JWT token: {e}")
+        return []
+
+def get_user_info_from_token(token: Optional[str]) -> tuple:
+    """
+    Decodes the JWT token, extracts user email, queries the database to confirm
+    user existence and ID, and extracts their roles.
+    Returns: (user_id, full_name, roles)
+    """
+    if not token:
+        return (None, None, [])
+    
+    roles = get_roles_from_token(token)
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        email = payload.get("sub")
+        if email:
+            # Query user ID and name from DB to verify identity (case-insensitive email query)
+            query = text("SELECT id, full_name FROM users WHERE LOWER(email) = LOWER(:email)")
+            with db_safe.engine.connect() as conn:
+                res = conn.execute(query, {"email": email}).fetchone()
+                if res:
+                    return (str(res[0]), res[1], roles)
+    except Exception as e:
+        logger.error(f"Error resolving user info from token: {e}")
+        
+    return (None, None, roles)
+
+def get_current_session_token() -> Optional[str]:
+    try:
+        sid = current_session_id_var.get()
+        return user_sessions.get(sid, {}).get("access_token")
+    except Exception:
+        return None
+
+def check_role_permission(required_roles: List[str]) -> bool:
+    token = get_current_session_token()
+    roles = get_roles_from_token(token)
+    # Check both formats (with and without ROLE_ prefix)
+    normalized_required = []
+    for r in required_roles:
+        normalized_required.append(r)
+        if r.startswith("ROLE_"):
+            normalized_required.append(r[5:])
+        else:
+            normalized_required.append(f"ROLE_{r}")
+            
+    return any(r in normalized_required for r in roles)
+
+def get_tools_for_roles(roles: List[str]) -> list:
+    # Base user tools
+    user_tools = [
+        search_events_api,
+        get_event_details,
+        get_event_seats,
+        create_order_api,
+        check_order_status,
+        list_my_coupons,
+        check_coupon
+    ]
+    
+    # Organizer or Admin tools (Support both prefixed and raw roles)
+    is_organizer_or_admin = any(r in ["ROLE_ORGANIZER", "ROLE_ADMIN", "ORGANIZER", "ADMIN"] for r in roles)
+    if is_organizer_or_admin:
+        return user_tools + [query_database, get_event_revenue]
+    
+    return user_tools
+
 # Define Tools
 @tool
 def query_database(query: str):
-    """Sử dụng để tra cứu dữ liệu chính xác từ database SQL (ví dụ: đếm số lượng, lọc giá, tìm địa điểm). Chỉ được dùng lệnh SELECT."""
+    """Sử dụng để tra cứu dữ liệu chính xác từ database SQL (ví dụ: đếm số lượng, lọc giá, tìm địa điểm). Chỉ được dùng lệnh SELECT. Chỉ dành cho Organizer hoặc Admin."""
+    if not check_role_permission(["ROLE_ORGANIZER", "ROLE_ADMIN"]):
+        return "Lỗi: Bạn không có quyền truy cập trực tiếp cơ sở dữ liệu. Công cụ này chỉ dành cho ORGANIZER hoặc ADMIN."
     return db_safe.execute(query)
+
+@tool
+def get_event_revenue(event_id: int):
+    """
+    Lấy doanh thu và số lượng vé đã bán của một sự kiện cụ thể. Chỉ dành cho Organizer hoặc Admin.
+    Tham số:
+    - event_id: ID của sự kiện (kiểu số nguyên).
+    Nếu người dùng hỏi về doanh thu của một sự kiện bằng tên (ví dụ: 'VBA 2025'), trước tiên hãy dùng search_events_api hoặc query_database để tìm event_id của sự kiện đó, sau đó gọi tool này.
+    """
+    token = get_current_session_token()
+    roles = get_roles_from_token(token)
+    is_admin = any(r in ["ROLE_ADMIN", "ADMIN"] for r in roles)
+    is_organizer = any(r in ["ROLE_ORGANIZER", "ORGANIZER"] for r in roles)
+    
+    if not (is_admin or is_organizer):
+        return "Lỗi: Bạn không có quyền xem doanh thu sự kiện. Công cụ này chỉ dành cho ORGANIZER hoặc ADMIN."
+    
+    try:
+        user_id, full_name, _ = get_user_info_from_token(token)
+        if not user_id:
+            return "Lỗi: Không thể xác định danh tính người dùng. Vui lòng đăng nhập lại."
+            
+        with db_safe.engine.connect() as conn:
+            # Get event details (including organizer_id)
+            event = conn.execute(text("SELECT title, organizer_id FROM events WHERE id = :eid"), {"eid": event_id}).fetchone()
+            if not event:
+                return f"Không tìm thấy sự kiện có ID {event_id}."
+            
+            title, organizer_id = event[0], event[1]
+            
+            # If the user is an organizer (and not admin), check if they own the event
+            if is_organizer and not is_admin:
+                if not organizer_id or str(organizer_id) != user_id:
+                    return f"Lỗi: Bạn không có quyền xem doanh thu của sự kiện '{title}' vì bạn không phải người tổ chức sự kiện này."
+            
+            query = text("""
+                SELECT 
+                    COALESCE(SUM(tt.price), 0) AS total_revenue,
+                    COUNT(t.id) AS tickets_sold
+                FROM tickets t
+                JOIN seats s ON t.seat_id = s.id
+                JOIN ticket_types tt ON s.ticket_type_id = tt.id
+                JOIN event_sessions es ON tt.event_session_id = es.id
+                JOIN orders o ON t.order_id = o.id
+                WHERE es.event_id = :event_id
+                  AND o.status = 'COMPLETED'
+            """)
+            res = conn.execute(query, {"event_id": event_id}).fetchone()
+            revenue = float(res[0])
+            sold = int(res[1])
+            
+            return f"Sự kiện '{title}' (ID: {event_id}):\n- Doanh thu: {revenue:,.0f} VNĐ\n- Số vé đã bán: {sold} vé"
+    except Exception as e:
+        return f"Lỗi khi tính doanh thu sự kiện: {str(e)}"
 
 # ======== Booking Tools ========
 @tool
@@ -429,10 +583,20 @@ def get_event_seats(event_id: int, ticket_type_id: int = None):
                 if not available:
                     return f"Không còn ghế trống cho loại vé này (ticket_type_id: {ticket_type_id})."
             
+            # Query has_seat_map from database
+            has_seat_map = False
+            try:
+                with db_safe.engine.connect() as conn:
+                    evt_row = conn.execute(text("SELECT has_seat_map FROM events WHERE id = :eid"), {"eid": event_id}).fetchone()
+                    if evt_row:
+                        has_seat_map = bool(evt_row[0])
+            except Exception as e:
+                logger.error(f"Error querying has_seat_map: {e}")
+
             has_coords = any(s.get("x") is not None and s.get("y") is not None for s in available)
             
-            if has_coords:
-                result = f"Sơ đồ ghế (tọa độ x,y):\n"
+            if has_seat_map or has_coords:
+                result = f"Sơ đồ ghế:\n"
                 for s in available[:30]:
                     sid = s.get('id')
                     tt_name = s.get('ticketTypeName')
@@ -694,7 +858,7 @@ def auto_pay_order(order_id: int):
     except Exception as e:
         return f"Lỗi hệ thống khi thanh toán: {str(e)}"
 
-tools = [query_database, search_events_api, get_event_details, get_event_seats, create_order_api, check_order_status, list_my_coupons, check_coupon]
+tools = [query_database, search_events_api, get_event_details, get_event_seats, create_order_api, check_order_status, list_my_coupons, check_coupon, get_event_revenue]
 
 # Agent Memory - simple list-based history
 from langchain_core.messages import HumanMessage, AIMessage
@@ -844,19 +1008,30 @@ async def chat(request: ChatRequest):
     session_id = request.session_id
     current_session_id_var.set(session_id)
     
-    # Auto-login if token provided from frontend
-    is_logged_in = bool(request.token and request.user_id)
+    # Auto-login and verification via JWT token
+    is_logged_in = bool(request.token)
+    user_id = None
+    full_name = None
+    roles = []
+    
     if is_logged_in:
         global current_session_token, current_user_id
         current_session_token = request.token
-        current_user_id = request.user_id
+        user_id, full_name, roles = get_user_info_from_token(request.token)
+        current_user_id = user_id
         user_sessions[session_id] = {
             "access_token": request.token,
-            "user_id": request.user_id
+            "user_id": user_id
         }
-        logger.info(f"Session {session_id} auto-authenticated with token.")
+        if user_id:
+            logger.info(f"Session {session_id} authenticated for user {full_name} ({user_id}) with roles {roles}.")
+        else:
+            is_logged_in = False
+            logger.warning(f"Session {session_id} provided invalid token or user not found in DB.")
 
-    login_status = f"✅ User ĐÃ đăng nhập (ID: {request.user_id})" if is_logged_in else "❌ User CHƯA đăng nhập"
+    role_status = f" | Quyền: {', '.join(roles)}" if roles else ""
+    login_status = f"✅ User ĐÃ đăng nhập (Tên: {full_name}, ID: {user_id}{role_status})" if is_logged_in else "❌ User CHƯA đăng nhập"
+    user_tools = get_tools_for_roles(roles)
     
     # System prompt cho Agent với thông tin thời gian thực
     current_date = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
@@ -870,6 +1045,7 @@ Bạn có quyền truy cập vào Database SQL và API để trả lời câu h�
 🎫 QUY TẮC CHỌN TOOL (QUAN TRỌNG):
 1. LUÔN dùng `query_database` khi người dùng hỏi về thời gian cụ thể (ví dụ: "tháng 5", "cuối tuần này", "ngày 20/5"), địa điểm cụ thể hoặc cần con số chính xác. Hãy tự viết câu lệnh SQL SELECT phù hợp.
 2. Khi người dùng tìm "sự kiện sắp tới" hoặc "sự kiện mới nhất": Chỉ tìm các sự kiện diễn ra trong vòng 7 ngày tới (sử dụng điều kiện `start_time BETWEEN NOW() AND NOW() + INTERVAL '7 days'`) và CHỈ hiển thị tối đa 3 sự kiện cho người dùng.
+3. LUÔN dùng `get_event_revenue` khi người tổ chức (Organizer) hoặc quản trị viên (Admin) hỏi về doanh thu hoặc số lượng vé đã bán của sự kiện cụ thể. Nếu chưa biết `event_id`, hãy dùng `search_events_api` hoặc `query_database` để tìm `event_id` theo tên sự kiện trước.
 
 
 🎨 QUY TẮC TRÌNH BÀY (PREMIUM MOBILE-FIRST UI):
@@ -884,25 +1060,22 @@ Bạn có quyền truy cập vào Database SQL và API để trả lời câu h�
 - Sử dụng cú pháp nút bấm đặc biệt (KHÔNG bọc trong backtick ``):
   - [INFO: Tên nút | ID] -> Nút xem chi tiết
   - [BOOK: Tên nút | ID] -> Nút đặt vé
-   - [SELECT: Tên nút | EV<eventId>_TT<ticketTypeId>] hoặc [SELECT: Tên nút | EV<eventId>_SE<seatId>] -> Nút chọn
-   - LUÔN ghi giá tiền vào label nút SELECT. VD: [SELECT: CHIA CÁCH BÌNH YÊN 100,000₫ | EV1044_TT80]
-   - Khi có nhiều session/phiên: thêm phiên + giờ. VD: [SELECT: CHIA CÁCH BÌNH YÊN 100,000₫ (Phiên 1 - 30/05 19:00) | EV1044_TT80]
+  - [SELECT: Tên nút | EV<eventId>_TT<ticketTypeId>] hoặc [SELECT: Tên nút | EV<eventId>_SE<seatId>] -> Nút chọn
+  - LUÔN ghi giá tiền vào label nút SELECT. VD: [SELECT: CHIA CÁCH BÌNH YÊN 100,000₫ | EV1044_TT80]
+  - Khi có nhiều session/phiên: thêm phiên + giờ. VD: [SELECT: CHIA CÁCH BÌNH YÊN 100,000₫ (Phiên 1 - 30/05 19:00) | EV1044_TT80]
+  - Khi hiển thị danh sách vé ở Bước 1, hãy LUÔN gộp chung tất cả các nút SELECT của các loại vé vào trong cùng một Card duy nhất của sự kiện đó. Tuyệt đối KHÔNG được tách mỗi loại vé thành một Card riêng biệt gây lặp lại thông tin sự kiện.
 
   ⚠️ QUAN TRỌNG: Xuống dòng RIÊNG cho mỗi nút, KHÔNG đặt trong backtick, KHÔNG thêm `` quanh cú pháp.
 - Trình bày cực kỳ tinh gọn, tránh viết đoạn văn dài.
 - 🚨 TUYỆT ĐỐI KHÔNG tự tạo/bịa danh sách ghế. Chỉ hiển thị ghế/danh sách có được từ kết quả tool `get_event_seats`.
 
-🎫 QUY TRÌNH ĐẶT VÉ TỰ ĐỘNG:
-Bước 1: Gọi `get_event_details` -> hiển thị loại vé với nút [SELECT: <tên> | EV<eventId>_TT<ticketTypeId>].
-Bước 2: Khi user click SELECT, user sẽ gửi tin nhắn dạng "CHỌN_VÉ EV<eventId>_TT<ticketTypeId>" hoặc "CHỌN_GHẾ EV<eventId>_SE<seatId>":
-   - "CHỌN_VÉ EV<id>_TT<id>": lấy eventId và ticketTypeId, gọi `get_event_seats(eventId)`. Nếu có tọa độ -> hiển thị ghế chờ chọn. Nếu không -> chuyển Bước 3.
-   - "CHỌN_GHẾ EV<id>_SE<id>": lấy eventId và seatId -> chuyển Bước 3.
-Bước 3: TRƯỚC KHI gọi `create_order_api`, LUÔN gọi `list_my_coupons` để kiểm tra mã giảm giá.
-   - Nếu CÓ coupon: hiển thị danh sách, hỏi user "Bạn có muốn áp dụng mã giảm giá không?" và tạo nút [SELECT: Dùng mã <code> | coupon_<code>] cho mỗi mã.
-   - Nếu user chọn mã -> gọi `check_coupon(code)` -> gọi `create_order_api(event_id=..., seat_ids=[...], coupon_code=code)` (KHÔNG cần total_amount, tool tự tính).
-   - Nếu user nói không cần / không có mã -> gọi `create_order_api(event_id=..., seat_ids=[...])` (KHÔNG cần total_amount).
-Bước 4: Gọi `create_order_api(event_id, seat_ids)`. Tool này tự tính tiền + tự thanh toán luôn.
-Bước 5: Thông báo kết quả cho user. Kèm nút [SELECT: Xem vé tại Profile | navigate_profile] để user vào profile xem QR.
+🎫 QUY TRÌNH ĐẶT VÉ TỰ ĐỘNG (ĐẶT VÉ NGAY LẬP TỨC):
+Bước 1: Gọi `get_event_details` -> hiển thị loại vé với nút [SELECT: <tên> <giá> (ngày giờ) | EV<eventId>_TT<ticketTypeId>].
+Bước 2: Khi nhận được tin nhắn từ người dùng bắt đầu bằng "CHỌN_VÉ" hoặc "CHỌN_GHẾ" (ví dụ: "CHỌN_VÉ EV1045_TT86" hoặc "CHỌN_GHẾ EV1045_SE123"):
+   - Hãy LẬP TỨC ĐẶT VÉ NGAY bằng cách gọi tool `create_order_api` mà TUYỆT ĐỐI KHÔNG ĐƯỢC hỏi lại, KHÔNG được hỏi coupon, KHÔNG được hỏi xác nhận. Hãy gọi tool đặt vé luôn!
+   - Nếu "CHỌN_VÉ EV<eventId>_TT<ticketTypeId>": gọi `create_order_api(event_id=eventId, seat_ids=[ticketTypeId])`.
+   - Nếu "CHỌN_GHẾ EV<eventId>_SE<seatId>": gọi `create_order_api(event_id=eventId, seat_ids=[seatId])`.
+Bước 3: Sau khi tool `create_order_api` chạy xong, hãy hiển thị thông báo kết quả cho người dùng. Kèm nút [SELECT: Xem vé tại Profile | navigate_profile] để người dùng vào profile xem QR.
 
 🚨 QUAN TRỌNG - LUÔN ghi ngày giờ phiên + GIÁ TIỀN vào nút SELECT:
 VD ĐÚNG: [SELECT: CHIA CÁCH BÌNH YÊN 100,000₫ (Phiên 1 - 30/05 19:00) | EV1044_TT80]
@@ -959,8 +1132,8 @@ DATABASE SCHEMA (đầy đủ):
     ])
 
     async def try_invoke(model, message, history, session_id):
-        agent = create_tool_calling_agent(model, tools, prompt)
-        executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+        agent = create_tool_calling_agent(model, user_tools, prompt)
+        executor = AgentExecutor(agent=agent, tools=user_tools, verbose=True)
         return await executor.ainvoke({
             "input": message,
             "history": history[-4:], # Lấy tối đa 4 tin nhắn gần nhất (2 turns)
@@ -1015,7 +1188,6 @@ DATABASE SCHEMA (đầy đủ):
         return {"output": "⚠️ Hệ thống AI tạm thời quá tải. Vui lòng thử lại sau ít phút."}
 
     session_id = request.session_id
-    user_id = request.user_id
     
     # Ưu tiên lấy lịch sử từ DB nếu có user_id
     history = get_session_history(session_id, user_id)
@@ -1063,6 +1235,7 @@ TOOL_LABELS = {
     "check_order_status": "📦 Kiểm tra đơn hàng",
     "list_my_coupons": "🎟️ Danh sách mã giảm giá",
     "check_coupon": "✅ Kiểm tra mã giảm giá",
+    "get_event_revenue": "📊 Xem doanh thu sự kiện",
 }
 
 @app.post("/chat/stream")
@@ -1070,17 +1243,30 @@ async def chat_stream(request: ChatRequest):
     session_id = request.session_id
     current_session_id_var.set(session_id)
 
-    is_logged_in = bool(request.token and request.user_id)
+    # Auto-login and verification via JWT token
+    is_logged_in = bool(request.token)
+    user_id = None
+    full_name = None
+    roles = []
+    
     if is_logged_in:
         global current_session_token, current_user_id
         current_session_token = request.token
-        current_user_id = request.user_id
+        user_id, full_name, roles = get_user_info_from_token(request.token)
+        current_user_id = user_id
         user_sessions[session_id] = {
             "access_token": request.token,
-            "user_id": request.user_id
+            "user_id": user_id
         }
+        if user_id:
+            logger.info(f"Session {session_id} stream authenticated for user {full_name} ({user_id}) with roles {roles}.")
+        else:
+            is_logged_in = False
+            logger.warning(f"Session {session_id} stream provided invalid token or user not found in DB.")
 
-    login_status = f"✅ User ĐÃ đăng nhập (ID: {request.user_id})" if is_logged_in else "❌ User CHƯA đăng nhập"
+    role_status = f" | Quyền: {', '.join(roles)}" if roles else ""
+    login_status = f"✅ User ĐÃ đăng nhập (Tên: {full_name}, ID: {user_id}{role_status})" if is_logged_in else "❌ User CHƯA đăng nhập"
+    user_tools = get_tools_for_roles(roles)
     current_date = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
     prompt = ChatPromptTemplate.from_messages([
@@ -1093,6 +1279,7 @@ Bạn có quyền truy cập vào Database SQL và API để trả lời câu h�
 🎫 QUY TẮC CHỌN TOOL (QUAN TRỌNG):
 1. LUÔN dùng `query_database` khi người dùng hỏi về thời gian cụ thể (ví dụ: "tháng 5", "cuối tuần này", "ngày 20/5"), địa điểm cụ thể hoặc cần con số chính xác. Hãy tự viết câu lệnh SQL SELECT phù hợp.
 2. Khi người dùng tìm "sự kiện sắp tới" hoặc "sự kiện mới nhất": Chỉ tìm các sự kiện diễn ra trong vòng 7 ngày tới (sử dụng điều kiện `start_time BETWEEN NOW() AND NOW() + INTERVAL '7 days'`) và CHỈ hiển thị tối đa 3 sự kiện cho người dùng.
+3. LUÔN dùng `get_event_revenue` khi người tổ chức (Organizer) hoặc quản trị viên (Admin) hỏi về doanh thu hoặc số lượng vé đã bán của sự kiện cụ thể. Nếu chưa biết `event_id`, hãy dùng `search_events_api` hoặc `query_database` để tìm `event_id` theo tên sự kiện trước.
 
 
 🎨 QUY TẮC TRÌNH BÀY (PREMIUM MOBILE-FIRST UI):
@@ -1107,25 +1294,22 @@ Bạn có quyền truy cập vào Database SQL và API để trả lời câu h�
 - Sử dụng cú pháp nút bấm đặc biệt (KHÔNG bọc trong backtick ``):
   - [INFO: Tên nút | ID] -> Nút xem chi tiết
   - [BOOK: Tên nút | ID] -> Nút đặt vé
-   - [SELECT: Tên nút | EV<eventId>_TT<ticketTypeId>] hoặc [SELECT: Tên nút | EV<eventId>_SE<seatId>] -> Nút chọn
-   - LUÔN ghi giá tiền vào label nút SELECT. VD: [SELECT: CHIA CÁCH BÌNH YÊN 100,000₫ | EV1044_TT80]
-   - Khi có nhiều session/phiên: thêm phiên + giờ. VD: [SELECT: CHIA CÁCH BÌNH YÊN 100,000₫ (Phiên 1 - 30/05 19:00) | EV1044_TT80]
+  - [SELECT: Tên nút | EV<eventId>_TT<ticketTypeId>] hoặc [SELECT: Tên nút | EV<eventId>_SE<seatId>] -> Nút chọn
+  - LUÔN ghi giá tiền vào label nút SELECT. VD: [SELECT: CHIA CÁCH BÌNH YÊN 100,000₫ | EV1044_TT80]
+  - Khi có nhiều session/phiên: thêm phiên + giờ. VD: [SELECT: CHIA CÁCH BÌNH YÊN 100,000₫ (Phiên 1 - 30/05 19:00) | EV1044_TT80]
+  - Khi hiển thị danh sách vé ở Bước 1, hãy LUÔN gộp chung tất cả các nút SELECT của các loại vé vào trong cùng một Card duy nhất của sự kiện đó. Tuyệt đối KHÔNG được tách mỗi loại vé thành một Card riêng biệt gây lặp lại thông tin sự kiện.
 
   ⚠️ QUAN TRỌNG: Xuống dòng RIÊNG cho mỗi nút, KHÔNG đặt trong backtick, KHÔNG thêm `` quanh cú pháp.
 - Trình bày cực kỳ tinh gọn, tránh viết đoạn văn dài.
 - 🚨 TUYỆT ĐỐI KHÔNG tự tạo/bịa danh sách ghế. Chỉ hiển thị ghế/danh sách có được từ kết quả tool `get_event_seats`.
 
-🎫 QUY TRÌNH ĐẶT VÉ TỰ ĐỘNG:
-Bước 1: Gọi `get_event_details` -> hiển thị loại vé với nút [SELECT: <tên> | EV<eventId>_TT<ticketTypeId>].
-Bước 2: Khi user click SELECT, user sẽ gửi tin nhắn dạng "CHỌN_VÉ EV<eventId>_TT<ticketTypeId>" hoặc "CHỌN_GHẾ EV<eventId>_SE<seatId>":
-   - "CHỌN_VÉ EV<id>_TT<id>": lấy eventId và ticketTypeId, gọi `get_event_seats(eventId)`. Nếu có tọa độ -> hiển thị ghế chờ chọn. Nếu không -> chuyển Bước 3.
-   - "CHỌN_GHẾ EV<id>_SE<id>": lấy eventId và seatId -> chuyển Bước 3.
-Bước 3: TRƯỚC KHI gọi `create_order_api`, LUÔN gọi `list_my_coupons` để kiểm tra mã giảm giá.
-   - Nếu CÓ coupon: hiển thị danh sách, hỏi user "Bạn có muốn áp dụng mã giảm giá không?" và tạo nút [SELECT: Dùng mã <code> | coupon_<code>] cho mỗi mã.
-   - Nếu user chọn mã -> gọi `check_coupon(code)` -> gọi `create_order_api(event_id=..., seat_ids=[...], coupon_code=code)` (KHÔNG cần total_amount, tool tự tính).
-   - Nếu user nói không cần / không có mã -> gọi `create_order_api(event_id=..., seat_ids=[...])` (KHÔNG cần total_amount).
-Bước 4: Gọi `create_order_api(event_id, seat_ids)`. Tool này tự tính tiền + tự thanh toán luôn.
-Bước 5: Thông báo kết quả cho user. Kèm nút [SELECT: Xem vé tại Profile | navigate_profile] để user vào profile xem QR.
+🎫 QUY TRÌNH ĐẶT VÉ TỰ ĐỘNG (ĐẶT VÉ NGAY LẬP TỨC):
+Bước 1: Gọi `get_event_details` -> hiển thị loại vé với nút [SELECT: <tên> <giá> (ngày giờ) | EV<eventId>_TT<ticketTypeId>].
+Bước 2: Khi nhận được tin nhắn từ người dùng bắt đầu bằng "CHỌN_VÉ" hoặc "CHỌN_GHẾ" (ví dụ: "CHỌN_VÉ EV1045_TT86" hoặc "CHỌN_GHẾ EV1045_SE123"):
+   - Hãy LẬP TỨC ĐẶT VÉ NGAY bằng cách gọi tool `create_order_api` mà TUYỆT ĐỐI KHÔNG ĐƯỢC hỏi lại, KHÔNG được hỏi coupon, KHÔNG được hỏi xác nhận. Hãy gọi tool đặt vé luôn!
+   - Nếu "CHỌN_VÉ EV<eventId>_TT<ticketTypeId>": gọi `create_order_api(event_id=eventId, seat_ids=[ticketTypeId])`.
+   - Nếu "CHỌN_GHẾ EV<eventId>_SE<seatId>": gọi `create_order_api(event_id=eventId, seat_ids=[seatId])`.
+Bước 3: Sau khi tool `create_order_api` chạy xong, hãy hiển thị thông báo kết quả cho người dùng. Kèm nút [SELECT: Xem vé tại Profile | navigate_profile] để người dùng vào profile xem QR.
 
 🚨 QUAN TRỌNG - LUÔN ghi ngày giờ phiên + GIÁ TIỀN vào nút SELECT:
 VD ĐÚNG: [SELECT: CHIA CÁCH BÌNH YÊN 100,000₫ (Phiên 1 - 30/05 19:00) | EV1044_TT80]
@@ -1181,7 +1365,7 @@ DATABASE SCHEMA (đầy đủ):
         MessagesPlaceholder(variable_name="agent_scratchpad"),
     ])
 
-    history = get_session_history(session_id, request.user_id)
+    history = get_session_history(session_id, user_id)
 
     async def event_generator():
         max_retries = 3
@@ -1195,8 +1379,8 @@ DATABASE SCHEMA (đầy đủ):
 
                 def run_agent():
                     try:
-                        agent = create_tool_calling_agent(llm, tools, prompt)
-                        executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+                        agent = create_tool_calling_agent(llm, user_tools, prompt)
+                        executor = AgentExecutor(agent=agent, tools=user_tools, verbose=True)
                         for step in executor.stream({
                             "input": request.message,
                             "history": history[-4:], # Lấy tối đa 4 tin nhắn gần nhất (2 turns)
@@ -1222,7 +1406,9 @@ DATABASE SCHEMA (đầy đủ):
                         else:
                             loop.call_soon_threadsafe(q.put_nowait, ("_error", err))
 
-                task = loop.run_in_executor(None, run_agent)
+                import contextvars
+                ctx = contextvars.copy_context()
+                task = loop.run_in_executor(None, lambda: ctx.run(run_agent))
                 answer = None
                 retry = False
                 error_msg = ""
@@ -1250,9 +1436,9 @@ DATABASE SCHEMA (đầy đủ):
                     yield f"data: {json.dumps({'type': 'result', 'answer': answer})}\n\n"
                     history.append(HumanMessage(content=request.message))
                     history.append(AIMessage(content=str(answer)))
-                    if request.user_id:
-                        save_message_to_db(request.user_id, 'user', request.message)
-                        save_message_to_db(request.user_id, 'ai', str(answer))
+                    if user_id:
+                        save_message_to_db(user_id, 'user', request.message)
+                        save_message_to_db(user_id, 'ai', str(answer))
                     return
 
                 if retry:
