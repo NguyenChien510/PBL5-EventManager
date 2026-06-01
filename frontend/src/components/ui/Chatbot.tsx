@@ -892,7 +892,7 @@ const Chatbot: React.FC = () => {
             <button 
               key={key} 
               onClick={() => navigate(`/event/${value.trim()}`)} 
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-2 mr-2 bg-blue-50/50 hover:bg-blue-600 border border-blue-100 hover:border-blue-600 rounded-xl text-xs font-bold text-blue-600 hover:text-white transition-all hover:scale-105 duration-200 shadow-sm hover:shadow active:scale-95"
+              className="inline-flex items-center gap-1 px-2.5 py-1 my-0.5 mr-1 bg-blue-50/50 hover:bg-blue-600 border border-blue-100 hover:border-blue-600 rounded-lg text-[11px] font-bold text-blue-600 hover:text-white transition-all hover:scale-105 duration-200 shadow-sm hover:shadow active:scale-95"
             >
               <span className="material-symbols-outlined text-[13px]">visibility</span>
               {label.trim()}
@@ -904,7 +904,7 @@ const Chatbot: React.FC = () => {
             <button 
               key={key} 
               onClick={() => onAction(`Tôi muốn đặt vé sự kiện ID ${value.trim()}`)} 
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-2 mr-2 bg-emerald-50 hover:bg-emerald-600 border border-emerald-100 hover:border-emerald-600 rounded-xl text-xs font-bold text-emerald-600 hover:text-white transition-all hover:scale-105 duration-200 shadow-sm hover:shadow active:scale-95 animate-pulse hover:animate-none"
+              className="inline-flex items-center gap-1 px-2.5 py-1 my-0.5 mr-1 bg-emerald-50 hover:bg-emerald-600 border border-emerald-100 hover:border-emerald-600 rounded-lg text-[11px] font-bold text-emerald-600 hover:text-white transition-all hover:scale-105 duration-200 shadow-sm hover:shadow active:scale-95 animate-pulse hover:animate-none"
             >
               <span className="material-symbols-outlined text-[13px]">local_activity</span>
               {label.trim()}
@@ -928,7 +928,7 @@ const Chatbot: React.FC = () => {
                 onAction(`${label.trim()} (ID: ${v})`);
               }
             }} 
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-2 mr-2 bg-indigo-50/50 hover:bg-indigo-600 border border-indigo-100 hover:border-indigo-600 rounded-xl text-xs font-bold text-indigo-600 hover:text-white transition-all hover:scale-105 duration-200 shadow-sm hover:shadow active:scale-95"
+            className="inline-flex items-center gap-1 px-2.5 py-1 my-0.5 mr-1 bg-indigo-50/50 hover:bg-indigo-600 border border-indigo-100 hover:border-indigo-600 rounded-lg text-[11px] font-bold text-indigo-600 hover:text-white transition-all hover:scale-105 duration-200 shadow-sm hover:shadow active:scale-95"
           >
             <span className="material-symbols-outlined text-[13px]">ads_click</span>
             {label.trim()}
@@ -946,7 +946,7 @@ const Chatbot: React.FC = () => {
           <button 
             key={key} 
             onClick={() => isInfo ? navigate(`/event/${value.trim()}`) : onAction(`Tôi muốn đặt vé sự kiện ID ${value.trim()}`)} 
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 mt-2 mr-2 border rounded-xl text-xs font-bold transition-all hover:scale-105 duration-200 shadow-sm hover:shadow active:scale-95 ${
+            className={`inline-flex items-center gap-1 px-2.5 py-1 my-0.5 mr-1 border rounded-lg text-[11px] font-bold transition-all hover:scale-105 duration-200 shadow-sm hover:shadow active:scale-95 ${
               isInfo 
                 ? "bg-blue-50/50 border-blue-100 hover:bg-blue-600 hover:text-white text-blue-600 hover:border-blue-600" 
                 : "bg-emerald-50 border-emerald-100 hover:bg-emerald-600 hover:text-white text-emerald-600 hover:border-emerald-600 animate-pulse hover:animate-none"
@@ -1141,7 +1141,7 @@ const Chatbot: React.FC = () => {
                 )}
 
                 {buttons.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1 pt-2 border-t border-slate-50">
+                  <div className="flex flex-row items-center flex-wrap gap-1.5 mt-2 pt-2 border-t border-slate-100">
                     {buttons.map((btn, bIdx) => renderButton(btn, bIdx))}
                   </div>
                 )}

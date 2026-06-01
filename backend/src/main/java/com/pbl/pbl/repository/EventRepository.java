@@ -69,6 +69,14 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     org.springframework.data.domain.Page<Event> findAllByKeyword(
             @org.springframework.data.repository.query.Param("keyword") String keyword, 
             org.springframework.data.domain.Pageable pageable);
+
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("UPDATE Event e SET e.status = com.pbl.pbl.entity.EventStatus.ended " +
+           "WHERE e.endTime < :now AND e.status IN :statuses")
+    int updateStatusForEndedEvents(
+            @org.springframework.data.repository.query.Param("now") java.time.LocalDateTime now,
+            @org.springframework.data.repository.query.Param("statuses") java.util.List<com.pbl.pbl.entity.EventStatus> statuses);
 }
 
 
