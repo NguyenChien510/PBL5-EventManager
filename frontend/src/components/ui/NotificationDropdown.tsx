@@ -77,14 +77,21 @@ const getNotificationConfig = (message: string) => {
   };
 };
 
-const renderHighlightedMessage = (message: string) => {
+const renderHighlightedMessage = (message: string, isRead: boolean) => {
   // Splitting text around matching double quotes
   const parts = message.split(/("[^"]+")/g);
   return parts.map((part, i) => {
     if (part.startsWith('"') && part.endsWith('"')) {
       const name = part.substring(1, part.length - 1);
       return (
-        <span key={i} className="font-black text-slate-900 bg-blue-50/60 px-1 rounded border-b-2 border-blue-500/20 mx-0.5 transition-all hover:bg-blue-100/60 inline">
+        <span
+          key={i}
+          className={`px-1.5 py-0.5 rounded mx-0.5 transition-all inline ${
+            !isRead
+              ? 'font-black text-blue-900 bg-blue-100/80 border-b-2 border-blue-600/40 hover:bg-blue-200/90 shadow-sm'
+              : 'font-semibold text-slate-650 bg-slate-100/70 border-b border-slate-300/30 hover:bg-slate-200/70'
+          }`}
+        >
           "{name}"
         </span>
       );
@@ -295,18 +302,19 @@ const NotificationDropdown: React.FC = () => {
                           }
                         }
                       }}
-                      className={`p-4 flex items-start gap-3.5 cursor-pointer transition-all duration-300 rounded-2xl border shadow-[0_2px_8px_-2px_rgba(0,0,0,0.02)] hover:-translate-y-[2px] relative group/item ${n.read
-                        ? 'bg-white hover:bg-white border-slate-200/50 hover:border-slate-300 hover:shadow-md'
-                        : 'bg-white border-blue-200 hover:border-blue-300 shadow-[0_4px_15px_-4px_rgba(37,99,235,0.08)] hover:shadow-lg border-l-[4px] border-l-primary'
-                        }`}
+                      className={`p-4 flex items-start gap-3.5 cursor-pointer transition-all duration-300 rounded-2xl border relative group/item ${
+                        n.read
+                          ? 'bg-white hover:bg-slate-50/50 border-slate-200/50 hover:border-slate-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.03)]'
+                          : 'bg-gradient-to-r from-blue-50/40 to-white hover:from-blue-50/60 hover:to-white border-blue-200 hover:border-blue-350 shadow-[0_4px_16px_-4px_rgba(37,99,235,0.1)] hover:shadow-[0_6px_20px_-4px_rgba(37,99,235,0.15)] border-l-[5px] border-l-primary'
+                      }`}
                     >
                       {/* Floating Gradient Icon */}
                       <div className={`w-10 h-10 shrink-0 rounded-2xl flex items-center justify-center text-white shadow-md shadow-slate-200/50 relative transform group-hover/item:scale-110 transition-transform duration-300 ${cfg.bgClass}`}>
                         <Icon name={cfg.icon} size="sm" />
                         {!n.read && (
                           <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary border border-white"></span>
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 border border-white shadow-[0_0_8px_rgba(244,63,94,0.5)]"></span>
                           </span>
                         )}
                       </div>
@@ -322,9 +330,12 @@ const NotificationDropdown: React.FC = () => {
                           </span>
                         </div>
 
-                        <p className={`text-[12.5px] leading-relaxed tracking-tight font-medium ${!n.read ? 'text-slate-900 font-bold' : 'text-slate-600 font-medium'
-                          }`}>
-                          {renderHighlightedMessage(n.message)}
+                        <p className={`text-[12.5px] leading-relaxed tracking-tight ${
+                          !n.read
+                            ? 'text-slate-950 font-extrabold'
+                            : 'text-slate-500 font-normal'
+                        }`}>
+                          {renderHighlightedMessage(n.message, n.read)}
                         </p>
                       </div>
                     </div>
