@@ -371,7 +371,7 @@ export const ZoneAttendeesModal = React.memo(({ zone, attendees, onClose, onChec
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span>Đã bán {zoneAttendees.length} / {zone.total}</span>
                 <span className="text-slate-200">•</span>
-                <span className="text-emerald-600 font-black flex items-center gap-0.5"><Icon name="check_circle" size="xxs" />{checkedInCount} / {zoneAttendees.length}</span>
+                <span className="text-emerald-600 font-black flex items-center gap-0.5"><Icon name="check_circle" size="xs" />{checkedInCount} / {zoneAttendees.length}</span>
                 <span className="text-slate-200">•</span>
                 <span>{new Intl.NumberFormat('vi-VN').format(zone.price * zoneAttendees.length)}đ</span>
               </p>
@@ -438,7 +438,7 @@ export const ZoneAttendeesModal = React.memo(({ zone, attendees, onClose, onChec
                       {/* Check-in status tag */}
                       {isChecked ? (
                         <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider shrink-0 border bg-emerald-50 text-emerald-600 border-emerald-100/80 shadow-xs">
-                          <Icon name="check_circle" size="xxs" filled={true} />
+                          <Icon name="check_circle" size="xs" filled={true} />
                           Đã đến
                         </div>
                       ) : (
@@ -450,7 +450,7 @@ export const ZoneAttendeesModal = React.memo(({ zone, attendees, onClose, onChec
                           className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider shrink-0 border bg-amber-50 text-amber-600 border-amber-100/80 hover:bg-amber-100 hover:text-amber-700 hover:border-amber-200 active:scale-95 hover:shadow-sm transition-all cursor-pointer group/btn"
                           title="Nhấn để xác nhận Check-in"
                         >
-                          <Icon name="schedule" size="xxs" className="group-hover/btn:animate-spin-slow" />
+                          <Icon name="schedule" size="xs" className="group-hover/btn:animate-spin-slow" />
                           Chờ
                         </button>
                       )}

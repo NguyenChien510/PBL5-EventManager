@@ -1,4 +1,4 @@
-import { Icon, StatCard, Pagination, StatusBadge, Loader } from '../components/ui'
+import { Pagination, StatusBadge, Loader } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { adminSidebarConfig } from '../config/adminSidebarConfig'
 import { useState, useEffect, useCallback } from 'react'
@@ -8,10 +8,7 @@ import { toast } from 'react-hot-toast'
 
 const sidebarConfig = adminSidebarConfig
 
-const recentActivities = [
-  { icon: 'check', iconBg: 'bg-green-100', iconColor: 'text-green-600', title: 'Đã duyệt "Music Night"', by: 'Admin Nguyễn', time: '5 phút trước' },
-  { icon: 'close', iconBg: 'bg-red-100', iconColor: 'text-red-600', title: 'Từ chối "Seminar Crypto"', by: 'Admin Trần', time: '12 phút trước' },
-]
+
 
 const AdminEventModeration = () => {
   const [events, setEvents] = useState<any[]>([])

@@ -35,23 +35,6 @@ interface Attendee {
     userAvatar?: string;
 }
 
-// Sub-components for Roster
-const colorMap = {
-    sky: 'bg-sky-50 border-sky-400 text-sky-700',
-    red: 'bg-red-50 border-red-500 text-red-700',
-    orange: 'bg-orange-50 border-orange-400 text-orange-700',
-    emerald: 'bg-emerald-50 border-emerald-400 text-emerald-700',
-    purple: 'bg-purple-50 border-purple-400 text-purple-700',
-    indigo: 'bg-indigo-50 border-indigo-400 text-indigo-700',
-}
-
-const RosterCard = ({ shift }: any) => (
-    <div className={`p-2 rounded-xl border mb-2 text-[10px] sm:text-xs shadow-sm ${colorMap[shift.color as keyof typeof colorMap]}`}>
-        <p className="font-bold">{shift.title}</p>
-        <p className="opacity-80">{shift.time}</p>
-    </div>
-)
-
 const OrganizerEventManage = () => {
     const { id } = useParams<{ id: string }>();
     const location = useLocation();
@@ -92,7 +75,7 @@ const OrganizerEventManage = () => {
     const [manualCode, setManualCode] = useState('');
     const [guestPage, setGuestPage] = useState(1);
     const itemsPerPage = 3;
-    const [zoneSearchQuery, setZoneSearchQuery] = useState('');
+    const [zoneSearchQuery] = useState('');
 
     const ticketSalesBreakdown = React.useMemo(() => {
         if (!ticketTypes) return [];
@@ -381,15 +364,6 @@ const OrganizerEventManage = () => {
         setCurrentWeekStart(newDate);
     };
 
-    const weeklyMockData = [
-        { day: 'T2', val: 45 },
-        { day: 'T3', val: 78 },
-        { day: 'T4', val: 56 },
-        { day: 'T5', val: 89 },
-        { day: 'T6', val: 32 },
-        { day: 'T7', val: 120 },
-        { day: 'CN', val: 110 },
-    ];
 
 
 
@@ -557,7 +531,7 @@ const OrganizerEventManage = () => {
                 { facingMode: "environment" },
                 config,
                 handleQrSuccess,
-                (errorMessage) => {
+                (_err) => {
                     // Ignored error
                 }
             ).catch(err => {
@@ -1535,7 +1509,7 @@ const OrganizerEventManage = () => {
 
                                                 if (!hasDataThisWeek && stats?.dailyRevenue) {
                                                     const findWeekWithData = () => {
-                                                        const keys = Object.keys(stats.dailyRevenue).filter(k => Number(stats.dailyRevenue[k]) > 0);
+                                                        const keys = Object.keys(stats.dailyRevenue || {}).filter(k => Number(stats.dailyRevenue?.[k]) > 0);
                                                         if (keys.length === 0) return null;
                                                         const latestDateString = keys.sort().reverse()[0];
                                                         const latestDate = new Date(latestDateString);
@@ -1581,8 +1555,6 @@ const OrganizerEventManage = () => {
                                                 // Ensure we parse the revenue correctly regardless of format
                                                 const rawRevenue = stats?.dailyRevenue?.[dateKey];
                                                 const revenue = rawRevenue ? Number(rawRevenue) : 0;
-                                                const valInM = revenue / 1000000;
-
                                                 const weekValues = Array.from({ length: 7 }).map((_, idx) => {
                                                     const dw = new Date(currentWeekStart);
                                                     dw.setDate(dw.getDate() + idx);

@@ -396,7 +396,6 @@ const OrganizerEventCreate = () => {
   // Handle click outside for dropdowns
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      const target = event.target as HTMLElement;
       if (categoryRef.current && !categoryRef.current.contains(event.target as Node)) {
         setIsCategoryOpen(false);
       }
@@ -522,16 +521,6 @@ const OrganizerEventCreate = () => {
     const tt = ticketTypes.find(t => t.id === ticketTypeId);
     const prefix = tt ? tt.name.substring(0, 1).toUpperCase() : 'S';
     return `${prefix}${count}`;
-  };
-
-  const getRowLetter = (index: number) => {
-    let row = "";
-    let i = index - 1;
-    while (i >= 0) {
-      row = String.fromCharCode(65 + (i % 26)) + row;
-      i = Math.floor(i / 26) - 1;
-    }
-    return row;
   };
 
   const handleCreateEvent = async () => {

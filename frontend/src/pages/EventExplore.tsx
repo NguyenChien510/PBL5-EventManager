@@ -121,8 +121,8 @@ const EventExplore = () => {
                       : 'text-slate-500 hover:bg-slate-50'
                   }`}
                 >
-                  {cat.color ? (
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                  {(cat as any).color ? (
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: (cat as any).color }} />
                   ) : (
                     <Icon name={cat.icon} size="sm" />
                   )}

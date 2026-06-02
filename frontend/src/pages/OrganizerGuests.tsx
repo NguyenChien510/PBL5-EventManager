@@ -72,7 +72,7 @@ const OrganizerGuests = () => {
     if (!targetId) return;
     setAttendeesLoading(true)
     try {
-      const [attendeesData, statsData] = await Promise.all([
+      const [attendeesData] = await Promise.all([
         EventService.getEventAttendees(targetId),
         EventService.getEventManageStats(targetId)
       ])

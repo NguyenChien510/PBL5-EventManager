@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Icon, Avatar, Loader } from '../components/ui'
 import { createPortal } from 'react-dom'
 import { DashboardLayout, PageHeader } from '../components/layout'

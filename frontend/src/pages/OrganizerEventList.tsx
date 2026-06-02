@@ -16,8 +16,8 @@ interface DashboardStats {
 }
 
 const OrganizerEventList = () => {
-  const { user } = useAuthStore()
-  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const { user: _user } = useAuthStore()
+  const [_stats, setStats] = useState<DashboardStats | null>(null)
   const [events, setEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(0)
@@ -68,10 +68,6 @@ const OrganizerEventList = () => {
     fetchDashboardData(currentPage, selectedStatus, debouncedSearchTerm)
   }, [currentPage, selectedStatus, debouncedSearchTerm])
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
-  }
-
   const handlePageChange = (page: number) => {
     setCurrentPage(page - 1)
   }
@@ -110,7 +106,7 @@ const OrganizerEventList = () => {
             </div>
 
             <div className="bg-white rounded-[1rem] shadow-sm border border-slate-200 p-1 flex flex-wrap md:flex-nowrap gap-1 w-full md:w-fit overflow-x-auto custom-scrollbar order-1 xl:order-2">
-              {STATUS_TABS.map((tab, idx) => (
+              {STATUS_TABS.map((tab, _idx) => (
                 <button
                   key={tab.key}
                   onClick={() => {

@@ -5,20 +5,10 @@ import { EventService } from '../services/eventService'
 import { Icon } from '../components/ui'
 import Avatar from '../components/ui/Avatar'
 
-const artists = [
-  { name: 'Sơn Tùng M-TP', role: 'Ca sĩ chính', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuApE_m_Gd_KRyYuWTES2LUgR5Rnhp5h2U15s-sNclVbmb8EHbXTWT9qG7sBCU0LqeQ_jvPWfy_oRFMgHFTHqf-Zr1izZqyCJYRv1EzbJv827rXQd0NBAxYshSBFqEHblTSZ9_DWvjvZbSBgqg9B2mU_oX_8F_f43SC4wi8AiFhElE68UcqOFFj4y3Crh93Ah7AEFud5lJ9StCF6htKxztl-Q4iDBjqh8m_PRYEBXYQUMe0P3XDAonsjZhRxfDYng6svCTMAKfXMFn8' },
-  { name: 'DJ Snake', role: 'Guest DJ', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD8uGa4mjJqgWx5lFfDdLFanomchIA51IL8c0cvb3MIvS4GBu7ELTNexbhcJEIciFGOrbVfUWEGrFk5mRHb_asax4cBD8ddZD6DCO2x-TFSGHMrGlb_3UzaAzSv-lol1Y13h0NCWx1bisS-1wiw9mM1Pk1uAuWn4ENmtn0bHrhfEN0_pXnmDQCY_Dx7HWH1bijivgY4hCUMU_lb4qGiw0i4ZqDGhPXEC97rUmzSAyfodwGiVLLxAAz2QaKrFMSGuRiEE4j49dJZMqw' },
-  { name: 'Binz', role: 'Ca sĩ khách mời', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBrnq1Yzgsd28u9RCJh3At5GShj32DcYi9T_WN8ctWilvGZn9VmfNHcOXN0PJVpwKNobaOeiLmwLHEdWBHMa0-lffiM-Lwoaqt5KkCR09eDjWJ-SCeEHoTwndxp4Nre5iCAhg4T1qbg7h75lD0xQbdhUfxGLICenIk71wCsX_N9LaLNhSBdHcgwT-D_-lV4s-BSw1EUi9YzTDRA_WzoNc9T9dOkYFrwkftJ5xX9JXksilQMRTFko1lYzpfcj_je9bmv6z9ywUt6AXg' },
-]
 
 
-const timeline = [
-  { time: '18:00', title: 'Mở cổng', icon: 'door_front', color: 'bg-slate-500' },
-  { time: '19:00', title: 'DJ Opening Set', icon: 'headphones', color: 'bg-purple-500' },
-  { time: '20:00', title: 'Sơn Tùng M-TP biểu diễn', icon: 'mic', color: 'bg-primary' },
-  { time: '21:30', title: 'Khách mời đặc biệt', icon: 'star', color: 'bg-yellow-500' },
-  { time: '22:30', title: 'Kết thúc', icon: 'celebration', color: 'bg-green-500' },
-]
+
+
 
 const EventCalendar = ({
   sessions,
@@ -71,7 +61,7 @@ const EventCalendar = ({
     });
   };
 
-  const isEventDay = (day: Date) => !!getSessionForDay(day);
+
 
   const isToday = (day: Date) => {
     return day.getDate() === today.getDate() &&
@@ -404,7 +394,7 @@ const EventDetail = () => {
                     {selectedSessionId ? (
                       ticketTypes
                         .filter(tt => tt.sessionId === selectedSessionId)
-                        .map((tt, idx) => {
+                        .map((tt, _idx) => {
                           let ticketColor = tt.color || '#3b82f6';
                           if (ticketColor.startsWith('#') && ticketColor.length === 9) {
                             ticketColor = ticketColor.substring(0, 7);

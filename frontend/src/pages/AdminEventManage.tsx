@@ -34,23 +34,6 @@ interface Attendee {
   userAvatar?: string;
 }
 
-// Sub-components for Roster
-const colorMap = {
-  sky: 'bg-sky-50 border-sky-400 text-sky-700',
-  red: 'bg-red-50 border-red-500 text-red-700',
-  orange: 'bg-orange-50 border-orange-400 text-orange-700',
-  emerald: 'bg-emerald-50 border-emerald-400 text-emerald-700',
-  purple: 'bg-purple-50 border-purple-400 text-purple-700',
-  indigo: 'bg-indigo-50 border-indigo-400 text-indigo-700',
-}
-
-const RosterCard = ({ shift }: any) => (
-  <div className={`p-2 rounded-xl border mb-2 text-[10px] sm:text-xs shadow-sm ${colorMap[shift.color as keyof typeof colorMap]}`}>
-    <p className="font-bold">{shift.title}</p>
-    <p className="opacity-80">{shift.time}</p>
-  </div>
-)
-
 const AdminEventManage = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
@@ -86,7 +69,7 @@ const AdminEventManage = () => {
   const [manualCode, setManualCode] = useState('');
   const [qrError, setQrError] = useState<string | null>(null);
   const [selectedZoneForModal, setSelectedZoneForModal] = useState<any>(null);
-  const [zoneSearchQuery, setZoneSearchQuery] = useState('');
+  const [zoneSearchQuery, _setZoneSearchQuery] = useState('');
   const [ticketTypes, setTicketTypes] = useState<any[]>([]);
 
   // Finance pagination
@@ -119,15 +102,7 @@ const AdminEventManage = () => {
     setCurrentWeekStart(newDate);
   };
 
-  const weeklyMockData = [
-    { day: 'T2', val: 45 },
-    { day: 'T3', val: 78 },
-    { day: 'T4', val: 56 },
-    { day: 'T5', val: 89 },
-    { day: 'T6', val: 32 },
-    { day: 'T7', val: 120 },
-    { day: 'CN', val: 110 },
-  ];
+
 
 
 
@@ -287,7 +262,7 @@ const AdminEventManage = () => {
         { facingMode: "environment" },
         config,
         handleQrSuccess,
-        (errorMessage) => {
+        (_errorMessage) => {
           // Ignored error
         }
       ).catch(err => {
@@ -592,11 +567,7 @@ const AdminEventManage = () => {
     );
   }, [shapes, ticketTypes, seats, attendees, setSelectedSeatInfo]);
 
-  const filteredAttendees = attendees.filter(a =>
-    a.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    a.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    a.seatNumber.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+
 
   const totalPlatformFee = React.useMemo(() => {
     return orders.reduce((sum: number, o: any) => sum + (o.platformFee || 0), 0);
@@ -1023,7 +994,7 @@ const AdminEventManage = () => {
                                     <button
                                       key={opt.id}
                                       onClick={() => {
-                                        setStatusFilter(opt.id);
+                                        setStatusFilter(opt.id as 'ALL' | 'CHECKED_IN' | 'PENDING');
                                         setIsFilterOpen(false);
                                       }}
                                       className={`w-full flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-wider transition-all hover:bg-slate-50 ${statusFilter === opt.id ? 'bg-slate-50' : 'text-slate-600'}`}
@@ -1082,8 +1053,9 @@ const AdminEventManage = () => {
                                               alt={attendee.fullName}
                                               className="w-full h-full object-cover"
                                               onError={(e) => {
-                                                e.target.style.display = 'none';
-                                                e.target.parentElement.innerText = attendee.fullName.charAt(0);
+                                                const img = e.target as HTMLElement;
+                                                img.style.display = 'none';
+                                                img.parentElement!.innerText = attendee.fullName.charAt(0);
                                               }}
                                             />
                                           ) : (
@@ -1100,7 +1072,7 @@ const AdminEventManage = () => {
                                     <td className="px-8 py-6">
                                       <div className="space-y-1">
                                         <div className="flex flex-wrap gap-1.5">
-                                          {attendee.seats.map((seat, seatIdx) => (
+                                          {attendee.seats.map((seat: any, seatIdx: any) => (
                                             <span
                                               key={`${seat.seatNumber}-${seatIdx}`}
                                               className="px-2.5 py-1 rounded-lg text-[10px] font-black shadow-sm text-white"
@@ -1388,7 +1360,7 @@ const AdminEventManage = () => {
 
                         if (!hasDataThisWeek && stats?.dailyRevenue) {
                           const findWeekWithData = () => {
-                            const keys = Object.keys(stats.dailyRevenue).filter(k => Number(stats.dailyRevenue[k]) > 0);
+                            const keys = Object.keys(stats.dailyRevenue || {}).filter(k => Number((stats.dailyRevenue || {})[k]) > 0);
                             if (keys.length === 0) return null;
                             const latestDateString = keys.sort().reverse()[0];
                             const latestDate = new Date(latestDateString);
@@ -1434,8 +1406,6 @@ const AdminEventManage = () => {
                         // Ensure we parse the revenue correctly regardless of format
                         const rawRevenue = stats?.dailyRevenue?.[dateKey];
                         const revenue = rawRevenue ? Number(rawRevenue) : 0;
-                        const valInM = revenue / 1000000;
-
                         const weekValues = Array.from({ length: 7 }).map((_, idx) => {
                           const dw = new Date(currentWeekStart);
                           dw.setDate(dw.getDate() + idx);

@@ -1,4 +1,4 @@
-import { Icon, StatCard, Pagination, StatusBadge, Loader } from '../components/ui'
+import { Icon, Pagination, StatusBadge, Loader } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { adminSidebarConfig } from '../config/adminSidebarConfig'
 import { useState, useEffect, useCallback } from 'react'
@@ -34,7 +34,7 @@ const AdminEventManagement = () => {
   const [events, setEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [pagination, setPagination] = useState<any>(null)
-  const [stats, setStats] = useState({ upcoming: 0, ended: 0, rejected: 0 })
+  const [_stats, setStats] = useState({ upcoming: 0, ended: 0, rejected: 0 })
   const [currentPage, setCurrentPage] = useState(0)
   const [activeTab, setActiveTab] = useState('Tất cả')
   const [searchTerm, setSearchTerm] = useState('')

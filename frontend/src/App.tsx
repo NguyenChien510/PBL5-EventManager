@@ -42,7 +42,7 @@ import { GuestRoute } from './components/auth/GuestRoute'
 function App() {
   const [navOpen, setNavOpen] = useState(false)
   const location = useLocation()
-  const { user, accessToken, signOut } = useAuthStore()
+  const { user, accessToken, signOut: _signOut } = useAuthStore()
   const roleName = (user?.role?.name ?? '').toUpperCase().replace('ROLE_', '')
 
   // Proactive auth check on initial load
