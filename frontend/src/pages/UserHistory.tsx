@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { Icon, Loader } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { userSidebarConfig } from '../config/userSidebarConfig'
-import { apiClient } from '../utils/axios'
+import { CommentService } from '../services/commentService'
+import { TicketService } from '../services/ticketService'
 
 const sidebarConfig = userSidebarConfig
 
@@ -18,13 +19,13 @@ const UserHistory = () => {
     const fetchData = async () => {
       setLoading(true)
       try {
-        const [ticketsRes, commentsRes] = await Promise.all([
-          apiClient.get('/tickets/my'),
-          apiClient.get('/comments/my')
+        const [ticketsData, commentsData] = await Promise.all([
+          TicketService.getMyTickets(),
+          CommentService.getMyComments()
         ])
 
-        const checkedInTickets = ticketsRes.data.filter((t: any) => t.status === 'checked_in' || t.status === 'CHECKED_IN' || t.status === 'used')
-        const myComments = commentsRes.data
+        const checkedInTickets = ticketsData.filter((t: any) => t.status === 'checked_in' || t.status === 'CHECKED_IN' || t.status === 'used')
+        const myComments = commentsData
 
         // Group by eventId
         const eventMap = new Map()

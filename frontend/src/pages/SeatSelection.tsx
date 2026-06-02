@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { Icon } from '../components/ui'
 import { EventService } from '../services/eventService'
-import { apiClient } from '../utils/axios'
+import { CouponService } from '../services/couponService'
+import { PaymentService } from '../services/paymentService'
 import { useAuthStore } from '../stores/useAuthStore'
 import { toast } from 'react-hot-toast'
 import { Stage, Layer, Circle, Text, Group, Rect, Line } from 'react-konva'
@@ -74,7 +75,7 @@ const SeatSelection = () => {
           EventService.getEventById(id),
           EventService.getEventSeats(id),
           EventService.getEventTicketTypes(id),
-          apiClient.get('/coupons/my').then(res => res.data).catch(() => [])
+          CouponService.getMyCoupons().catch(() => [])
         ]);
         setEvent(eventData);
         setSeats(seatsData || []);
@@ -249,9 +250,9 @@ const SeatSelection = () => {
           couponCode: selectedCoupon ? selectedCoupon.code : null
         };
 
-        const response = await apiClient.post('/payment/create', payload);
-        if (response.data && response.data.url) {
-          window.location.href = response.data.url;
+        const payment = await PaymentService.createPayment(payload);
+        if (payment && payment.url) {
+          window.location.href = payment.url;
         } else {
           toast.error("Hệ thống không kích hoạt được cổng thanh toán");
         }

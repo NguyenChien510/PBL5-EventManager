@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.view.RedirectView;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,6 +17,9 @@ import java.util.Map;
 public class PaymentController {
 
     private final PaymentService paymentService;
+
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendBaseUrl;
 
     @PostMapping("/api/payment/create")
     public ResponseEntity<?> createPayment(@RequestBody PaymentDTO paymentDTO, HttpServletRequest request) {
@@ -49,7 +53,7 @@ public class PaymentController {
         String transactionId = request.getParameter("vnp_TransactionNo");
 
         // Set up the Frontend specific URL
-        String frontendUrl = "http://localhost:5173/payment-result";
+        String frontendUrl = frontendBaseUrl + "/payment-result";
         
         try {
             String encodedOrderInfo = java.net.URLEncoder.encode(orderInfo != null ? orderInfo : "", java.nio.charset.StandardCharsets.UTF_8);
@@ -75,7 +79,7 @@ public class PaymentController {
         String orderInfo = request.getParameter("orderInfo");
         String transactionId = request.getParameter("transId");
 
-        String frontendUrl = "http://localhost:5173/payment-result";
+        String frontendUrl = frontendBaseUrl + "/payment-result";
         
         try {
             String encodedOrderInfo = java.net.URLEncoder.encode(orderInfo != null ? orderInfo : "", java.nio.charset.StandardCharsets.UTF_8);

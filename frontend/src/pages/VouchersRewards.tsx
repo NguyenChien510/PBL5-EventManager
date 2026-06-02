@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Icon, Avatar, Loader } from '../components/ui'
+import { Icon, Loader } from '../components/ui'
 import { DashboardLayout } from '../components/layout'
 import { userSidebarConfig } from '../config/userSidebarConfig'
-import { apiClient } from '../utils/axios'
+import { CouponService } from '../services/couponService'
+import { UserService } from '../services/userService'
 import { toast } from 'react-hot-toast'
 
 const sidebarConfig = userSidebarConfig
@@ -33,8 +34,8 @@ const VouchersRewards = () => {
 
   const fetchProfile = async () => {
     try {
-      const res = await apiClient.get('/users/me')
-      setUser(res.data)
+      const data = await UserService.getCurrentUser()
+      setUser(data)
     } catch (err) {
       console.error(err)
     }
@@ -42,8 +43,8 @@ const VouchersRewards = () => {
 
   const fetchRewards = async () => {
     try {
-      const res = await apiClient.get('/coupons/available')
-      const sortedRewards = (res.data || []).sort((a: any, b: any) => a.pointCost - b.pointCost)
+      const data = await CouponService.getAvailableCoupons()
+      const sortedRewards = (data || []).sort((a: any, b: any) => a.pointCost - b.pointCost)
       setAvailableRewards(sortedRewards)
     } catch (err) {
       console.error(err)
@@ -52,8 +53,8 @@ const VouchersRewards = () => {
 
   const fetchMyCoupons = async () => {
     try {
-      const res = await apiClient.get('/coupons/my')
-      setMyCoupons(res.data)
+      const data = await CouponService.getMyCoupons()
+      setMyCoupons(data)
     } catch (err) {
       console.error(err)
     }
@@ -84,7 +85,7 @@ const VouchersRewards = () => {
 
     setExchangingId(couponId)
     try {
-      await apiClient.post(`/coupons/exchange?couponId=${couponId}`)
+      await CouponService.exchangeCoupon(couponId)
       await Promise.all([fetchProfile(), fetchMyCoupons()])
       toast.success(
         <div className="flex flex-col gap-0.5 text-left">
@@ -348,4 +349,3 @@ const VouchersRewards = () => {
 }
 
 export default VouchersRewards
-

@@ -4,7 +4,9 @@ import { Icon, Loader } from '../components/ui'
 import { createPortal } from 'react-dom'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { userSidebarConfig } from '../config/userSidebarConfig'
-import { apiClient } from '../utils/axios'
+import { CommentService } from '../services/commentService'
+import { EventService } from '../services/eventService'
+import { UploadService } from '../services/uploadService'
 import { toast } from 'react-hot-toast'
 
 const emotions = [
@@ -41,8 +43,8 @@ const EventReviews = () => {
 
   const fetchEventDetails = async () => {
     try {
-      const response = await apiClient.get(`/events/${eventId}`)
-      setEvent(response.data)
+      const data = await EventService.getEventById(eventId!)
+      setEvent(data)
     } catch (error) {
       console.error('Error fetching event details:', error)
       toast.error('Không thể tải thông tin sự kiện')
@@ -67,10 +69,8 @@ const EventReviews = () => {
     }
 
     try {
-      const response = await apiClient.post('/upload/multiple', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
-      setImages([...images, ...response.data])
+      const uploadedImages = await UploadService.uploadMultiple(formData)
+      setImages([...images, ...uploadedImages])
       toast.success('Đã tải ảnh lên')
     } catch (error) {
       console.error('Error uploading images:', error)
@@ -92,7 +92,7 @@ const EventReviews = () => {
 
     setSubmitting(true)
     try {
-      await apiClient.post('/comments', {
+      await CommentService.createComment({
         eventId: Number(eventId),
         content: comment,
         rating,

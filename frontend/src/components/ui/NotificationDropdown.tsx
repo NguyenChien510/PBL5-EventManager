@@ -1,14 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Icon from './Icon';
-import { apiClient } from '@/utils/axios';
+import { NotificationService, type Notification } from '@/services/notificationService';
 import { useNavigate } from 'react-router-dom';
-
-interface Notification {
-  id: number;
-  message: string;
-  createdAt: string; // ISO string;
-  read: boolean;
-}
 
 const formatRelativeTime = (isoString: string) => {
   const date = new Date(isoString);
@@ -109,8 +102,8 @@ const NotificationDropdown: React.FC = () => {
 
   const fetchNotifications = async () => {
     try {
-      const resp = await apiClient.get<Notification[]>('/notifications');
-      setNotifications(resp.data);
+      const data = await NotificationService.getNotifications();
+      setNotifications(data);
     } catch (e) {
       console.error('Failed to fetch notifications', e);
     }
@@ -118,7 +111,7 @@ const NotificationDropdown: React.FC = () => {
 
   const markAsRead = async (id: number) => {
     try {
-      await apiClient.post(`/notifications/${id}/read`);
+      await NotificationService.markAsRead(id);
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, read: true } : n))
       );
@@ -130,7 +123,7 @@ const NotificationDropdown: React.FC = () => {
   const handleMarkAllAsRead = async () => {
     setLoading(true);
     try {
-      await apiClient.post('/notifications/read-all');
+      await NotificationService.markAllAsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     } catch (e) {
       console.error('Failed to mark all as read', e);

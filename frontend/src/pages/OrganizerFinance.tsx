@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Icon, StatCard, Loader } from '../components/ui'
+import { Icon, Loader } from '../components/ui'
 import { DashboardLayout, PageHeader } from '../components/layout'
 import { organizerSidebarConfig } from '../config/organizerSidebarConfig'
-import { apiClient } from '@/utils/axios'
+import { OrganizerFinanceService } from '@/services/organizerFinanceService'
 
 const sidebarConfig = organizerSidebarConfig
 
@@ -31,12 +31,12 @@ const OrganizerFinance = () => {
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
-        const [transactionsRes, statsRes] = await Promise.all([
-          apiClient.get('/organizer/finance/transactions'),
-          apiClient.get('/organizer/finance/stats')
+        const [transactionsData, statsData] = await Promise.all([
+          OrganizerFinanceService.getTransactions(),
+          OrganizerFinanceService.getStats()
         ])
-        if (transactionsRes.data) setOrders(transactionsRes.data)
-        if (statsRes.data) setChartData(statsRes.data)
+        if (transactionsData) setOrders(transactionsData)
+        if (statsData) setChartData(statsData)
       } catch (err) {
         console.error('Error fetching finance data', err)
       } finally {

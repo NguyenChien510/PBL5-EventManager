@@ -1,10 +1,10 @@
-package com.socialnetwork.socialnetwork;
+package com.pbl.pbl;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class SocialnetworkApplicationTests {
+class pblApplicationTests {
 
 	@Test
 	void contextLoads() {

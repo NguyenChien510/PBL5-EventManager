@@ -13,18 +13,11 @@ import asyncio
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_groq import ChatGroq
-from langchain_openai import ChatOpenAI
-from langchain_qdrant import QdrantVectorStore
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_classic.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_classic.schema import Document
 from langchain_classic.tools import tool
 from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.messages import HumanMessage, AIMessage
-from qdrant_client import QdrantClient
-from qdrant_client.http.models import Distance, VectorParams
 from sqlalchemy import create_engine, text
 import re
 from datetime import datetime
@@ -63,12 +56,7 @@ GROQ_API_KEY_5 = os.getenv("GROQ_API_KEY_5")
 GROQ_API_KEY_6 = os.getenv("GROQ_API_KEY_6")
 # Backend API
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080")
-# Local LLM (OpenAI-compatible)
-LOCAL_LLM_BASE_URL = os.getenv("LOCAL_LLM_BASE_URL", "http://192.168.1.123:1234/v1")
-# Qdrant Cloud
-QDRANT_URL = os.getenv("QDRANT_URL", "https://94e3d96c-ddc5-4a98-a77c-a4df1d317a03.australia-southeast1-0.gcp.cloud.qdrant.io")
-QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIiwic3ViamVjdCI6ImFwaS1rZXk6Mjc1NjM2MDYtZWM2Ni00NzA0LWE0OGQtNzgwNWZiNmVhZGE0In0.vSJCvzHTQkcirk826fyGJyNGcV3Vp7aMdps767w0b7g")
-QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "event_platform")
+
 # Session management for user login
 # Global context for session tracking
 current_session_id_var: ContextVar[str] = ContextVar("current_session_id", default="default_session")
@@ -77,10 +65,8 @@ current_session_token = None  # Token for current booking session
 current_user_id = None  # User ID for current booking session
 
 # Initialize components
-# Sử dụng Gemini Embedding 2 mới nhất
-embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-2", google_api_key=GOOGLE_API_KEY)
 
-# LLM Clients: Groq primary, local fallback
+# LLM Clients: Groq with key rotation
 from pydantic import SecretStr
 
 groq_keys = [GROQ_API_KEY]
@@ -203,10 +189,8 @@ class RetryChatGroq(ChatGroq):
                 raise e
 
 groq_llm = RetryChatGroq(model="openai/gpt-oss-120b", temperature=0, groq_api_key=groq_keys[0], max_retries=0, max_tokens=1024)
-local_llm = ChatOpenAI(model="qwen3-4b", temperature=0, base_url=LOCAL_LLM_BASE_URL, api_key="not-needed", max_retries=2, max_tokens=1024)
 llm_clients = [
-    ("groq_primary", groq_llm),
-    ("local", local_llm)
+    ("groq_primary", groq_llm)
 ]
 llm_key_index = 0
 
@@ -918,40 +902,7 @@ async def list_models():
     except Exception as e:
         return {"error": str(e)}
 
-@app.get("/inspect-db")
-async def inspect_db():
-    """Kiểm tra Qdrant vector store."""
-    try:
-        client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-        collections = client.get_collections()
-        return {"message": "Using Qdrant vector database.", "collection": QDRANT_COLLECTION, "collections": [c.name for c in collections.collections]}
-    except Exception as e:
-        return {"error": str(e)}
 
-# Global vectorstore reference
-vectorstore = None
-
-def get_vectorstore():
-    global vectorstore
-    if vectorstore is None:
-        qdrant_client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-        # Create collection if it doesn't exist
-        try:
-            collections = qdrant_client.get_collections()
-            exists = any(c.name == QDRANT_COLLECTION for c in collections.collections)
-            if not exists:
-                qdrant_client.create_collection(
-                    collection_name=QDRANT_COLLECTION,
-                    vectors_config=VectorParams(size=3072, distance=Distance.COSINE)
-                )
-        except Exception:
-            pass  # Collection might already exist
-        vectorstore = QdrantVectorStore(
-            client=qdrant_client,
-            collection_name=QDRANT_COLLECTION,
-            embedding=embeddings,
-        )
-    return vectorstore
 
 class ChatRequest(BaseModel):
     message: str
@@ -1471,52 +1422,7 @@ DATABASE SCHEMA (đầy đủ):
 
     return StreamingResponse(wrapped_event_generator(), media_type="text/event-stream")
 
-@app.post("/sync-db")
-async def sync_database():
-    try:
-        # Fetch all events from backend API
-        response = requests.get(f"{BACKEND_URL}/api/events/search?size=100", timeout=15)
-        if response.status_code != 200:
-            return {"error": f"Failed to fetch events: {response.status_code}"}
-        
-        data = response.json()
-        events = data.get("data", []) if isinstance(data, dict) else data
-        
-        if not events:
-            return {"message": "No events found."}
 
-        documents = []
-        for event in events:
-            content = (
-                f"Sự kiện: {event.get('title', 'N/A')}\n"
-                f"Thể loại: {event.get('categoryName', 'N/A')}\n"
-                f"Nghệ sĩ: {event.get('artists', 'N/A')}\n"
-                f"Mô tả: {event.get('description', 'N/A')}\n"
-                f"Địa điểm: {event.get('location', 'N/A')}\n"
-                f"Thời gian bắt đầu: {event.get('startTime', 'N/A')}"
-            )
-            documents.append(Document(page_content=content, metadata={"source": f"event-{event.get('id')}"}))
-
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-        texts = text_splitter.split_documents(documents)
-
-        # Clear collection and add new documents
-        vs = get_vectorstore()
-        try:
-            qdrant_client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-            qdrant_client.recreate_collection(
-                collection_name=QDRANT_COLLECTION,
-                vectors_config=VectorParams(size=3072, distance=Distance.COSINE)
-            )
-        except Exception as e:
-            logger.warning(f"Failed to recreate collection: {e}")
-            
-        vs.add_documents(texts)
-        
-        return {"message": f"Successfully synced {len(events)} events to Qdrant."}
-    except Exception as e:
-        logger.error(f"Error in /sync-db: {traceback.format_exc()}")
-        return {"error": str(e)}
 
 if __name__ == "__main__":
     import uvicorn

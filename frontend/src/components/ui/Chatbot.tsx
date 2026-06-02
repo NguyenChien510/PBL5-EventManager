@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { API_BASE_URL } from '@/constants';
+import { ChatbotService } from '@/services/chatbotService';
+import { EventService } from '@/services/eventService';
 import { ChatbotIcon } from './ChatbotIcon';
 
 interface Message {
@@ -45,8 +46,7 @@ const Chatbot: React.FC = () => {
       setLoadingHistory(true);
       if (user?.id) {
         try {
-          const response = await fetch(`http://localhost:8000/chat-history/${user.id}`);
-          const data = await response.json();
+          const data = await ChatbotService.getHistory(user.id);
           if (data.history && data.history.length > 0) {
             setMessages(data.history.map((m: any) => ({
               ...m,
@@ -135,7 +135,6 @@ const Chatbot: React.FC = () => {
     const messageToSend = overrideInput || input;
     if (!messageToSend.trim()) return;
 
-    let newMessages = messages;
     if (!silent) {
       const userMessage: Message = { role: 'user', content: messageToSend, timestamp: new Date().toISOString() };
       const updatedMessages = [...messages, userMessage];
@@ -152,19 +151,17 @@ const Chatbot: React.FC = () => {
     setLoadingStatus('🤔 Đang phân tích yêu cầu...');
 
     try {
+      const payload = {
+        message: messageToSend,
+        session_id: user?.id ? `user_${user.id}` : 'guest',
+        token: accessToken,
+        user_id: user?.id
+      };
+
       // Try streaming endpoint first
-      const streamResponse = await fetch('http://localhost:8000/chat/stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: messageToSend,
-          session_id: user?.id ? `user_${user.id}` : 'guest',
-          token: accessToken,
-          user_id: user?.id
-        }),
-      });
+      const streamResponse = await ChatbotService.streamChat(payload);
       
-      if (streamResponse.ok && streamResponse.headers.get('content-type')?.includes('text/event-stream')) {
+      if (streamResponse.ok && streamResponse.body && streamResponse.headers.get('content-type')?.includes('text/event-stream')) {
         // SSE streaming path
         const reader = streamResponse.body.getReader();
         const decoder = new TextDecoder();
@@ -207,17 +204,7 @@ const Chatbot: React.FC = () => {
         });
       } else {
         // Fallback to regular endpoint
-        const response = await fetch('http://localhost:8000/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: messageToSend,
-            session_id: user?.id ? `user_${user.id}` : 'guest',
-            token: accessToken,
-            user_id: user?.id
-          }),
-        });
-        const data = await response.json();
+        const data = await ChatbotService.chat(payload);
         const answer = (data?.answer || 'Xin lỗi, tôi không thể xử lý yêu cầu này ngay bây giờ.').trim();
         const aiMessage: Message = { role: 'ai', content: answer, timestamp: new Date().toISOString() };
         setMessages(prev => {
@@ -242,10 +229,6 @@ const Chatbot: React.FC = () => {
     }
   };
 
-  const onAction = (actionText: string) => {
-    handleSend(actionText);
-  };
-
   const handleClearHistory = async () => {
     if (!window.confirm("Bạn có chắc chắn muốn làm sạch toàn bộ đoạn chat này không?")) {
       return;
@@ -255,9 +238,7 @@ const Chatbot: React.FC = () => {
       localStorage.removeItem('chatbot_guest_history');
     } else {
       try {
-        await fetch(`http://localhost:8000/chat-history/${user.id}`, {
-          method: 'DELETE'
-        });
+        await ChatbotService.clearHistory(user.id);
       } catch (error) {
         console.error('Error clearing chat history:', error);
       }
@@ -277,6 +258,8 @@ const Chatbot: React.FC = () => {
     color?: string;
   }
 
+  type RenderedSeat = Seat & { renderX: number; renderY: number };
+
   const MiniSeatMap: React.FC<{
     eventId: string;
     onAction: (text: string) => void;
@@ -286,7 +269,7 @@ const Chatbot: React.FC = () => {
     const [layoutShapes, setLayoutShapes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [hoveredSeat, setHoveredSeat] = useState<Seat | null>(null);
+    const [hoveredSeat, setHoveredSeat] = useState<RenderedSeat | null>(null);
     const [hoveredZone, setHoveredZone] = useState<any | null>(null);
 
     // Pan state
@@ -330,16 +313,10 @@ const Chatbot: React.FC = () => {
         setError(null);
         try {
           const sessionId = user?.id ? `user_${user.id}` : 'guest';
-          const [seatsRes, eventRes] = await Promise.all([
-            fetch(`${API_BASE_URL}/events/${eventId}/seats?sessionId=${sessionId}`),
-            fetch(`${API_BASE_URL}/events/${eventId}`)
+          const [seatsData, eventData] = await Promise.all([
+            EventService.getEventSeats(eventId, sessionId),
+            EventService.getEventById(eventId).catch(() => null)
           ]);
-
-          if (!seatsRes.ok) {
-            throw new Error('Failed to fetch seat layout');
-          }
-
-          const seatsData = await seatsRes.json();
           let seatList: Seat[] = [];
           if (active) {
             seatList = Array.isArray(seatsData) ? seatsData : (seatsData.data || []);
@@ -347,15 +324,12 @@ const Chatbot: React.FC = () => {
           }
 
           let shapes: any[] = [];
-          if (eventRes.ok) {
-            const eventData = await eventRes.json();
-            if (active && eventData.seatMapLayout) {
-              try {
-                shapes = JSON.parse(eventData.seatMapLayout);
-                setLayoutShapes(shapes);
-              } catch (e) {
-                console.error("Failed parsing seatMapLayout in Chatbot", e);
-              }
+          if (eventData?.seatMapLayout) {
+            try {
+              shapes = JSON.parse(eventData.seatMapLayout);
+              if (active) setLayoutShapes(shapes);
+            } catch (e) {
+              console.error("Failed parsing seatMapLayout in Chatbot", e);
             }
           }
 
@@ -441,7 +415,7 @@ const Chatbot: React.FC = () => {
     const padding = 20;
     const svgWidth = 320;
     
-    let processedSeats: (Seat & { renderX: number; renderY: number })[] = [];
+    let processedSeats: RenderedSeat[] = [];
     let processedShapes: any[] = [];
     let svgHeight = 180;
 
@@ -501,9 +475,6 @@ const Chatbot: React.FC = () => {
         return { ...s, renderX: x, renderY: y };
       });
     }
-
-    const tooltipX = hoveredSeat ? hoveredSeat.renderX + panOffset.x : 0;
-    const tooltipY = hoveredSeat ? hoveredSeat.renderY + panOffset.y - 12 : 0;
 
     return (
       <div className="relative my-2 p-3 bg-gradient-to-b from-slate-50 to-white border border-slate-200/60 rounded-2xl shadow-sm flex flex-col items-center w-full">

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, type ReactNode } from "react";
 import { GoogleOAuthProvider } from "@react-oauth/google";
-import { apiClient } from "@/utils/axios";
+import { AppConfigService } from "@/services/appConfigService";
 
 interface Props {
   children: ReactNode;
@@ -13,9 +13,9 @@ export const GoogleAuthProviderWrapper: React.FC<Props> = ({ children }) => {
   useEffect(() => {
     const fetchClientId = async () => {
       try {
-        const response = await apiClient.get("/public/config/google-client-id");
-        if (response.data?.clientId) {
-          setClientId(response.data.clientId);
+        const googleClientId = await AppConfigService.getGoogleClientId();
+        if (googleClientId) {
+          setClientId(googleClientId);
         }
       } catch (error) {
         console.error("Failed to fetch Google Client ID from backend:", error);

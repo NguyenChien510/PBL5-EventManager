@@ -49,6 +49,7 @@ jwt:
   refresh-token-expiration: 604800000 # 7 ngay
 
 app:
+  backend-url: ${BACKEND_URL:http://localhost:8080}
   security:
     refresh-cookie-secure: false
 
@@ -60,15 +61,15 @@ vnpay:
   tmnCode: "6OA3DYF3"
   hashSecret: "358D3BILHTPN4C0JUXFNF5046YEGTM0X"
   url: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
-  returnUrl: "http://localhost:8080/api/public/payment/vnpay-return"
+  returnUrl: ${VNPAY_RETURN_URL:${app.backend-url}/api/public/payment/vnpay-return}
 
 momo:
   partnerCode: "MOMO"
   accessKey: "MOMO"
   secretKey: "MOMO"
   url: "https://test-payment.momo.vn/v2/gateway/api/create"
-  redirectUrl: "http://localhost:8080/api/public/payment/momo-return"
-  ipnUrl: "http://localhost:8080/api/public/payment/momo-ipn"
+  redirectUrl: ${MOMO_REDIRECT_URL:${app.backend-url}/api/public/payment/momo-return}
+  ipnUrl: ${MOMO_IPN_URL:${app.backend-url}/api/public/payment/momo-ipn}
 
 cloudinary:
   cloud-name: dtyqksfic
@@ -77,6 +78,6 @@ cloudinary:
 
 ai:
   service:
-    url: http://localhost:8000
+    url: ${AI_SERVICE_URL:http://localhost:8000}
 
 

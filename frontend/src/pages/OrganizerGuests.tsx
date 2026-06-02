@@ -6,7 +6,7 @@ import { organizerSidebarConfig } from '../config/organizerSidebarConfig'
 import { EventService } from '../services/eventService'
 import { toast } from 'react-hot-toast'
 import { Html5Qrcode } from "html5-qrcode"
-import { API_BASE_URL } from '../constants'
+import { resolveBackendAssetUrl } from '../utils/backendUrl'
 
 const sidebarConfig = organizerSidebarConfig
 
@@ -197,8 +197,7 @@ const OrganizerGuests = () => {
           checkInDate: a.checkInDate,
           ticketId: a.ticketId,
           status: a.status,
-          avatarUrl: (a.userAvatar && typeof a.userAvatar === 'string') ?
-            (a.userAvatar.startsWith('http') ? a.userAvatar : `${API_BASE_URL.replace('/api', '')}${a.userAvatar.startsWith('/') ? '' : '/'}${a.userAvatar}`) : null
+          avatarUrl: typeof a.userAvatar === 'string' ? resolveBackendAssetUrl(a.userAvatar) : null
         };
       } else {
         groups[a.orderId].seats.push({ seatNumber: a.seatNumber, color: a.ticketTypeColor });
@@ -359,7 +358,7 @@ const OrganizerGuests = () => {
                           const activeEvent = events.find(e => e.id === selectedEventId);
                           if (activeEvent) {
                             const thumb = activeEvent.posterUrl;
-                            const thumbUrl = thumb ? (thumb.startsWith('http') ? thumb : `${API_BASE_URL.replace('/api', '')}${thumb.startsWith('/') ? '' : '/'}${thumb}`) : null;
+                            const thumbUrl = resolveBackendAssetUrl(thumb);
                             return (
                               <>
                                 <div className="w-6 h-6 rounded-lg overflow-hidden shrink-0 bg-slate-100 border border-slate-200/30 flex items-center justify-center shadow-sm">
@@ -386,7 +385,7 @@ const OrganizerGuests = () => {
                       <div className="absolute left-0 mt-2 w-80 bg-white border border-slate-100 rounded-2xl shadow-2xl max-h-72 overflow-y-auto p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200 custom-scrollbar z-50 shadow-slate-200/50">
                         {events.map(evt => {
                           const thumb = evt.posterUrl;
-                          const thumbUrl = thumb ? (thumb.startsWith('http') ? thumb : `${API_BASE_URL.replace('/api', '')}${thumb.startsWith('/') ? '' : '/'}${thumb}`) : null;
+                          const thumbUrl = resolveBackendAssetUrl(thumb);
                           const isSelected = selectedEventId === evt.id;
                           return (
                             <button

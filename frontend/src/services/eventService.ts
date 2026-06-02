@@ -11,8 +11,9 @@ export class EventService {
     return response.data;
   }
 
-  static async getEventSeats(id: string) {
-    const response = await apiClient.get(`/events/${id}/seats`);
+  static async getEventSeats(id: string, sessionId?: string) {
+    const query = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : '';
+    const response = await apiClient.get(`/events/${id}/seats${query}`);
     return response.data;
   }
 

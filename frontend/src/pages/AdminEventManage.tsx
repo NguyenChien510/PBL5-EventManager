@@ -8,7 +8,7 @@ import { EventService } from '../services/eventService';
 import toast from 'react-hot-toast';
 import { Stage, Layer, Circle, Text, Group, Rect, Line } from 'react-konva';
 import { Html5Qrcode } from 'html5-qrcode';
-import { API_BASE_URL } from '../constants';
+import { resolveBackendAssetUrl } from '../utils/backendUrl';
 import { SeatAttendeeModal, ZoneAttendeesModal } from './OrganizerEventModals';
 
 interface ManageStats {
@@ -357,7 +357,7 @@ const AdminEventManage = () => {
           seats: [{ seatNumber: a.seatNumber, color: a.ticketTypeColor, typeName: a.ticketTypeName }],
           ticketStatuses: [a.status],
           checkInDate: a.checkInDate,
-          avatarUrl: a.userAvatar ? (a.userAvatar.startsWith('http') ? a.userAvatar : `${API_BASE_URL.replace('/api', '')}${a.userAvatar.startsWith('/') ? '' : '/'}${a.userAvatar}`) : null
+          avatarUrl: resolveBackendAssetUrl(a.userAvatar)
         };
       } else {
         groups[a.orderId].seats.push({ seatNumber: a.seatNumber, color: a.ticketTypeColor, typeName: a.ticketTypeName });

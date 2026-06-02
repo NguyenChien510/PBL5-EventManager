@@ -1,14 +1,12 @@
-import axios from 'axios';
-
-const API_URL = 'http://localhost:8080/api/artists';
+import { apiClient } from '../utils/axios';
 
 export const ArtistService = {
   async getAll() {
-    const res = await axios.get(API_URL);
+    const res = await apiClient.get('/artists');
     return res.data;
   },
   async search(query: string, exclude: string[] = []) {
-    const res = await axios.get(`${API_URL}/search`, {
+    const res = await apiClient.get('/artists/search', {
       params: { 
         query, 
         exclude: exclude.length > 0 ? exclude : undefined 
@@ -20,4 +18,3 @@ export const ArtistService = {
     return res.data;
   }
 };
-

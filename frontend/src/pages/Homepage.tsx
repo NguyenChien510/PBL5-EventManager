@@ -5,6 +5,7 @@ import { Navbar, Footer } from '../components/layout'
 import { EventCard, EventMap } from '../components/domain'
 import { useCategoryStore } from '../stores/useCategoryStore'
 import { useLocationStore } from '../stores/useLocationStore'
+import { EventService } from '../services/eventService'
 
 // Feature events removed (using real database only)
 
@@ -130,9 +131,7 @@ const Homepage = () => {
     let isMounted = true
     const fetchUpcomingEvents = async () => {
       try {
-        const res = await fetch('http://localhost:8080/api/events/upcoming-card-data')
-        if (!res.ok) throw new Error('Failed to fetch upcoming events')
-        const data = await res.json()
+        const data = await EventService.getUpcomingCardData()
         if (isMounted) setUpcomingEvents(Array.isArray(data) ? data : [])
       } catch (error) {
         console.error('Failed to load upcoming events for homepage map:', error)

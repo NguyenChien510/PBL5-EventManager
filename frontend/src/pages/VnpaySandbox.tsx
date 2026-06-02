@@ -1,5 +1,6 @@
 import { useSearchParams } from 'react-router-dom'
 import { Icon } from '../components/ui'
+import { buildBackendUrl } from '../utils/backendUrl'
 
 const VnpaySandbox = () => {
     const [searchParams] = useSearchParams()
@@ -9,7 +10,7 @@ const VnpaySandbox = () => {
 
     const handleConfirm = () => {
         // Redirect to backend return URL with mock success params and mock signature
-        const returnUrl = `http://localhost:8080/api/public/payment/vnpay-return?vnp_ResponseCode=00&vnp_TransactionResponseCode=00&vnp_TxnRef=${txnRef}&vnp_OrderInfo=${encodeURIComponent(orderInfo || '')}&vnp_TransactionNo=MOCK_TRANSACTION_${Date.now()}&vnp_SecureHash=MOCK_SANDBOX_HASH`
+        const returnUrl = buildBackendUrl(`/public/payment/vnpay-return?vnp_ResponseCode=00&vnp_TransactionResponseCode=00&vnp_TxnRef=${txnRef}&vnp_OrderInfo=${encodeURIComponent(orderInfo || '')}&vnp_TransactionNo=MOCK_TRANSACTION_${Date.now()}&vnp_SecureHash=MOCK_SANDBOX_HASH`)
         window.location.href = returnUrl
     }
 

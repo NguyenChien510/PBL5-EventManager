@@ -4,7 +4,8 @@ import { DashboardLayout, PageHeader } from '../components/layout'
 import { userSidebarConfig } from '../config/userSidebarConfig'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '../stores/useAuthStore'
-import { apiClient } from '../utils/axios'
+import { TicketService } from '../services/ticketService'
+import { UserService } from '../services/userService'
 
 import { toast } from 'react-hot-toast'
 import Cropper from 'react-easy-crop'
@@ -48,8 +49,8 @@ const UserProfile = () => {
 
     try {
       setNameLoading(true)
-      const res = await apiClient.post('/users/update-name', { fullName: fullNameInput })
-      setUser(res.data)
+      const updatedUser = await UserService.updateName(fullNameInput)
+      setUser(updatedUser)
       toast.success('Cập nhật họ tên thành công')
       setShowNameModal(false)
     } catch (err: any) {
@@ -97,7 +98,7 @@ const UserProfile = () => {
 
     try {
       setPasswordLoading(true)
-      await apiClient.post('/users/change-password', passwordForm)
+      await UserService.changePassword(passwordForm)
       toast.success('Đổi mật khẩu thành công')
       setShowPasswordModal(false)
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
@@ -129,7 +130,7 @@ const UserProfile = () => {
 
     try {
       setIsUploading(true)
-      const toastId = toast.loading('Đang xử lý và tải ảnh lên...', { id: 'avatar-upload' })
+      toast.loading('Đang xử lý và tải ảnh lên...', { id: 'avatar-upload' })
 
       const croppedImageBlob = await getCroppedImg(tempImage, croppedAreaPixels)
       const file = new File([croppedImageBlob], 'avatar.jpg', { type: 'image/jpeg' })
@@ -137,11 +138,9 @@ const UserProfile = () => {
       const formData = new FormData()
       formData.append('file', file)
 
-      const res = await apiClient.post('/users/upload-avatar', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
+      const updatedUser = await UserService.uploadAvatar(formData)
 
-      setUser(res.data)
+      setUser(updatedUser)
       setShowCropModal(false)
       setTempImage(null)
       toast.success('Cập nhật ảnh đại diện thành công', { id: 'avatar-upload' })
@@ -174,14 +173,14 @@ const UserProfile = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [userRes, ticketsRes, statusesRes] = await Promise.all([
-          apiClient.get('/users/me'),
-          apiClient.get('/tickets/my'),
-          apiClient.get('/tickets/statuses')
+        const [userData, ticketsData, statusesData] = await Promise.all([
+          UserService.getCurrentUser(),
+          TicketService.getMyTickets(),
+          TicketService.getTicketStatuses()
         ])
-        setUser(userRes.data)
-        setTickets(ticketsRes.data)
-        setStatuses(statusesRes.data)
+        setUser(userData)
+        setTickets(ticketsData)
+        setStatuses(statusesData)
       } catch (err) {
         console.error('Error fetching profile data:', err)
       } finally {
@@ -436,7 +435,7 @@ const UserProfile = () => {
               {sortedOrderIds.length > 0 ? sortedOrderIds.map((orderId) => {
                 const ticketsInOrder = groupedTickets[orderId]
                 const firstTicket = ticketsInOrder[0]
-                const seatList = ticketsInOrder.map(t => t.seat).join(', ')
+                const seatList = ticketsInOrder.map((ticket: any) => ticket.seat).join(', ')
 
                 return (
                   <div

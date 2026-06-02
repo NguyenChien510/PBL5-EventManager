@@ -9,7 +9,7 @@ import { EventService } from '../services/eventService';
 import toast from 'react-hot-toast';
 import { EditEventModal, ImagePreviewModal, SeatAttendeeModal, ZoneAttendeesModal } from './OrganizerEventModals';
 import { Html5Qrcode } from 'html5-qrcode';
-import { API_BASE_URL } from '../constants';
+import { resolveBackendAssetUrl } from '../utils/backendUrl';
 import { Stage, Layer, Circle, Text, Group, Rect, Line } from 'react-konva';
 
 interface ManageStats {
@@ -641,7 +641,7 @@ const OrganizerEventManage = () => {
                     seats: [{ seatNumber: a.seatNumber, color: a.ticketTypeColor, typeName: a.ticketTypeName }],
                     ticketStatuses: [a.status],
                     checkInDate: a.checkInDate,
-                    avatarUrl: a.userAvatar ? (a.userAvatar.startsWith('http') ? a.userAvatar : `${API_BASE_URL.replace('/api', '')}${a.userAvatar.startsWith('/') ? '' : '/'}${a.userAvatar}`) : null
+                    avatarUrl: resolveBackendAssetUrl(a.userAvatar)
                 };
             } else {
                 groups[a.orderId].seats.push({ seatNumber: a.seatNumber, color: a.ticketTypeColor, typeName: a.ticketTypeName });

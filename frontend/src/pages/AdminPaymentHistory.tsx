@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { apiClient } from '../utils/axios';
+import { AdminFinanceService } from '../services/adminFinanceService';
 import toast from 'react-hot-toast';
 import { DashboardLayout, PageHeader } from '../components/layout';
 import { adminSidebarConfig } from '../config/adminSidebarConfig';
@@ -89,13 +89,13 @@ const AdminPaymentHistory = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [statsRes, configRes] = await Promise.all([
-                    apiClient.get('/admin/finance/overview'),
-                    apiClient.get('/admin/finance/config')
+                const [statsData, configData] = await Promise.all([
+                    AdminFinanceService.getOverview(),
+                    AdminFinanceService.getConfig()
                 ]);
-                setStats(statsRes.data);
-                setTaxRate(configRes.data.defaultCommissionRate || '5');
-                setAutoApply(configRes.data.autoApply ?? true);
+                setStats(statsData);
+                setTaxRate(configData.defaultCommissionRate || '5');
+                setAutoApply(configData.autoApply ?? true);
             } catch (error) {
                 console.error("Failed to fetch finance data:", error);
             } finally {
@@ -122,7 +122,7 @@ const AdminPaymentHistory = () => {
             setIsSavingConfig(true);
             const rateNum = parseFloat(taxRate);
             const willApply = !isNaN(rateNum) && rateNum > 0;
-            await apiClient.post('/admin/finance/config', {
+            await AdminFinanceService.updateConfig({
                 defaultCommissionRate: taxRate,
                 autoApply: willApply
             });
@@ -149,13 +149,13 @@ const AdminPaymentHistory = () => {
         const fetchOrders = async (page: number, keyword: string = '') => {
             try {
                 setIsTableLoading(true);
-                const response = await apiClient.get(`/admin/orders?page=${page}&size=5&keyword=${encodeURIComponent(keyword)}`);
-                setOrders(response.data.content);
+                const data = await AdminFinanceService.getOrders(page, keyword);
+                setOrders(data.content);
                 setPagination({
-                    totalPages: response.data.totalPages,
-                    totalElements: response.data.totalElements,
-                    size: response.data.size,
-                    number: response.data.number
+                    totalPages: data.totalPages,
+                    totalElements: data.totalElements,
+                    size: data.size,
+                    number: data.number
                 });
             } catch (error) {
                 console.error("Failed to fetch orders:", error);
@@ -173,8 +173,8 @@ const AdminPaymentHistory = () => {
             const fetchSessionSeats = async () => {
                 setIsLoadingSeats(true);
                 try {
-                    const response = await apiClient.get(`/events/sessions/${selectedOrder.eventSessionId}/seats`);
-                    setSessionSeats(response.data);
+                    const data = await AdminFinanceService.getEventSessionSeats(selectedOrder.eventSessionId!);
+                    setSessionSeats(data);
                 } catch (error) {
                     console.error("Failed to fetch session seats:", error);
                 } finally {

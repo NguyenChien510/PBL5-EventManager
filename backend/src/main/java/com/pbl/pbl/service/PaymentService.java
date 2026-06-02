@@ -26,6 +26,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.math.BigDecimal;
 import java.net.URI;
@@ -41,6 +42,9 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class PaymentService {
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendBaseUrl;
+
     private final VNPayConfig vnPayConfig;
     private final MoMoConfig moMoConfig;
     private final TicketRepository ticketRepository;
@@ -158,13 +162,13 @@ public class PaymentService {
             emailService.sendTicketEmail(order);
 
             String dummyTransactionId = "MOMO_" + System.currentTimeMillis();
-            return "http://localhost:5173/payment-result?status=success&orderInfo=" + 
+            return frontendBaseUrl + "/payment-result?status=success&orderInfo=" + 
                    URLEncoder.encode(paymentDTO.getOrderInfo(), StandardCharsets.UTF_8) + 
                    "&transactionId=" + dummyTransactionId;
         } else {
             // VNPay: Redirect to FRONTEND sandbox instead of real gateway
             // Note: We don't mark as COMPLETED here. The sandbox will call back.
-            String sandboxUrl = "http://localhost:5173/vnpay-sandbox";
+            String sandboxUrl = frontendBaseUrl + "/vnpay-sandbox";
             return sandboxUrl + "?txnRef=" + order.getId() + 
                    "&amount=" + paymentDTO.getAmount() + 
                    "&orderInfo=" + URLEncoder.encode(paymentDTO.getOrderInfo(), StandardCharsets.UTF_8);
