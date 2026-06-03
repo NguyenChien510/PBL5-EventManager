@@ -1,6 +1,6 @@
 # Event Platform 🎟️
 
-![Event Platform Hero](docs/images/hero.png)
+![Event Platform Hero](img/Homepage1.png)
 
 A comprehensive, modern Event Management and Ticketing Platform built with a microservices architecture. It allows users to browse events, select seats on an interactive map, make online payments, and even book tickets via an intelligent AI Chatbot.
 
@@ -10,27 +10,41 @@ A comprehensive, modern Event Management and Ticketing Platform built with a mic
 
 ### 1. Browse & Search Events
 Discover upcoming events, concerts, workshops, and sports matches with advanced filtering and search capabilities.
-![Event Browsing](docs/images/event-browsing.png)
+![Homepage](img/Homepage2.png)
+![Search Event](img/Search_Event.png)
 
-### 2. Interactive Seat Mapping & Ticketing
+### 2. Event Details & Feedback
+View detailed event information, schedules, and read user feedback.
+![Event Detail](img/Event_Detail.png)
+![Feedback](img/FeedBack.png)
+
+### 3. Interactive Seat Mapping & Ticketing
 A visually rich, interactive seat map that allows users to pick their exact seats. Seat statuses are updated in real-time to prevent double bookings.
-![Seat Selection](docs/images/seat-selection.png)
+![Map Event](img/Map_Event.png)
+![Seat Selection](img/Seat_Selection.png)
 
-### 3. AI Assistant Chatbot 🤖
+### 4. AI Assistant Chatbot 🤖
 A dedicated AI-powered chatbot that understands natural language. Users can ask about upcoming events, ticket prices, and even initiate the booking process directly through the chat interface.
-![AI Chatbot](docs/images/ai-chatbot.png)
+![AI Chatbot](img/ChatBot_BuyTicket.png)
 
-### 4. Seamless Checkout & Payments
-Integrated with popular payment gateways (VNPay, MoMo) to provide a smooth, secure, and instant checkout experience.
-![Checkout Process](docs/images/checkout.png)
+### 5. Discounts & Coupons
+Apply coupons easily during the checkout process to receive special discounts.
+![Coupons](img/Coupon.png)
 
-### 5. Secure Authentication
-Robust user authentication system featuring standard email/password login and quick Google OAuth2 login.
-![Authentication](docs/images/auth.png)
+### 6. User Profile Management
+Manage personal information, track booked tickets, and view purchase history.
+![Profile](img/Profile.png)
 
-### 6. Organizer Dashboard
+### 7. Organizer Dashboard
 A dedicated portal for event organizers to create new events, manage ticket pricing, set up seat layouts, and track sales performance.
-![Organizer Dashboard](docs/images/dashboard.png)
+![Organizer Dashboard](img/Organ_Dashboard.png)
+![Organizer Finance](img/Organ_Finance.png)
+
+### 8. Admin Management
+System administration portal to oversee users, events, and global financial metrics.
+![Admin User Manager](img/Admin_User_Manager.png)
+![Admin Event Manager](img/Admin_Event_Manager.png)
+![Admin Finance Manager](img/Admin_Finance_Manager.png)
 
 ---
 

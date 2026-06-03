@@ -89,6 +89,7 @@ public class CommentService {
         return convertToDTO(comment);
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public CommentDTO replyToComment(Long commentId, String replyContent) {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new RuntimeException("Comment not found"));
@@ -99,6 +100,7 @@ public class CommentService {
         return convertToDTO(comment);
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public CommentDTO toggleLike(Long commentId) {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new RuntimeException("Comment not found"));
