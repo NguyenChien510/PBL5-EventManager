@@ -13,3 +13,4 @@ pydantic
 python-multipart
 psycopg2-binary
 langchain-groq
+PyJWT==2.8.0

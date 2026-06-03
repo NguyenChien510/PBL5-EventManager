@@ -2,7 +2,7 @@ export const API_BASE_URL =
   import.meta.env.VITE_API_URL || (import.meta.env.MODE === "development" ? "http://localhost:8080/api" : "/api");
 
 export const CHATBOT_API_URL =
-  import.meta.env.VITE_CHATBOT_API_URL || (import.meta.env.MODE === "development" ? "http://localhost:8000" : "/chat");
+  import.meta.env.VITE_CHATBOT_API_URL || (import.meta.env.MODE === "development" ? "http://localhost:8000" : "");
 
 export const TOKEN_STORAGE_KEY = "accessToken";
 export const REFRESH_TOKEN_STORAGE_KEY = "refreshToken";

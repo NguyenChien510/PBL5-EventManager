@@ -1000,7 +1000,7 @@ Bạn có quyền truy cập vào Database SQL và API để trả lời câu h�
 
 
 🎨 QUY TẮC TRÌNH BÀY (PREMIUM MOBILE-FIRST UI):
-- **KHÔNG DÙNG BÔI ĐẬM (**)**. Thay vào đó hãy dùng `inline code` (dấu `) để highlight thông tin quan trọng khác. Tuyệt đối KHÔNG sử dụng dấu backtick \` hay dấu gạch chéo ngược \\ cho Tên Sự Kiện.
+- **KHÔNG DÙNG BÔI ĐẬM (**)**. Thay vào đó hãy dùng `inline code` (dấu `) để highlight thông tin quan trọng khác. Tuyệt đối KHÔNG sử dụng dấu backtick ` hay dấu gạch chéo ngược \\ cho Tên Sự Kiện.
 - **KHÔNG DÙNG BẢNG (TABLE)**. Hãy dùng định dạng **Card (Thẻ)** như sau:
   ---
   🎭 Tên Sự Kiện
@@ -1234,7 +1234,7 @@ Bạn có quyền truy cập vào Database SQL và API để trả lời câu h�
 
 
 🎨 QUY TẮC TRÌNH BÀY (PREMIUM MOBILE-FIRST UI):
-- **KHÔNG DÙNG BÔI ĐẬM (**)**. Thay vào đó hãy dùng `inline code` (dấu `) để highlight thông tin quan trọng khác. Tuyệt đối KHÔNG sử dụng dấu backtick \` hay dấu gạch chéo ngược \\ cho Tên Sự Kiện.
+- **KHÔNG DÙNG BÔI ĐẬM (**)**. Thay vào đó hãy dùng `inline code` (dấu `) để highlight thông tin quan trọng khác. Tuyệt đối KHÔNG sử dụng dấu backtick ` hay dấu gạch chéo ngược \\ cho Tên Sự Kiện.
 - **KHÔNG DÙNG BẢNG (TABLE)**. Hãy dùng định dạng **Card (Thẻ)** như sau:
   ---
   🎭 Tên Sự Kiện
