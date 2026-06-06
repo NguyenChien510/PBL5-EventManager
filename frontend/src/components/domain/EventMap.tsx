@@ -20,24 +20,39 @@ interface EventMapProps {
 }
 
 // Custom "Beautiful" Icon using DivIcon
-const createCustomIcon = () => {
+const createCustomIcon = (imageUrl?: string) => {
+  const fallbackImage = 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=100&auto=format&fit=crop';
+  const imgUrl = imageUrl || fallbackImage;
+
   return L.divIcon({
     html: `
-      <div class="relative group">
-        <div class="w-10 h-10 bg-white rounded-2xl shadow-xl border-2 border-primary flex items-center justify-center transform transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-1">
-          <div class="w-6 h-6 bg-primary/10 rounded-lg flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" height="18" viewBox="0 -960 960 960" width="18" fill="currentColor" className="text-primary">
-              <path d="M480-480q33 0 56.5-23.5T560-560q0-33-23.5-56.5T480-640q-33 0-56.5 23.5T400-560q0 33 23.5 56.5T480-480Zm0 400Q319-215 239.5-334.5T160-552q0-150 96.5-239T480-880q127 0 223.5 89T800-552q0 113-79.5 232.5T480-80Z"/>
+      <div class="relative group select-none">
+        <!-- Pulse Glow Ring (Backdrop) -->
+        <div class="absolute -inset-1.5 bg-gradient-to-tr from-sky-500 via-primary to-indigo-600 rounded-full blur-[4px] opacity-60 group-hover:opacity-100 group-hover:scale-115 transition-all duration-300 animate-pulse"></div>
+        
+        <!-- Main Circular Frame -->
+        <div class="relative w-11 h-11 bg-white rounded-full p-[2px] shadow-[0_6px_20px_rgba(99,102,241,0.35)] ring-2 ring-white/95 flex items-center justify-center transform transition-all duration-500 group-hover:scale-110 group-hover:-translate-y-2">
+          <!-- Circular Image Container -->
+          <div class="w-full h-full rounded-full overflow-hidden bg-slate-100 flex items-center justify-center">
+            <img src="${imgUrl}" class="w-full h-full object-cover select-none" alt="" />
+          </div>
+          
+          <!-- Mini Pin Badge -->
+          <div class="absolute -top-1 -right-1 w-4.5 h-4.5 bg-gradient-to-tr from-sky-400 to-primary rounded-full border-2 border-white shadow-md flex items-center justify-center" style="width: 17px; height: 17px;">
+            <svg xmlns="http://www.w3.org/2000/svg" height="8" viewBox="0 -960 960 960" width="8" fill="white">
+              <path d="M480-480q33 0 56.5-23.5T560-560q0-33-23.5-56.5T480-640q-33 0-56.5 23.5T400-560q0 33 23.5 56.5T480-480Zm0 400Q319-215 239.5-334.5T160-552q0-150 96.5-239T480-880q127 0 223.5 89T800-552q0 113-79.5 232.5T480-80Z" />
             </svg>
           </div>
         </div>
-        <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-b-2 border-r-2 border-primary rotate-45 transform"></div>
+
+        <!-- Pointer Pin Tail -->
+        <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3.5 h-3.5 bg-white rotate-45 border-b-[2px] border-r-[2px] border-white shadow-[2px_2px_4px_rgba(99,102,241,0.15)] rounded-br-[3px] transform transition-all duration-500 group-hover:scale-110 group-hover:-translate-y-2 pointer-events-none"></div>
       </div>
     `,
     className: 'custom-marker-icon',
-    iconSize: [40, 44],
-    iconAnchor: [20, 44],
-    popupAnchor: [0, -44],
+    iconSize: [44, 50],
+    iconAnchor: [22, 50],
+    popupAnchor: [0, -50],
   });
 };
 
@@ -75,7 +90,6 @@ function LocationMarker() {
 
 const EventMap = ({ events }: EventMapProps) => {
   const navigate = useNavigate();
-  const customIcon = createCustomIcon();
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
 
   const handleLocateMe = () => {
@@ -108,7 +122,7 @@ const EventMap = ({ events }: EventMapProps) => {
           <Marker
             key={event.id}
             position={[event.lat, event.lng]}
-            icon={customIcon}
+            icon={createCustomIcon(event.image)}
             eventHandlers={{
               mouseover: (e) => {
                 e.target.openPopup();

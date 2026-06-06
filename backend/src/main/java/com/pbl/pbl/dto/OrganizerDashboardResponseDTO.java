@@ -15,6 +15,7 @@ public class OrganizerDashboardResponseDTO {
     private long totalEvents;
     private long totalTicketsSold;
     private BigDecimal totalRevenue;
+    private BigDecimal totalPlatformFee;
     private long rejectedCount;
     private Page<EventAdminSummaryDTO> events;
 }

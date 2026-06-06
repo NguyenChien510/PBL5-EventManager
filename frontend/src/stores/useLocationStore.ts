@@ -22,9 +22,9 @@ export const useLocationStore = create<LocationState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const provinces = await LocationService.getAllProvinces();
-      set({ provinces, isLoading: false });
+      set({ provinces: Array.isArray(provinces) ? provinces : [], isLoading: false });
     } catch (error) {
-      set({ error: "Failed to fetch provinces", isLoading: false });
+      set({ error: "Failed to fetch provinces", isLoading: false, provinces: [] });
     }
   },
 
@@ -32,9 +32,9 @@ export const useLocationStore = create<LocationState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const wards = await LocationService.getWardsByProvince(provinceId);
-      set({ wards, isLoading: false });
+      set({ wards: Array.isArray(wards) ? wards : [], isLoading: false });
     } catch (error) {
-      set({ error: "Failed to fetch wards", isLoading: false });
+      set({ error: "Failed to fetch wards", isLoading: false, wards: [] });
     }
   },
 }));

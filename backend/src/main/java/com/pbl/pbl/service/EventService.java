@@ -142,6 +142,12 @@ public class EventService {
         if (revenue == null)
             revenue = BigDecimal.ZERO;
 
+        java.util.List<com.pbl.pbl.entity.Order> orders = orderRepository.findByOrganizerId(organizerId);
+        BigDecimal totalPlatformFee = orders.stream()
+                .filter(o -> com.pbl.pbl.entity.OrderStatus.COMPLETED.equals(o.getStatus()))
+                .map(o -> o.getPlatformFee() != null ? o.getPlatformFee() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
         Page<Event> eventsPage;
         boolean hasKeyword = keyword != null && !keyword.trim().isEmpty();
 
@@ -186,6 +192,7 @@ public class EventService {
                 .totalEvents(totalEvents)
                 .totalTicketsSold(ticketsSold)
                 .totalRevenue(revenue)
+                .totalPlatformFee(totalPlatformFee)
                 .rejectedCount(rejectedCount)
                 .events(summaryPage)
                 .build();
@@ -719,10 +726,14 @@ public class EventService {
         }
 
         ticket.setStatus(status);
-        if (status == com.pbl.pbl.entity.TicketStatus.CHECKED_IN && ticket.getOrder() != null) {
-            if (ticket.getOrder().getCheckInDate() == null) {
-                ticket.getOrder().setCheckInDate(LocalDateTime.now());
-                orderRepository.save(ticket.getOrder());
+        if (status == com.pbl.pbl.entity.TicketStatus.CHECKED_IN) {
+            LocalDateTime now = LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+            ticket.setCheckInDate(now);
+            if (ticket.getOrder() != null) {
+                if (ticket.getOrder().getCheckInDate() == null) {
+                    ticket.getOrder().setCheckInDate(now);
+                    orderRepository.save(ticket.getOrder());
+                }
             }
         }
         ticketRepository.save(ticket);
@@ -738,10 +749,11 @@ public class EventService {
         }
 
         boolean allAlreadyCheckedIn = true;
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
         for (com.pbl.pbl.entity.Ticket ticket : order.getTickets()) {
             if (ticket.getStatus() != com.pbl.pbl.entity.TicketStatus.CHECKED_IN) {
                 ticket.setStatus(com.pbl.pbl.entity.TicketStatus.CHECKED_IN);
+                ticket.setCheckInDate(now);
                 ticketRepository.save(ticket);
                 allAlreadyCheckedIn = false;
             }
@@ -765,10 +777,11 @@ public class EventService {
         }
 
         boolean allAlreadyCheckedIn = true;
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
         for (com.pbl.pbl.entity.Ticket ticket : order.getTickets()) {
             if (ticket.getStatus() != com.pbl.pbl.entity.TicketStatus.CHECKED_IN) {
                 ticket.setStatus(com.pbl.pbl.entity.TicketStatus.CHECKED_IN);
+                ticket.setCheckInDate(now);
                 ticketRepository.save(ticket);
                 allAlreadyCheckedIn = false;
             }
@@ -845,7 +858,7 @@ public class EventService {
                 .ticketTypeColor(ticket.getSeat().getTicketType().getColor())
                 .status(ticket.getStatus().name())
                 .purchaseDate(ticket.getPurchaseDate())
-                .checkInDate(ticket.getOrder() != null ? ticket.getOrder().getCheckInDate() : null)
+                .checkInDate(ticket.getCheckInDate())
                 .userAvatar(ticket.getUser().getAvatar())
                 .build();
     }

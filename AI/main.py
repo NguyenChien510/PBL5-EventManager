@@ -304,6 +304,7 @@ def check_role_permission(required_roles: List[str]) -> bool:
 def get_tools_for_roles(roles: List[str]) -> list:
     # Base user tools
     user_tools = [
+        query_database,
         search_events_api,
         get_event_details,
         get_event_seats,
@@ -316,16 +317,14 @@ def get_tools_for_roles(roles: List[str]) -> list:
     # Organizer or Admin tools (Support both prefixed and raw roles)
     is_organizer_or_admin = any(r in ["ROLE_ORGANIZER", "ROLE_ADMIN", "ORGANIZER", "ADMIN"] for r in roles)
     if is_organizer_or_admin:
-        return user_tools + [query_database, get_event_revenue]
+        return user_tools + [get_event_revenue]
     
     return user_tools
 
 # Define Tools
 @tool
 def query_database(query: str):
-    """Sử dụng để tra cứu dữ liệu chính xác từ database SQL (ví dụ: đếm số lượng, lọc giá, tìm địa điểm). Chỉ được dùng lệnh SELECT. Chỉ dành cho Organizer hoặc Admin."""
-    if not check_role_permission(["ROLE_ORGANIZER", "ROLE_ADMIN"]):
-        return "Lỗi: Bạn không có quyền truy cập trực tiếp cơ sở dữ liệu. Công cụ này chỉ dành cho ORGANIZER hoặc ADMIN."
+    """Sử dụng để tra cứu dữ liệu chính xác từ database SQL (ví dụ: đếm số lượng, lọc giá, tìm địa điểm). Chỉ được dùng lệnh SELECT."""
     return db_safe.execute(query)
 
 @tool

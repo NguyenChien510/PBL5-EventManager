@@ -3,7 +3,7 @@ import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { DashboardLayout, PageHeader } from '../components/layout';
 import { adminSidebarConfig } from '../config/adminSidebarConfig';
-import { Icon, Loader } from '../components/ui';
+import { Icon, Loader, Avatar } from '../components/ui';
 import { EventService } from '../services/eventService';
 import toast from 'react-hot-toast';
 import { Stage, Layer, Circle, Text, Group, Rect, Line } from 'react-konva';
@@ -53,6 +53,9 @@ const AdminEventManage = () => {
     return Array.from(map.values());
   }, [seats]);
   const [comments, setComments] = useState<any[]>([]);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [replyTexts, setReplyTexts] = useState<Record<number, string>>({});
+  const [ratingFilter, setRatingFilter] = useState<number | null>(null);
   const [shapes, setShapes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -192,14 +195,14 @@ const AdminEventManage = () => {
   const [editSchedules, setEditSchedules] = useState<any[]>([]);
 
   useEffect(() => {
-    const isModalOpen = !!selectedSeatInfo || !!activeEditType || !!selectedZoneForModal || !!scanResult;
+    const isModalOpen = !!selectedSeatInfo || !!activeEditType || !!selectedZoneForModal || !!scanResult || !!selectedImageUrl;
     if (isModalOpen) {
       document.body.classList.add('modal-open');
     } else {
       document.body.classList.remove('modal-open');
     }
     return () => document.body.classList.remove('modal-open');
-  }, [selectedSeatInfo, activeEditType, selectedZoneForModal, scanResult]);
+  }, [selectedSeatInfo, activeEditType, selectedZoneForModal, scanResult, selectedImageUrl]);
 
   useEffect(() => {
     if (event) {
@@ -248,6 +251,32 @@ const AdminEventManage = () => {
       return;
     }
     handleQrSuccess(manualCode.trim());
+  };
+
+  const handleReply = async (commentId: number) => {
+    const reply = replyTexts[commentId]?.trim() || "Ban tổ chức sẽ rút kinh nghiệm, cảm ơn bạn đã nhận xét";
+    const loadingToast = toast.loading('Đang gửi phản hồi...');
+    try {
+      await EventService.replyToComment(commentId, reply);
+      toast.success('Đã gửi phản hồi thành công', { id: loadingToast });
+      setReplyTexts(prev => ({ ...prev, [commentId]: '' }));
+      fetchData();
+    } catch (error) {
+      console.error('Error replying to comment:', error);
+      toast.error('Không thể gửi phản hồi', { id: loadingToast });
+    }
+  };
+
+  const handleToggleLike = async (commentId: number) => {
+    try {
+      await EventService.toggleLikeComment(commentId);
+      setComments(prev => prev.map(c =>
+        c.id === commentId ? { ...c, isLikedByOrganizer: !c.isLikedByOrganizer } : c
+      ));
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      toast.error('Thao tác thất bại');
+    }
   };
 
   useEffect(() => {
@@ -1299,6 +1328,26 @@ const AdminEventManage = () => {
                           onClose={() => setSelectedZoneForModal(null)}
                           onCheckIn={handleCheckIn}
                         />
+                        {selectedImageUrl && createPortal(
+                          <div
+                            className="fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out animate-in fade-in duration-300"
+                            onClick={() => setSelectedImageUrl(null)}
+                          >
+                            <button
+                              className="absolute top-6 right-6 w-12 h-12 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-all"
+                              onClick={() => setSelectedImageUrl(null)}
+                            >
+                              <Icon name="close" size="md" />
+                            </button>
+                            <img
+                              src={selectedImageUrl}
+                              alt="Full size review"
+                              className="max-w-full max-h-[90vh] rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>,
+                          document.body
+                        )}
                       </div>
                     )}
                   </>
@@ -1521,7 +1570,6 @@ const AdminEventManage = () => {
                           <th className="p-5">Thuế hệ thống</th>
                           <th className="p-5">Thực nhận</th>
                           <th className="p-5">Phương thức</th>
-                          <th className="p-5">Trạng thái</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-50 font-medium">
@@ -1532,9 +1580,19 @@ const AdminEventManage = () => {
                               <td className="p-5" >
                                 <span className="font-mono text-xs text-blue-400 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 group-hover:bg-white transition-colors">#{order.id}</span>
                               </td>
-                              <td className="p-5" >
-                                <p className="font-black text-slate-900 group-hover:text-primary transition-colors">{order.userName}</p>
-                                <p className="text-[10px] text-slate-400 font-bold">{order.userEmail}</p>
+                              <td className="p-5">
+                                <div className="flex items-center gap-3">
+                                  <Avatar
+                                    src={resolveBackendAssetUrl(order.userAvatar)}
+                                    alt={order.userName}
+                                    size="sm"
+                                    fallback={order.userName?.substring(0, 2)}
+                                  />
+                                  <div>
+                                    <p className="font-black text-slate-900 group-hover:text-primary transition-colors">{order.userName}</p>
+                                    <p className="text-[10px] text-slate-400 font-bold">{order.userEmail}</p>
+                                  </div>
+                                </div>
                               </td>
                               <td className="p-5">
                                 <div className="flex flex-wrap gap-1 max-w-[200px]">
@@ -1568,7 +1626,7 @@ const AdminEventManage = () => {
                                 <span className="font-black text-slate-800 text-sm">{formatCurrency(order.totalAmount)}</span>
                               </td>
                               <td className="p-5" >
-                                <span className="font-bold text-red-500 text-xs">-{formatCurrency(order.platformFee || 0)}</span>
+                                <span className="font-bold text-red-500 text-sm">-{formatCurrency(order.platformFee || 0)}</span>
                               </td>
                               <td className="p-5" >
                                 <span className="font-black text-emerald-600 text-base">+{formatCurrency((order.totalAmount || 0) - (order.platformFee || 0))}</span>
@@ -1578,14 +1636,12 @@ const AdminEventManage = () => {
                                   {order.paymentMethod?.toLowerCase().includes('momo') ? (
                                     <img src="https://developers.momo.vn/v3/assets/images/MOMO-Logo-App-6262c3743a290ef02396a24ea2b66c35.png" alt="MoMo" className="w-5 h-5 rounded-md object-cover" />
                                   ) : (
-                                    <Icon name="credit_card" className="text-slate-400" size="xs" />
+                                    <img src="https://vnpay.vn/s1/statics.vnpay.vn/2023/9/06ncktiwd6dc1694418196384.png" alt="VNPAY" className="w-5 h-5 rounded-md object-contain" />
                                   )}
-                                  <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">{order.paymentMethod || 'COD'}</span>
+                                  <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">{order.paymentMethod || 'VNPAY'}</span>
                                 </div>
                               </td>
-                              <td className="p-5" >
-                                <span className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-emerald-100 shadow-sm inline-block">Thành công</span>
-                              </td>
+
                             </tr>
                           ))}
                       </tbody>
@@ -1660,12 +1716,12 @@ const AdminEventManage = () => {
                         )}
                       </div>
                       <div>
-                        <h4 className="text-[15px] font-black text-slate-400 uppercase mb-1">Chưa phản hồi</h4>
+                        <h4 className="text-[15px] font-black text-slate-400 uppercase mb-1">Chờ phản hồi</h4>
                         <div className="flex items-baseline gap-2">
                           <span className="text-3xl font-black text-slate-900 tracking-tighter">
-                            {comments.length}
+                            {comments.filter(c => !c.reply).length}
                           </span>
-                          <span className="text-[11px] font-black text-indigo-500 uppercase">Feedback</span>
+                          <span className="text-[11px] font-black text-indigo-500 uppercase">Tồn đọng</span>
                         </div>
                       </div>
                     </div>
@@ -1673,41 +1729,180 @@ const AdminEventManage = () => {
                 </div>
 
                 <div className="space-y-4">
-                  {comments.map((review, i) => (
-                    <div key={review.id || i} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 hover:shadow-md transition-all">
-                      <div className="flex justify-between items-start">
-                        <div className="flex gap-3">
-                          <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-black text-xs uppercase">
-                            {review.userName.substring(0, 2)}
-                          </div>
-                          <div>
-                            <h4 className="text-sm font-bold text-slate-900">{review.userName}</h4>
-                            <span className="text-[10px] text-slate-400">
-                              {new Date(review.createdAt).toLocaleDateString('vi-VN')}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex gap-0.5">
-                          {Array.from({ length: 5 }, (_, s) => (
-                            <Icon key={s} name="star" size="xs" className={s < review.rating ? 'text-yellow-400' : 'text-slate-100'} filled />
-                          ))}
-                        </div>
-                      </div>
-                      <p className="text-sm text-slate-600 leading-relaxed font-medium">{review.content}</p>
-                      <div className="flex gap-3">
-                        <input type="text" placeholder="Gửi phản hồi cho khách..." className="flex-1 px-4 py-2 bg-slate-50 border-none rounded-xl text-xs outline-none focus:ring-2 ring-primary/20" />
-                        <button className="px-4 py-2 bg-slate-900 text-white text-[10px] font-bold rounded-xl shadow-lg">GỬI</button>
-                      </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-2">
+                    <h3 className="text-lg font-black text-slate-900 tracking-tight uppercase">Tất cả nhận xét</h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => setRatingFilter(null)}
+                        className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all duration-500 border ${ratingFilter === null
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-600/20'
+                          : 'bg-white text-gray-400 border-gray-100 hover:border-gray-200 hover:text-gray-600'
+                          }`}
+                      >
+                        Tất cả
+                      </button>
+                      {[5, 4, 3, 2, 1].map(star => {
+                        const starColors: any = {
+                          5: 'bg-amber-500 border-amber-500 shadow-amber-500/20',
+                          4: 'bg-blue-500 border-blue-500 shadow-blue-500/20',
+                          3: 'bg-emerald-500 border-emerald-500 shadow-emerald-500/20',
+                          2: 'bg-orange-500 border-orange-500 shadow-orange-500/20',
+                          1: 'bg-rose-500 border-rose-500 shadow-rose-500/20'
+                        };
+                        return (
+                          <button
+                            key={star}
+                            onClick={() => setRatingFilter(star)}
+                            className={`px-3 py-1.5 rounded-xl text-[9px] font-black transition-all duration-500 border flex items-center gap-1.5 ${ratingFilter === star
+                              ? `${starColors[star]} text-white shadow-lg`
+                              : 'bg-white text-gray-400 border-gray-100 hover:border-gray-200 hover:text-gray-600'
+                              }`}
+                          >
+                            {star} <Icon name="star" size="xs" filled />
+                          </button>
+                        );
+                      })}
                     </div>
-                  ))}
-                  {comments.length === 0 && (
-                    <div className="bg-white p-20 rounded-[3rem] border-2 border-dashed border-slate-100 text-center">
-                      <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Icon name="chat_bubble_outline" size="md" />
+                  </div>
+
+                  {(() => {
+                    const filteredComments = comments.filter(review => ratingFilter === null || review.rating === ratingFilter);
+                    if (filteredComments.length === 0) {
+                      return (
+                        <div className="bg-gray-50/50 p-20 rounded-[3rem] border-2 border-gray-200 text-center">
+                          <div className="w-16 h-16 bg-white text-gray-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-100 shadow-sm">
+                            <Icon name="reviews" size="md" />
+                          </div>
+                          <p className="text-gray-900 font-black uppercase text-[12px] tracking-widest">
+                            {ratingFilter ? `Chưa có nhận xét ${ratingFilter} sao` : "Chưa có nhận xét nào"}
+                          </p>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="space-y-4">
+                        {filteredComments.map((review, i) => (
+                          <div
+                            key={review.id || i}
+                            className="bg-white rounded-[2rem] border border-slate-100/85 p-6 shadow-sm hover:shadow-xl hover:shadow-slate-200/40 transition-all duration-500 group/card relative overflow-hidden"
+                            style={{ animationDelay: `${100 + i * 50}ms`, animationFillMode: 'both' }}
+                          >
+                            <div className="flex flex-col md:flex-row gap-6">
+                              <div className="flex-shrink-0">
+                                <Avatar
+                                  src={review.user?.avatar}
+                                  alt={review.user?.fullName}
+                                  size="lg"
+                                  className="rounded-2xl shadow-sm border-4 border-white group-hover/card:scale-105 transition-transform duration-500"
+                                  fallback={review.user?.fullName?.substring(0, 2)}
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
+                                  <div>
+                                    <h4 className="font-black text-slate-900 text-base mb-0.5 truncate">{review.user?.fullName}</h4>
+                                    <div className="flex flex-wrap items-center gap-3">
+                                      <span className="text-xs font-black text-slate-500 uppercase tracking-widest">
+                                        {new Date(review.createdAt).toLocaleString('vi-VN', {
+                                          day: '2-digit',
+                                          month: 'short',
+                                          year: 'numeric',
+                                          hour: '2-digit',
+                                          minute: '2-digit'
+                                        })}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-1">
+                                    {Array.from({ length: 5 }, (_, s) => (
+                                      <Icon key={s} name="star" size="sm" className={s < review.rating ? 'text-yellow-400' : 'text-slate-100'} filled />
+                                    ))}
+                                  </div>
+                                </div>
+
+                                <div className="relative mb-4">
+                                  <p className="text-sm text-slate-700 font-bold leading-relaxed">{review.content}</p>
+                                </div>
+
+                                {review.images && review.images.filter((img: string) => img && img.trim() !== "").length > 0 && (
+                                  <div className="flex flex-wrap gap-2.5 mb-4">
+                                    {review.images.filter((img: string) => img && img.trim() !== "").map((img: string, idx: number) => (
+                                      <div key={idx} className="relative group/img cursor-pointer overflow-hidden rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg transition-all duration-500">
+                                        <img
+                                          src={img}
+                                          alt="Review"
+                                          className="w-24 h-24 sm:w-28 sm:h-28 object-cover group-hover/img:scale-110 transition-transform duration-700"
+                                          onClick={() => setSelectedImageUrl(img)}
+                                        />
+                                        <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors flex items-center justify-center">
+                                          <Icon name="zoom_in" size="sm" className="text-white opacity-0 group-hover/img:opacity-100 transition-opacity" />
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* Reply Section & Like Button */}
+                                <div className="space-y-3 pt-4 border-t border-slate-50">
+                                  <div className="flex flex-wrap items-center gap-3">
+                                    <button
+                                      onClick={() => handleToggleLike(review.id)}
+                                      className={`group/heart flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all duration-500 border ${review.isLikedByOrganizer
+                                        ? 'bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/20'
+                                        : 'bg-rose-50/30 text-rose-400 border-rose-100/50 hover:bg-rose-50 hover:border-rose-200'
+                                        }`}
+                                    >
+                                      <Icon name="favorite" size="xs" filled={review.isLikedByOrganizer} className={review.isLikedByOrganizer ? 'scale-110' : 'group-hover/heart:scale-120 transition-transform'} />
+                                      <span className="text-[9px] font-black uppercase tracking-widest">{review.isLikedByOrganizer ? 'Đã yêu thích' : 'Yêu thích'}</span>
+                                    </button>
+
+                                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-all duration-500 ${review.reply
+                                      ? 'bg-emerald-50 text-emerald-600 border-emerald-100 shadow-sm shadow-emerald-100/20'
+                                      : 'bg-amber-50 text-amber-600 border-amber-100 shadow-sm shadow-amber-100/20'
+                                      }`}>
+                                      <Icon name={review.reply ? "check_circle" : "pending"} size="xs" filled={review.reply} />
+                                      <span className="text-[9px] font-black uppercase tracking-widest">
+                                        {review.reply ? 'Đã phản hồi' : 'Chờ phản hồi'}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {review.reply ? (
+                                    <div className="bg-slate-50/80 p-4 rounded-2xl space-y-1 relative overflow-hidden group/reply border border-slate-100 shadow-sm">
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-lg bg-slate-900 text-white flex items-center justify-center">
+                                          <Icon name="subdirectory_arrow_right" size="xs" />
+                                        </div>
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-600">Phản hồi từ Ban Tổ Chức</span>
+                                      </div>
+                                      <p className="text-xs font-bold leading-relaxed text-slate-900 pl-8">{review.reply}</p>
+                                    </div>
+                                  ) : (
+                                    <div className="flex gap-2 bg-white p-1.5 rounded-[2rem] border-2 border-slate-900/10 focus-within:border-slate-900/30 focus-within:shadow-xl transition-all duration-500">
+                                      <input
+                                        type="text"
+                                        placeholder="Ban tổ chức sẽ rút kinh nghiệm, cảm ơn bạn đã nhận xét"
+                                        className="flex-1 px-4 py-2 bg-transparent border-0 focus:ring-0 text-xs font-black outline-none placeholder:text-slate-500 placeholder:font-black placeholder:uppercase placeholder:tracking-widest"
+                                        value={replyTexts[review.id] || ''}
+                                        onChange={(e) => setReplyTexts({ ...replyTexts, [review.id]: e.target.value })}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleReply(review.id)}
+                                      />
+                                      <button
+                                        onClick={() => handleReply(review.id)}
+                                        className="w-10 h-10 bg-slate-900 text-white rounded-[1.1rem] flex items-center justify-center hover:bg-primary hover:scale-105 active:scale-95 transition-all shadow-xl shadow-slate-900/10 group/send"
+                                      >
+                                        <Icon name="send" size="xs" className="group-hover/send:translate-x-0.5 group-hover/send:-translate-y-0.5 transition-transform" />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Chưa có nhận xét nào</p>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               </div>
             )}

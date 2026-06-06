@@ -38,19 +38,19 @@ interface Attendee {
 const OrganizerEventManage = () => {
     const { id } = useParams<{ id: string }>();
     const location = useLocation();
-    
+
     // Lấy tab khởi tạo thông minh từ react-router state HOẶC URL query parameter (e.g., ?tab=guests)
     const getInitialTab = () => {
         const stateTab = (location.state as any)?.tab;
         const queryTab = new URLSearchParams(location.search).get('tab');
         const target = stateTab || queryTab;
-        
+
         if (target && ['overview', 'guests', 'finance', 'feedback', 'edit'].includes(target)) {
             return target as any;
         }
         return 'overview';
     };
-    
+
     const [activeTab, setActiveTab] = useState<'overview' | 'guests' | 'finance' | 'feedback' | 'edit'>(getInitialTab);
     const [event, setEvent] = useState<any>(null);
     const [stats, setStats] = useState<ManageStats | null>(null);
@@ -96,6 +96,44 @@ const OrganizerEventManage = () => {
         return eventOrders.reduce((sum: number, o: any) => sum + (o.platformFee || 0), 0);
     }, [eventOrders]);
 
+    const handleExportCSV = () => {
+        if (!eventOrders || eventOrders.length === 0) {
+            toast.error("Không có dữ liệu giao dịch để xuất");
+            return;
+        }
+
+        // CSV Headers with BOM for UTF-8 Excel support
+        let csvContent = "\uFEFF"; 
+        csvContent += "Mã GD,Khách hàng,Email,Số ghế,Thời gian,Số tiền (VND),Thuế hệ thống (VND),Thực nhận (VND),Phương thức thanh toán\n";
+
+        eventOrders.forEach((order: any) => {
+            const seats = (order.tickets || []).map((t: any) => t.seatNumber).join("; ");
+            const formattedDate = new Date(order.purchaseDate).toLocaleString('vi-VN').replace(/,/g, '');
+            const revenue = order.totalAmount || 0;
+            const fee = order.platformFee || 0;
+            const net = revenue - fee;
+            const payMethod = order.paymentMethod || "VNPAY";
+            
+            const userNameEscaped = `"${(order.userName || "Ẩn danh").replace(/"/g, '""')}"`;
+            const userEmailEscaped = `"${(order.userEmail || "").replace(/"/g, '""')}"`;
+            const seatsEscaped = `"${seats.replace(/"/g, '""')}"`;
+
+            csvContent += `#${order.id},${userNameEscaped},${userEmailEscaped},${seatsEscaped},${formattedDate},${revenue},${fee},${net},${payMethod}\n`;
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        const fileName = `${event?.title || "giao_dich"}.csv`.replace(/[\/\\?%*:|"<>]/g, '-');
+        link.setAttribute("download", fileName);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success("Xuất file CSV thành công!");
+    };
+
     const uniqueTicketTypes = React.useMemo(() => {
         const map = new Map();
         seats.forEach((s: any) => {
@@ -112,9 +150,9 @@ const OrganizerEventManage = () => {
         }
 
         return (
-            <Stage 
-                width={800} 
-                height={500} 
+            <Stage
+                width={800}
+                height={500}
                 draggable
                 onMouseEnter={(e) => {
                     // Set to grab if not on an interactive shape
@@ -1394,11 +1432,11 @@ const OrganizerEventManage = () => {
                                                                     const percentColor = tt.percentage >= 80 ? 'text-emerald-600 bg-emerald-50 border-emerald-100/40' : tt.percentage >= 30 ? 'text-amber-600 bg-amber-50 border-amber-100/40' : 'text-red-500 bg-red-50 border-red-100/40';
 
                                                                     return (
-                                                                        <div 
-                                                                            key={tt.id || tt.name} 
+                                                                        <div
+                                                                            key={tt.id || tt.name}
                                                                             onClick={() => setSelectedZoneForModal(tt)}
                                                                             className="rounded-[1.5rem] p-4 shadow-[0_4px_20px_rgba(0,0,0,0.01)] flex flex-col gap-3 transition-all hover:shadow-md hover:-translate-y-0.5 group cursor-pointer relative overflow-hidden shrink-0 border-l-4"
-                                                                            style={{ 
+                                                                            style={{
                                                                                 borderLeftColor: tt.color || '#3b82f6',
                                                                                 backgroundColor: `${tt.color || '#3b82f6'}08`,
                                                                                 borderTop: '1px solid #e2e8f020',
@@ -1638,28 +1676,36 @@ const OrganizerEventManage = () => {
                                                 <span className="font-black text-md uppercase block leading-none mb-1">Giao dịch gần nhất</span>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-2 bg-black/10 p-1 rounded-xl border border-white/10">
+                                        <div className="flex items-center gap-3">
                                             <button
-                                                onClick={() => setTransactionPage(p => Math.max(1, p - 1))}
-                                                disabled={transactionPage === 1}
-                                                className="w-7 h-7 flex items-center justify-center hover:bg-white hover:text-primary rounded-lg disabled:opacity-20 transition-all active:scale-90"
+                                                onClick={handleExportCSV}
+                                                className="text-[10px] font-black uppercase tracking-widest text-primary bg-white px-4 py-2 rounded-xl hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5 shadow-md shadow-black/10 animate-in fade-in"
                                             >
-                                                <Icon name="chevron_left" size="xs" />
+                                                <Icon name="download" size="xs" /> Xuất CSV
                                             </button>
-                                            <span className="text-[10px] font-black text-white/90 min-w-[32px] text-center">{transactionPage} / {Math.ceil(eventOrders.length / transactionsPerPage) || 1}</span>
-                                            <button
-                                                onClick={() => setTransactionPage(p => Math.min(Math.ceil(eventOrders.length / transactionsPerPage), p + 1))}
-                                                disabled={transactionPage >= Math.ceil(eventOrders.length / transactionsPerPage)}
-                                                className="w-7 h-7 flex items-center justify-center hover:bg-white hover:text-primary rounded-lg disabled:opacity-20 transition-all active:scale-90"
-                                            >
-                                                <Icon name="chevron_right" size="xs" />
-                                            </button>
+                                            <div className="flex items-center gap-2 bg-black/10 p-1 rounded-xl border border-white/10">
+                                                <button
+                                                    onClick={() => setTransactionPage(p => Math.max(1, p - 1))}
+                                                    disabled={transactionPage === 1}
+                                                    className="w-7 h-7 flex items-center justify-center hover:bg-white hover:text-primary rounded-lg disabled:opacity-20 transition-all active:scale-90"
+                                                >
+                                                    <Icon name="chevron_left" size="xs" />
+                                                </button>
+                                                <span className="text-[10px] font-black text-white/90 min-w-[32px] text-center">{transactionPage} / {Math.ceil(eventOrders.length / transactionsPerPage) || 1}</span>
+                                                <button
+                                                    onClick={() => setTransactionPage(p => Math.min(Math.ceil(eventOrders.length / transactionsPerPage), p + 1))}
+                                                    disabled={transactionPage >= Math.ceil(eventOrders.length / transactionsPerPage)}
+                                                    className="w-7 h-7 flex items-center justify-center hover:bg-white hover:text-primary rounded-lg disabled:opacity-20 transition-all active:scale-90"
+                                                >
+                                                    <Icon name="chevron_right" size="xs" />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="overflow-x-auto custom-scrollbar">
                                         <table className="w-full text-left whitespace-nowrap">
                                             <thead>
-                                                <tr className="bg-blue-50 text-[10px] font-black text-blue-400 uppercase tracking-[0.15em] border-b border-blue-100">
+                                                <tr className="bg-blue-50 text-[12px] font-black text-blue-600 uppercase tracking-[0.15em]">
                                                     <th className="p-5">Mã GD</th>
                                                     <th className="p-5">Khách hàng</th>
                                                     <th className="p-5">Số ghế</th>
@@ -1668,7 +1714,6 @@ const OrganizerEventManage = () => {
                                                     <th className="p-5">Thuế hệ thống</th>
                                                     <th className="p-5">Thực nhận</th>
                                                     <th className="p-5">Phương thức</th>
-                                                    <th className="p-5">Trạng thái</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-50 font-medium">
@@ -1679,9 +1724,19 @@ const OrganizerEventManage = () => {
                                                             <td className="p-5" >
                                                                 <span className="font-mono text-xs text-blue-400 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 group-hover:bg-white transition-colors">#{order.id}</span>
                                                             </td>
-                                                            <td className="p-5" >
-                                                                <p className="font-black text-slate-900 group-hover:text-primary transition-colors">{order.userName}</p>
-                                                                <p className="text-[10px] text-slate-400 font-bold">{order.userEmail}</p>
+                                                            <td className="p-5">
+                                                                <div className="flex items-center gap-3">
+                                                                    <Avatar
+                                                                        src={resolveBackendAssetUrl(order.userAvatar)}
+                                                                        alt={order.userName}
+                                                                        size="sm"
+                                                                        fallback={order.userName?.substring(0, 2)}
+                                                                    />
+                                                                    <div>
+                                                                        <p className="font-black text-slate-900 group-hover:text-primary transition-colors">{order.userName}</p>
+                                                                        <p className="text-[10px] text-slate-400 font-bold">{order.userEmail}</p>
+                                                                    </div>
+                                                                </div>
                                                             </td>
                                                             <td className="p-5">
                                                                 <div className="flex flex-wrap gap-1 max-w-[200px]">
@@ -1689,8 +1744,8 @@ const OrganizerEventManage = () => {
                                                                         const isVip = ticket.ticketTypeName?.toLowerCase().includes('vip');
                                                                         const baseColor = ticket.ticketTypeColor || '#475569';
                                                                         return (
-                                                                            <span 
-                                                                                key={ticket.id} 
+                                                                            <span
+                                                                                key={ticket.id}
                                                                                 className="px-2 py-0.5 rounded text-xs font-bold border transition-all hover:brightness-95"
                                                                                 style={{
                                                                                     backgroundColor: ticket.ticketTypeColor ? `${ticket.ticketTypeColor}1A` : '#f1f5f9',
@@ -1715,7 +1770,7 @@ const OrganizerEventManage = () => {
                                                                 <span className="font-black text-slate-800 text-sm">{formatCurrency(order.totalAmount)}</span>
                                                             </td>
                                                             <td className="p-5" >
-                                                                <span className="font-bold text-red-500 text-xs">-{formatCurrency(order.platformFee || 0)}</span>
+                                                                <span className="font-bold text-red-500 text-sm">-{formatCurrency(order.platformFee || 0)}</span>
                                                             </td>
                                                             <td className="p-5" >
                                                                 <span className="font-black text-emerald-600 text-base">+{formatCurrency((order.totalAmount || 0) - (order.platformFee || 0))}</span>
@@ -1727,17 +1782,8 @@ const OrganizerEventManage = () => {
                                                                     ) : (
                                                                         <img src="https://vnpay.vn/s1/statics.vnpay.vn/2023/9/06ncktiwd6dc1694418196384.png" alt="VNPAY" className="w-5 h-5 rounded-md object-contain" />
                                                                     )}
-                                                                    <span className="text-xs font-bold text-slate-700">{order.paymentMethod || 'VNPAY'}</span>
+                                                                    <span className="text-xs font-bold text-slate-700 uppercase">{order.paymentMethod || 'VNPAY'}</span>
                                                                 </div>
-                                                            </td>
-                                                            <td className="p-5" >
-                                                                {order.status === 'COMPLETED' ? (
-                                                                    <span className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-emerald-100 shadow-sm">Thành công</span>
-                                                                ) : order.status === 'PENDING' ? (
-                                                                    <span className="px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-amber-100 shadow-sm">Chờ xử lý</span>
-                                                                ) : (
-                                                                    <span className="px-3 py-1.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-red-100 shadow-sm">{order.status}</span>
-                                                                )}
                                                             </td>
                                                         </tr>
                                                     ))}

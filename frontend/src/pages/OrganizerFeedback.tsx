@@ -246,25 +246,24 @@ const OrganizerFeedback = () => {
 
                             <div className="relative mb-2">
                               <p className="text-base text-slate-900 font-bold leading-relaxed">{review.content}</p>
+                              {review.images && review.images.filter((img: string) => img && img.trim() !== "").length > 0 && (
+                               <div className="flex flex-wrap gap-2.5 mb-1.5">
+                                 {review.images.filter((img: string) => img && img.trim() !== "").map((img: string, idx: number) => (
+                                   <div key={idx} className="relative group/img cursor-pointer overflow-hidden rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg transition-all duration-500">
+                                     <img
+                                       src={img}
+                                       alt="Review"
+                                       className="w-24 h-24 sm:w-32 sm:h-32 object-cover group-hover/img:scale-110 transition-transform duration-700"
+                                       onClick={() => setSelectedImageUrl(img)}
+                                     />
+                                     <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors flex items-center justify-center">
+                                       <Icon name="zoom_in" size="sm" className="text-white opacity-0 group-hover/img:opacity-100 transition-opacity" />
+                                     </div>
+                                   </div>
+                                 ))}
+                               </div>
+                             )}
                             </div>
-
-                            {review.images && review.images.length > 0 && (
-                              <div className="flex flex-wrap gap-2.5 mb-1.5">
-                                {review.images.map((img: string, idx: number) => (
-                                  <div key={idx} className="relative group/img cursor-pointer overflow-hidden rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg transition-all duration-500">
-                                    <img
-                                      src={img}
-                                      alt="Review"
-                                      className="w-24 h-24 sm:w-32 sm:h-32 object-cover group-hover/img:scale-110 transition-transform duration-700"
-                                      onClick={() => setSelectedImageUrl(img)}
-                                    />
-                                    <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors flex items-center justify-center">
-                                      <Icon name="zoom_in" size="sm" className="text-white opacity-0 group-hover/img:opacity-100 transition-opacity" />
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
 
                             {/* Reply Section & Like Button */}
                             <div className="space-y-3 pt-2 border-t border-slate-50">

@@ -9,18 +9,18 @@ import { toast } from 'react-hot-toast'
 const OrganizerAvatar = ({ src, name }: { src?: string; name?: string }) => {
   const [error, setError] = useState(false)
   const firstLetter = name?.substring(0, 1).toUpperCase() || 'U'
-  
+
   if (src && !error) {
     return (
-      <img 
-        src={src} 
-        alt={name} 
+      <img
+        src={src}
+        alt={name}
         onError={() => setError(true)}
-        className="w-6 h-6 rounded-full object-cover border border-slate-200 shadow-sm" 
+        className="w-6 h-6 rounded-full object-cover border border-slate-200 shadow-sm"
       />
     )
   }
-  
+
   return (
     <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 via-indigo-500 to-cyan-500 flex items-center justify-center text-[10px] font-black text-white shadow-md border border-indigo-200/30 uppercase select-none">
       {firstLetter}
@@ -83,9 +83,9 @@ const AdminEventManagement = () => {
 
   return (
     <DashboardLayout sidebarProps={sidebarConfig}>
-      <PageHeader 
-        title="Quản lý Sự kiện" 
-        searchPlaceholder="Tìm tên sự kiện, nhà tổ chức..." 
+      <PageHeader
+        title="Quản lý Sự kiện"
+        searchPlaceholder="Tìm tên sự kiện, nhà tổ chức..."
         searchValue={searchTerm}
         onSearch={setSearchTerm}
       />
@@ -98,8 +98,8 @@ const AdminEventManagement = () => {
               <button
                 key={tab}
                 onClick={() => {
-                    setActiveTab(tab);
-                    setCurrentPage(0);
+                  setActiveTab(tab);
+                  setCurrentPage(0);
                 }}
                 className={`border-b-2 pb-4 px-2 text-sm font-bold transition-all ${activeTab === tab
                   ? 'border-primary text-primary'
@@ -118,24 +118,24 @@ const AdminEventManagement = () => {
             <table className="w-full text-left border-separate border-spacing-0">
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-200">
-                  {['Sự kiện', 'Nhà tổ chức', 'Thể loại', 'Ngày tạo', 'Trạng thái', 'Thao tác'].map((h) => (
-                    <th key={h} className="p-4 text-xs font-bold uppercase tracking-wider text-slate-400">{h}</th>
+                  {['Sự kiện', 'Nhà tổ chức', 'Thể loại', 'Thời gian bắt đầu', 'Trạng thái'].map((h) => (
+                    <th key={h} className="p-4 text-xs font-bold uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="p-12 text-center">
-                        <div className="flex flex-col items-center gap-3">
-                            <Loader className="w-8 h-8 text-primary" />
-                            <p className="text-sm text-slate-400 font-medium italic">Đang tải danh sách sự kiện...</p>
-                        </div>
+                    <td colSpan={5} className="p-12 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <Loader className="w-8 h-8 text-primary" />
+                        <p className="text-sm text-slate-400 font-medium italic">Đang tải danh sách sự kiện...</p>
+                      </div>
                     </td>
                   </tr>
                 ) : events.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-12 text-center text-slate-400 italic">Không có sự kiện nào.</td>
+                    <td colSpan={5} className="p-12 text-center text-slate-400 italic">Không có sự kiện nào.</td>
                   </tr>
                 ) : (
                   events.map((evt) => (
@@ -147,7 +147,7 @@ const AdminEventManagement = () => {
                       <td className="p-4 relative">
                         {/* Hover Border Accent */}
                         <div className="absolute left-0 top-2 bottom-2 w-1 bg-primary scale-y-0 group-hover:scale-y-100 transition-transform duration-300 rounded-r-full" />
-                        
+
                         <div className="flex items-center gap-3">
                           <div
                             className="w-10 h-10 rounded-lg bg-cover bg-center shrink-0 shadow-sm"
@@ -174,20 +174,44 @@ const AdminEventManagement = () => {
                         </span>
                       </td>
 
-                      <td className="p-4 text-[11px] font-bold text-slate-500">
-                        {evt.createdAt ? new Date(evt.createdAt).toLocaleDateString('vi-VN') : '---'}
+                      <td className="p-4">
+                        {evt.startTime ? (
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5 text-slate-800 font-black text-xs">
+                              <Icon name="schedule" size="xs" className="text-primary/80" />
+                              <span>
+                                {new Date(evt.startTime).toLocaleTimeString('vi-VN', {
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-slate-400 font-bold text-[10px] tracking-tight">
+                              <Icon name="calendar_today" size="xs" className="opacity-70" />
+                              <span>
+                                {new Date(evt.startTime).toLocaleDateString('vi-VN', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric'
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-slate-300 italic text-xs">---</span>
+                        )}
                       </td>
                       <td className="p-4">
                         <div className="flex flex-col items-start gap-1.5">
                           <StatusBadge status={evt.status} />
                           {evt.status === 'rejected' && evt.rejectReason && (
-                            <div 
+                            <div
                               className="group relative flex items-center gap-1 text-[10px] text-red-500 font-bold bg-red-50/50 px-2 py-0.5 rounded border border-red-100 max-w-[150px] cursor-help"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <Icon name="info" size="xs" />
                               <span className="truncate italic font-medium text-red-400">Lý do: {evt.rejectReason}</span>
-                              
+
                               {/* Tooltip on hover */}
                               <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-56 p-3 bg-slate-800 text-white text-[10px] rounded-xl shadow-2xl z-[100] leading-relaxed font-medium animate-in fade-in zoom-in-95 duration-200">
                                 <div className="text-red-400 font-black mb-1 uppercase tracking-widest text-[9px]">Lý do từ chối:</div>
@@ -198,25 +222,13 @@ const AdminEventManagement = () => {
                           )}
                         </div>
                       </td>
-                      <td className="p-4">
-                        <button 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/admin/event/manage/${evt.id}`);
-                            }}
-                            className="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 hover:bg-primary hover:text-white transition-all flex items-center justify-center"
-                            title="Xem chi tiết"
-                        >
-                            <Icon name="visibility" size="sm" />
-                        </button>
-                      </td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
           </div>
-          
+
           <div className="px-4 py-2.5 bg-slate-50/30 border-t border-slate-200">
             <Pagination
               current={currentPage + 1}
