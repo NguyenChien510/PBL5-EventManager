@@ -132,6 +132,7 @@ const Chatbot: React.FC = () => {
   }, [messages, loadingHistory, isOpen]);
 
   const handleSend = async (overrideInput?: string, silent: boolean = false) => {
+    scrollToBottom();
     const messageToSend = overrideInput || input;
     if (!messageToSend.trim()) return;
 
@@ -790,8 +791,8 @@ const Chatbot: React.FC = () => {
   const MessageContent: React.FC<{ content: string; onAction: (text: string) => void }> = ({ content, onAction }) => {
 
     // Check for success/failure booking messages to render them as beautiful cards
-    const bookingSuccessRegex = /✅\s*Đặt vé thành công!\s*Đơn hàng\s*#(\d+)\s*đã được thanh toán tự động\./i;
-    const bookingFailureRegex = /Đơn hàng\s*#(\d+)\s*đã tạo nhưng thanh toán thất bại\s*\(mã:\s*([^)]+)\)\./i;
+    const bookingSuccessRegex = /(?:✅\s*)?Đặt vé thành công!?(?:\s*🎉\s*)?\s*Đơn hàng\s*#(\d+)\s*đã được thanh toán(?:\s*tự động)?\./i;
+    const bookingFailureRegex = /(?:❌\s*)?Đơn hàng\s*#(\d+)\s*đã tạo nhưng thanh toán thất bại\s*\(mã:\s*([^)]+)\)\./i;
 
     const matchSuccess = content.match(bookingSuccessRegex);
     if (matchSuccess) {

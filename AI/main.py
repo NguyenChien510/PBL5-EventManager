@@ -1025,7 +1025,7 @@ Bước 2: Khi nhận được tin nhắn từ người dùng bắt đầu bằn
    - Hãy LẬP TỨC ĐẶT VÉ NGAY bằng cách gọi tool `create_order_api` mà TUYỆT ĐỐI KHÔNG ĐƯỢC hỏi lại, KHÔNG được hỏi coupon, KHÔNG được hỏi xác nhận. Hãy gọi tool đặt vé luôn!
    - Nếu "CHỌN_VÉ EV<eventId>_TT<ticketTypeId>": gọi `create_order_api(event_id=eventId, seat_ids=[ticketTypeId])`.
    - Nếu "CHỌN_GHẾ EV<eventId>_SE<seatId>": gọi `create_order_api(event_id=eventId, seat_ids=[seatId])`.
-Bước 3: Sau khi tool `create_order_api` chạy xong, hãy hiển thị thông báo kết quả cho người dùng. Kèm nút [SELECT: Xem vé tại Profile | navigate_profile] để người dùng vào profile xem QR.
+Bước 3: Sau khi tool `create_order_api` chạy xong, hãy hiển thị CHÍNH XÁC kết quả gốc từ tool (giữ nguyên ✅/❌). Chỉ thêm dòng [SELECT: Xem vé tại Profile | navigate_profile] bên dưới.
 
 🚨 QUAN TRỌNG - LUÔN ghi ngày giờ phiên + GIÁ TIỀN vào nút SELECT:
 VD ĐÚNG: [SELECT: CHIA CÁCH BÌNH YÊN 100,000₫ (Phiên 1 - 30/05 19:00) | EV1044_TT80]
@@ -1259,7 +1259,7 @@ Bước 2: Khi nhận được tin nhắn từ người dùng bắt đầu bằn
    - Hãy LẬP TỨC ĐẶT VÉ NGAY bằng cách gọi tool `create_order_api` mà TUYỆT ĐỐI KHÔNG ĐƯỢC hỏi lại, KHÔNG được hỏi coupon, KHÔNG được hỏi xác nhận. Hãy gọi tool đặt vé luôn!
    - Nếu "CHỌN_VÉ EV<eventId>_TT<ticketTypeId>": gọi `create_order_api(event_id=eventId, seat_ids=[ticketTypeId])`.
    - Nếu "CHỌN_GHẾ EV<eventId>_SE<seatId>": gọi `create_order_api(event_id=eventId, seat_ids=[seatId])`.
-Bước 3: Sau khi tool `create_order_api` chạy xong, hãy hiển thị thông báo kết quả cho người dùng. Kèm nút [SELECT: Xem vé tại Profile | navigate_profile] để người dùng vào profile xem QR.
+Bước 3: Sau khi tool `create_order_api` chạy xong, hãy hiển thị CHÍNH XÁC kết quả gốc từ tool (giữ nguyên ✅/❌). Chỉ thêm dòng [SELECT: Xem vé tại Profile | navigate_profile] bên dưới.
 
 🚨 QUAN TRỌNG - LUÔN ghi ngày giờ phiên + GIÁ TIỀN vào nút SELECT:
 VD ĐÚNG: [SELECT: CHIA CÁCH BÌNH YÊN 100,000₫ (Phiên 1 - 30/05 19:00) | EV1044_TT80]
