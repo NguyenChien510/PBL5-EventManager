@@ -22,7 +22,7 @@ import com.pbl.pbl.dto.UpcomingEventCardDTO;
 import com.pbl.pbl.entity.Event;
 import com.pbl.pbl.entity.User;
 import com.pbl.pbl.repository.UserRepository;
-import com.pbl.pbl.service.EventService;
+import com.pbl.pbl.service.IEventService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -34,7 +34,7 @@ import lombok.RequiredArgsConstructor;
 @CrossOrigin
 public class EventController {
 
-    private final EventService eventService;
+    private final IEventService eventService;
     private final UserRepository userRepository;
 
     private User getCurrentUser(Authentication auth) {

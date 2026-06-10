@@ -15,11 +15,7 @@ import java.math.BigDecimal;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Order {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Order extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -54,4 +50,16 @@ public class Order {
     @Builder.Default
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Ticket> tickets = new ArrayList<>();
+
+    public void markCompleted() {
+        this.status = OrderStatus.COMPLETED;
+    }
+
+    public void markCancelled() {
+        this.status = OrderStatus.CANCELLED;
+    }
+
+    public boolean isPaid() {
+        return this.status == OrderStatus.COMPLETED;
+    }
 }

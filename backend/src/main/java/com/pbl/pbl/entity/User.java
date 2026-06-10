@@ -70,4 +70,12 @@ public class User {
     void onCreate() {
         createdAt = Instant.now();
     }
+
+    public void addLoyaltyPoints(Long points) {
+        this.loyaltyPoints += points;
+    }
+
+    public boolean hasRole(String roleName) {
+        return this.role != null && this.role.getName().equalsIgnoreCase(roleName);
+    }
 }

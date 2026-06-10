@@ -1,10 +1,7 @@
 package com.pbl.pbl.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.pbl.pbl.config.MoMoConfig;
 import com.pbl.pbl.config.VNPayConfig;
+import com.pbl.pbl.config.MoMoConfig;
 import com.pbl.pbl.dto.PaymentDTO;
 import com.pbl.pbl.entity.Order;
 import com.pbl.pbl.entity.OrderStatus;
@@ -29,19 +26,14 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.math.BigDecimal;
-import java.net.URI;
 import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
 @RequiredArgsConstructor
-public class PaymentService {
+public class PaymentServiceImpl implements IPaymentService {
     @Value("${app.frontend-url:http://localhost:5173}")
     private String frontendBaseUrl;
 
@@ -56,7 +48,7 @@ public class PaymentService {
     private final CouponRepository couponRepository;
     private final EmailService emailService;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final Map<String, PaymentGateway> paymentGateways;
 
     @Transactional
     public String createPayment(PaymentDTO paymentDTO, HttpServletRequest request) throws Exception {
@@ -77,14 +69,12 @@ public class PaymentService {
         if (autoApply) {
             String taxRateStr = systemConfigRepository.findById("DEFAULT_COMMISSION_RATE")
                     .map(SystemConfig::getConfigValue)
-                    .orElse("10"); // Default 10%
+                    .orElse("10");
             BigDecimal taxRate = new BigDecimal(taxRateStr);
             
-            // platformFee = amount * taxRate / 100
             platformFee = amount.multiply(taxRate).divide(new BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP);
         }
 
-        // Check coupon
         Coupon appliedCoupon = null;
         if (paymentDTO.getCouponCode() != null && !paymentDTO.getCouponCode().trim().isEmpty()) {
             appliedCoupon = couponRepository.findByCode(paymentDTO.getCouponCode().trim())
@@ -137,156 +127,13 @@ public class PaymentService {
         }
         order.setTickets(newTickets);
 
-        // --- PAYMENT GATEWAY DIFFERENTIATION ---
-        if ("momo".equalsIgnoreCase(paymentDTO.getPaymentMethod())) {
-            // MoMo: Immediate success (Bypass for demo)
-            order.setStatus(OrderStatus.COMPLETED);
-            orderRepository.save(order);
-            awardPoints(order);
-
-            if (newTickets != null && !newTickets.isEmpty()) {
-                com.pbl.pbl.entity.Event event = newTickets.get(0).getSeat().getEventSession().getEvent();
-                if (event.getTicketsLeft() != null) {
-                    event.setTicketsLeft(Math.max(0, event.getTicketsLeft() - newTickets.size()));
-                    eventRepository.save(event);
-                }
-            }
-
-            for (Ticket ticket : newTickets) {
-                ticket.setStatus(TicketStatus.PAID);
-                ticket.getSeat().setStatus(SeatStatus.BOOKED);
-                ticketRepository.save(ticket);
-                seatRepository.save(ticket.getSeat());
-            }
-
-            emailService.sendTicketEmail(order);
-
-            String dummyTransactionId = "MOMO_" + System.currentTimeMillis();
-            return frontendBaseUrl + "/payment-result?status=success&orderInfo=" + 
-                   URLEncoder.encode(paymentDTO.getOrderInfo(), StandardCharsets.UTF_8) + 
-                   "&transactionId=" + dummyTransactionId;
-        } else {
-            // VNPay: Redirect to FRONTEND sandbox instead of real gateway
-            // Note: We don't mark as COMPLETED here. The sandbox will call back.
-            String sandboxUrl = frontendBaseUrl + "/vnpay-sandbox";
-            return sandboxUrl + "?txnRef=" + order.getId() + 
-                   "&amount=" + paymentDTO.getAmount() + 
-                   "&orderInfo=" + URLEncoder.encode(paymentDTO.getOrderInfo(), StandardCharsets.UTF_8);
+        // Polymorphic dispatch via Strategy pattern
+        String method = paymentDTO.getPaymentMethod() != null ? paymentDTO.getPaymentMethod().toLowerCase() : "vnpay";
+        PaymentGateway gateway = paymentGateways.get(method);
+        if (gateway == null) {
+            throw new IllegalArgumentException("Unsupported payment method: " + paymentDTO.getPaymentMethod());
         }
-    }
-
-    private String createMoMoPayment(PaymentDTO paymentDTO, Order order) throws Exception {
-        String orderId = order.getId().toString();
-        String amount = String.valueOf(paymentDTO.getAmount());
-        String orderInfo = paymentDTO.getOrderInfo();
-        String requestId = String.valueOf(System.currentTimeMillis());
-        String extraData = "";
-
-        // Standard MoMo Signature string
-        String rawHash = "accessKey=" + moMoConfig.getAccessKey() +
-                "&amount=" + amount +
-                "&extraData=" + extraData +
-                "&ipnUrl=" + moMoConfig.getIpnUrl() +
-                "&orderId=" + orderId +
-                "&orderInfo=" + orderInfo +
-                "&partnerCode=" + moMoConfig.getPartnerCode() +
-                "&redirectUrl=" + moMoConfig.getRedirectUrl() +
-                "&requestId=" + requestId +
-                "&requestType=captureWallet";
-
-        String signature = moMoConfig.hmacSHA256(rawHash);
-
-        ObjectNode jsonNode = objectMapper.createObjectNode();
-        jsonNode.put("partnerCode", moMoConfig.getPartnerCode());
-        jsonNode.put("partnerName", "Event Platform");
-        jsonNode.put("storeId", "MomoTestStore");
-        jsonNode.put("requestId", requestId);
-        jsonNode.put("amount", paymentDTO.getAmount());
-        jsonNode.put("orderId", orderId);
-        jsonNode.put("orderInfo", orderInfo);
-        jsonNode.put("redirectUrl", moMoConfig.getRedirectUrl());
-        jsonNode.put("ipnUrl", moMoConfig.getIpnUrl());
-        jsonNode.put("lang", "vi");
-        jsonNode.put("extraData", extraData);
-        jsonNode.put("requestType", "captureWallet");
-        jsonNode.put("signature", signature);
-
-        HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(new URI(moMoConfig.getUrl()))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(jsonNode.toString()))
-                .build();
-
-        HttpClient httpClient = HttpClient.newHttpClient();
-        HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-
-        JsonNode responseNode = objectMapper.readTree(response.body());
-
-        if (responseNode.has("payUrl")) {
-            return responseNode.get("payUrl").asText();
-        } else {
-            throw new Exception("Lỗi khi kết nối MoMo: " + responseNode.toString());
-        }
-    }
-
-    private String createVNPayPayment(PaymentDTO paymentDTO, Order order, HttpServletRequest request) {
-        long vnp_Amount = paymentDTO.getAmount() * 100L;
-        Map<String, String> vnp_Params = new HashMap<>();
-        vnp_Params.put("vnp_Version", vnPayConfig.vnp_Version);
-        vnp_Params.put("vnp_Command", vnPayConfig.vnp_Command);
-        vnp_Params.put("vnp_TmnCode", vnPayConfig.getVnp_TmnCode());
-        vnp_Params.put("vnp_Amount", String.valueOf(vnp_Amount));
-        vnp_Params.put("vnp_CurrCode", "VND");
-
-        String bankCode = request.getParameter("bankCode");
-        if (bankCode != null && !bankCode.isEmpty()) {
-            vnp_Params.put("vnp_BankCode", bankCode);
-        }
-
-        vnp_Params.put("vnp_TxnRef", order.getId().toString());
-        vnp_Params.put("vnp_OrderInfo", paymentDTO.getOrderInfo());
-        vnp_Params.put("vnp_OrderType", "other");
-        vnp_Params.put("vnp_Locale", "vn");
-
-        vnp_Params.put("vnp_ReturnUrl", vnPayConfig.getVnp_ReturnUrl());
-        vnp_Params.put("vnp_IpAddr", vnPayConfig.getIpAddress(request));
-
-        Calendar cld = Calendar.getInstance(TimeZone.getTimeZone("Etc/GMT+7"));
-        SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMddHHmmss");
-        String vnp_CreateDate = formatter.format(cld.getTime());
-        vnp_Params.put("vnp_CreateDate", vnp_CreateDate);
-
-        cld.add(Calendar.MINUTE, 15);
-        String vnp_ExpireDate = formatter.format(cld.getTime());
-        vnp_Params.put("vnp_ExpireDate", vnp_ExpireDate);
-
-        List<String> fieldNames = new ArrayList<>(vnp_Params.keySet());
-        Collections.sort(fieldNames);
-        StringBuilder hashData = new StringBuilder();
-        StringBuilder query = new StringBuilder();
-        Iterator<String> itr = fieldNames.iterator();
-        while (itr.hasNext()) {
-            String fieldName = itr.next();
-            String fieldValue = vnp_Params.get(fieldName);
-            if ((fieldValue != null) && (fieldValue.length() > 0)) {
-                hashData.append(fieldName);
-                hashData.append('=');
-                hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII));
-                query.append(URLEncoder.encode(fieldName, StandardCharsets.US_ASCII));
-                query.append('=');
-                query.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII));
-                if (itr.hasNext()) {
-                    query.append('&');
-                    hashData.append('&');
-                }
-            }
-        }
-
-        String queryUrl = query.toString();
-        String vnp_SecureHash = vnPayConfig.hmacSHA512(vnPayConfig.getSecretKey(), hashData.toString());
-        queryUrl += "&vnp_SecureHash=" + vnp_SecureHash;
-
-        return vnPayConfig.getVnp_PayUrl() + "?" + queryUrl;
+        return gateway.process(paymentDTO, order, request);
     }
 
     @Transactional
@@ -355,7 +202,7 @@ public class PaymentService {
                             seatRepository.save(ticket.getSeat());
                         }
                         emailService.sendTicketEmail(order);
-                        return 1; // Success
+                        return 1;
                     } else {
                         order.setStatus(OrderStatus.CANCELLED);
                         if (order.getAppliedCoupon() != null) {
@@ -369,7 +216,7 @@ public class PaymentService {
                             ticketRepository.save(ticket);
                             seatRepository.save(ticket.getSeat());
                         }
-                        return 0; // Failed
+                        return 0;
                     }
                 }
             } catch (NumberFormatException e) {
@@ -440,7 +287,7 @@ public class PaymentService {
                             seatRepository.save(ticket.getSeat());
                         }
                         emailService.sendTicketEmail(order);
-                        return 1; // Success
+                        return 1;
                     } else {
                         order.setStatus(OrderStatus.CANCELLED);
                         if (order.getAppliedCoupon() != null) {
@@ -454,7 +301,7 @@ public class PaymentService {
                             ticketRepository.save(ticket);
                             seatRepository.save(ticket.getSeat());
                         }
-                        return 0; // Failed
+                        return 0;
                     }
                 }
                 return -1;
@@ -462,16 +309,15 @@ public class PaymentService {
                 return -1;
             }
         } else {
-            return -2; // Signature fail
+            return -2;
         }
     }
 
     private void awardPoints(Order order) {
         User user = order.getUser();
         if (user != null) {
-            // Award 1% of the total amount as points
             long pointsToAward = order.getTotalAmount().multiply(new BigDecimal("0.01")).longValue();
-            user.setLoyaltyPoints((user.getLoyaltyPoints() != null ? user.getLoyaltyPoints() : 0L) + pointsToAward);
+            user.addLoyaltyPoints(pointsToAward);
             userRepository.save(user);
         }
     }

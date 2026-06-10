@@ -1,7 +1,7 @@
 package com.pbl.pbl.controller;
 
 import com.pbl.pbl.dto.PaymentDTO;
-import com.pbl.pbl.service.PaymentService;
+import com.pbl.pbl.service.IPaymentService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +16,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PaymentController {
 
-    private final PaymentService paymentService;
+    private final IPaymentService paymentService;
 
     @Value("${app.frontend-url:http://localhost:5173}")
     private String frontendBaseUrl;

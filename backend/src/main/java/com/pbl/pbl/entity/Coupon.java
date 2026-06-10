@@ -11,10 +11,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Entity
 @Table(name = "coupons")
-public class Coupon {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Coupon extends BaseEntity {
 
     @Column(nullable = false, unique = true)
     private String code;

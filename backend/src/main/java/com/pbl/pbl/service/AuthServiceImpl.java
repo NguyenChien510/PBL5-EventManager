@@ -47,7 +47,7 @@ import com.pbl.pbl.repository.RoleRepository;
 import com.pbl.pbl.repository.UserRepository;
 
 @Service
-public class AuthService {
+public class AuthServiceImpl implements IAuthService {
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -79,22 +79,18 @@ public class AuthService {
     @Transactional
     public TokenResponse login(String email, String password) {
         try {
-            // Verify user exists
             User user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new InvalidCredentialsException());
 
-            // Authenticate (Spring Security uses the string passed to UserDetailsService)
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(email, password)
             );
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            // Generate tokens
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
             String accessToken = tokenProvider.generateAccessToken(userDetails);
             String refreshTokenValue = tokenProvider.generateRefreshToken();
 
-            // Save refresh token
             RefreshToken refreshToken = RefreshToken.builder()
                     .token(refreshTokenValue)
                     .user(user)
@@ -115,7 +111,6 @@ public class AuthService {
 
     @Transactional
     public TokenResponse refreshToken(String refreshTokenValue) {
-        // Find and validate refresh token
         RefreshToken refreshToken = refreshTokenRepository.findByToken(refreshTokenValue)
                 .orElseThrow(TokenException::notFound);
                 
@@ -126,7 +121,6 @@ public class AuthService {
 
         User user = refreshToken.getUser();
         
-        // Generate new tokens
         UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
                 .username(user.getEmail())
                 .password(user.getPassword())
@@ -137,7 +131,6 @@ public class AuthService {
         String newAccessToken = tokenProvider.generateAccessToken(userDetails);
         String newRefreshTokenValue = tokenProvider.generateRefreshToken();
 
-        // Replace refresh token
         refreshTokenRepository.delete(refreshToken);
         
         RefreshToken newRefreshToken = RefreshToken.builder()
@@ -162,12 +155,10 @@ public class AuthService {
 
     @Transactional
     public TokenResponse signup(SignUpDTO request) {
-        // Check for duplicate email
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             throw DuplicateResourceException.email(request.getEmail());
         }
 
-        // Determine role from request (default USER)
         String roleName = request.getRole();
         if (roleName == null || roleName.isBlank()) {
             roleName = "USER";
@@ -175,7 +166,6 @@ public class AuthService {
 
         final String normalizedRoleName = roleName.toUpperCase();
 
-        // Prevent registering as ADMIN via public signup
         if ("ADMIN".equals(normalizedRoleName)) {
             throw new InvalidCredentialsException();
         }
@@ -183,7 +173,6 @@ public class AuthService {
         Role userRole = roleRepository.findByName(normalizedRoleName)
                 .orElseThrow(() -> ResourceNotFoundException.role(normalizedRoleName));
                 
-        // Create new user
         User newUser = User.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
@@ -193,7 +182,6 @@ public class AuthService {
 
         userRepository.save(newUser);
 
-        // Generate tokens for auto-login
         UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
                 .username(newUser.getEmail())
                 .password(newUser.getPassword())
@@ -204,7 +192,6 @@ public class AuthService {
         String accessToken = tokenProvider.generateAccessToken(userDetails);
         String refreshTokenValue = tokenProvider.generateRefreshToken();
 
-        // Save refresh token
         RefreshToken refreshToken = RefreshToken.builder()
                 .token(refreshTokenValue)
                 .user(newUser)
@@ -260,13 +247,10 @@ public class AuthService {
                 name = (String) payload.get("name");
             }
 
-            // Look up the user by email
             User user = userRepository.findByEmail(email).orElseGet(() -> {
-                // Get default role
                 Role userRole = roleRepository.findByName("USER")
                         .orElseThrow(() -> ResourceNotFoundException.role("USER"));
 
-                // Create a new user with default random password
                 User newUser = User.builder()
                         .email(email)
                         .password(passwordEncoder.encode(UUID.randomUUID().toString()))
@@ -277,7 +261,6 @@ public class AuthService {
                 return userRepository.save(newUser);
             });
 
-            // Generate tokens
             UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
                     .username(user.getEmail())
                     .password(user.getPassword())
@@ -288,7 +271,6 @@ public class AuthService {
             String accessToken = tokenProvider.generateAccessToken(userDetails);
             String refreshTokenValue = tokenProvider.generateRefreshToken();
 
-            // Save refresh token
             RefreshToken refreshToken = RefreshToken.builder()
                     .token(refreshTokenValue)
                     .user(user)
@@ -305,5 +287,9 @@ public class AuthService {
         } catch (Exception e) {
             throw new InvalidCredentialsException();
         }
+    }
+
+    public String getGoogleClientId() {
+        return googleClientId;
     }
 }

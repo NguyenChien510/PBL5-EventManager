@@ -4,9 +4,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -23,11 +20,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @Entity
 @Table(name = "seats")
-public class Seat {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Seat extends BaseEntity {
 
     @ManyToOne
     @JoinColumn(name = "event_session_id", nullable = false)
@@ -48,4 +41,16 @@ public class Seat {
     private Double x;
 
     private Double y;
+
+    public void book() {
+        this.status = SeatStatus.BOOKED;
+    }
+
+    public void release() {
+        this.status = SeatStatus.AVAILABLE;
+    }
+
+    public boolean isAvailable() {
+        return this.status == SeatStatus.AVAILABLE;
+    }
 }

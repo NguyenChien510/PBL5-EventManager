@@ -18,7 +18,7 @@ import com.pbl.pbl.entity.TicketStatus;
 import com.pbl.pbl.entity.User;
 import com.pbl.pbl.repository.OrderRepository;
 import com.pbl.pbl.repository.UserRepository;
-import com.pbl.pbl.service.EventService;
+import com.pbl.pbl.service.IEventService;
 import org.springframework.security.core.Authentication;
 import java.util.Comparator;
 import java.util.stream.Collectors;
@@ -35,7 +35,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class OrganizerManagementController {
 
-    private final EventService eventService;
+    private final IEventService eventService;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
 

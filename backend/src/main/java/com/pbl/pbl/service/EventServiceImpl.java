@@ -49,7 +49,7 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-public class EventService {
+public class EventServiceImpl implements IEventService {
 
     private final EventRepository eventRepository;
     private final EventSessionRepository eventSessionRepository;
@@ -155,7 +155,7 @@ public class EventService {
             java.util.List<EventStatus> statuses = new java.util.ArrayList<>();
             statuses.add(status);
             if (status == EventStatus.upcoming) {
-                statuses.add(EventStatus.sold_out); // Logically upcoming also includes sold out for managing
+                statuses.add(EventStatus.sold_out);
             }
 
             if (hasKeyword) {
@@ -213,7 +213,7 @@ public class EventService {
             }
             event.setRejectReason(rejectReason);
         } else {
-            event.setRejectReason(null); // Clear reason if it's no longer rejected
+            event.setRejectReason(null);
         }
 
         event.setStatus(status);
@@ -414,7 +414,6 @@ public class EventService {
                     .orElse(null);
         }
 
-        // Calculate outer time range
         LocalDateTime eventStart = request.getSessions().stream()
                 .map(s -> LocalDateTime.of(s.getSessionDate(), s.getStartTime()))
                 .min(LocalDateTime::compareTo).orElse(LocalDateTime.now());
@@ -473,7 +472,6 @@ public class EventService {
 
             session = eventSessionRepository.save(session);
 
-            // Create TicketTypes for this session
             Map<String, TicketType> ticketTypeMap = new HashMap<>();
             for (TicketTypeRequestDTO ttReq : request.getTicketTypes()) {
                 TicketType tt = TicketType.builder()
@@ -487,11 +485,9 @@ public class EventService {
                 ticketTypeMap.put(tt.getName(), tt);
             }
 
-            // Generate Seats
             boolean hasSeatMap = request.getHasSeatMap() == null ? true : request.getHasSeatMap();
             java.util.Map<String, Integer> generatedCountMap = new java.util.HashMap<>();
 
-            // 1. Save physically mapped seats
             if (hasSeatMap && request.getSeatMapConfig() != null && request.getSeatMapConfig().getSeats() != null) {
                 for (com.pbl.pbl.dto.SeatRequestDTO seatReq : request.getSeatMapConfig().getSeats()) {
                     TicketType tt = ticketTypeMap.get(seatReq.getTicketTypeName());
@@ -510,7 +506,6 @@ public class EventService {
                 }
             }
 
-            // 2. Generate virtual seats for any remaining quantity (Standing Zones / GA)
             for (TicketType tt : ticketTypeMap.values()) {
                 int currentGenerated = generatedCountMap.getOrDefault(tt.getName(), 0);
                 int totalNeeded = tt.getTotalQuantity() != null ? tt.getTotalQuantity() : 0;
@@ -529,8 +524,6 @@ public class EventService {
             }
         }
 
-        // Bulk save all accumulated seats across all sessions
-        // Bulk save all accumulated seats using lightning-fast native JDBC batch updates
         if (!seatsToSave.isEmpty()) {
             jdbcTemplate.batchUpdate(
                 "INSERT INTO seats (event_session_id, ticket_type_id, seat_number, status, x, y) VALUES (?, ?, ?, ?, ?, ?)",
@@ -553,7 +546,6 @@ public class EventService {
             );
         }
 
-        // Finalize event summaries
         int totalTicketsCount = request.getTicketTypes().stream()
                 .mapToInt(tt -> (tt.getTotalQuantity() != null ? tt.getTotalQuantity() : 0))
                 .sum() * request.getSessions().size();
@@ -720,7 +712,6 @@ public class EventService {
         com.pbl.pbl.entity.Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new RuntimeException("Ticket not found"));
         
-        // Prevent undoing check-in
         if (ticket.getStatus() == com.pbl.pbl.entity.TicketStatus.CHECKED_IN) {
             throw new RuntimeException("Vé này đã được check-in và không thể hoàn tác");
         }

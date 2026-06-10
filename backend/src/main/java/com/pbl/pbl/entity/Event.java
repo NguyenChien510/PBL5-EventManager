@@ -10,9 +10,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
@@ -30,11 +27,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @Entity
 @Table(name = "events")
-public class Event {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Event extends BaseEntity {
 
     @org.hibernate.annotations.CreationTimestamp
     @Column(updatable = false)

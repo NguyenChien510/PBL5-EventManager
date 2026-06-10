@@ -15,7 +15,7 @@ import com.pbl.pbl.dto.TokenResponse;
 import com.pbl.pbl.dto.SignInDTO;
 import com.pbl.pbl.dto.SignUpDTO;
 import com.pbl.pbl.dto.GoogleLoginDTO;
-import com.pbl.pbl.service.AuthService;
+import com.pbl.pbl.service.IAuthService;
 import com.pbl.pbl.util.CookieUtil;
 
 import jakarta.validation.Valid;
@@ -27,7 +27,7 @@ import lombok.RequiredArgsConstructor;
 @Validated
 public class AuthController {
 
-    private final AuthService authService;
+    private final IAuthService authService;
 
     private static final String REFRESH_TOKEN_COOKIE = "refreshToken";
 
